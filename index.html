@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PECVS$ — Director Hub v1.0.0</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #020617;
+            --panel: #0f172a;
+            --panel2: #1e293b;
+            --gold: #d4af37;
+            --gold-l: #fef08a;
+            --white: #f8fafc;
+            --slate: #94a3b8;
+            --border: rgba(212, 175, 55, 0.2);
+            --green: #10b981;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --blue: #3b82f6;
+            --teal: #06b6d4;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        html,
+        body {
+            background: var(--bg);
+            color: var(--white);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            transition: .5s;
+        }
+
+        .login-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 24px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-card h1 {
+            font-family: 'Playfair Display', serif;
+            color: var(--gold);
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .login-card p {
+            color: var(--slate);
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 1500px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-left h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 30px;
+            margin: 0;
+            background: linear-gradient(90deg, var(--white), var(--gold));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-left p {
+            margin: 4px 0 0;
+            font-size: 12px;
+            color: var(--slate);
+        }
+
+        .header-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* BUTTONS */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 18px;
+            border-radius: 6px;
+            border: 1px solid var(--gold);
+            background: rgba(15, 23, 42, .8);
+            color: var(--gold-l);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .25s;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background: var(--gold);
+            color: var(--bg);
+        }
+
+        .btn.active {
+            background: var(--gold);
+            color: var(--bg);
+        }
+
+        .btn-green {
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .btn-green:hover {
+            background: var(--green);
+            color: #fff;
+        }
+
+        .btn-red {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-red:hover {
+            background: var(--red);
+            color: #fff;
+        }
+
+        .btn-blue {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        .btn-blue:hover {
+            background: var(--blue);
+            color: #fff;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 11px;
+        }
+
+        /* TABS NAV */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
+        }
+
+        .tab-btn {
+            padding: 11px 22px;
+            font-size: 13px;
+            font-weight: 600;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--slate);
+            cursor: pointer;
+            transition: .2s;
+            margin-bottom: -1px;
+        }
+
+        .tab-btn:hover {
+            color: var(--white);
+        }
+
+        .tab-btn.active {
+            color: var(--gold);
+            border-bottom-color: var(--gold);
+        }
+
+        /* PANELS */
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            position: relative;
+        }
+
+        .card-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--gold);
+            font-weight: 800;
+            margin: 0 0 18px;
+        }
+
+        /* FORM ELEMENTS */
+        label.field-label {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--slate);
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        input[type=text],
+        input[type=number],
+        select,
+        textarea {
+            background: rgba(2, 6, 23, .6);
+            border: 1px solid rgba(255, 255, 255, .1);
+            color: var(--white);
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: .2s;
+            width: 100%;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, .1);
+        }
+
+        select option {
+            background: var(--panel);
+        }
+
+        /* CONFIG PANEL */
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .agent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        /* BITACORA STYLE REMOVED */
+
+        /* LEADERBOARD */
+        .lb-filters {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .lb-filters select {
+            width: auto;
+            min-width: 160px;
+        }
+
+        .lb-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+
+        .lb-table th {
+            padding: 13px 10px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--gold);
+            background: rgba(0, 0, 0, .2);
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .lb-table td {
+            padding: 11px 10px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+            text-align: center;
+        }
+
+        .lb-table tbody tr:hover {
+            background: rgba(255, 255, 255, .02);
+        }
+
+        .lb-table tfoot tr {
+            background: rgba(212, 175, 55, .08);
+            border-top: 2px solid var(--gold);
+        }
+
+        .lb-table tfoot td {
+            color: var(--gold-l);
+            font-weight: 700;
+            padding: 13px 10px;
+        }
+
+        .rank-num {
+            font-weight: 800;
+            color: var(--slate);
+            font-size: 12px;
+        }
+
+        .agent-name-cell {
+            font-weight: 600;
+            text-align: left !important;
+        }
+
+        .ratio-cell {
+            font-family: 'Inter', monospace;
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+        }
+
+        /* CHARTS */
+        .charts-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .charts-controls select {
+            width: auto;
+            min-width: 180px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .chart-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .chart-card.full {
+            grid-column: 1/-1;
+        }
+
+        .chart-card h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--gold-l);
+            margin: 0 0 16px;
+        }
+
+        .chart-wrap {
+            height: 280px;
+            position: relative;
+        }
+
+        /* SECTION DIVIDER */
+        .section-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--gold);
+            font-weight: 800;
+            margin: 0 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* MODAL */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, .9);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--panel);
+            border: 1px solid var(--gold);
+            border-radius: 12px;
+            padding: 36px;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+        }
+
+        .modal-box h2 {
+            margin: 0 0 20px;
+            font-family: 'Playfair Display', serif;
+            color: var(--gold);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            background: none;
+            border: none;
+            color: var(--white);
+            font-size: 26px;
+            cursor: pointer;
+        }
+
+        /* MISC */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--slate);
+        }
+
+        .empty-state i {
+            font-size: 40px;
+            margin-bottom: 14px;
+            display: block;
+            opacity: .3;
+        }
+
+        .info-box {
+            background: rgba(6, 182, 212, .06);
+            border: 1px solid rgba(6, 182, 212, .2);
+            border-radius: 8px;
+            padding: 14px 18px;
+            font-size: 12px;
+            color: var(--teal);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        .tab-panel.active {
+            animation: fadeIn .3s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-card">
+            <div style="font-size: 50px; margin-bottom: 20px;">📊</div>
+            <h1>PECVS$ Director Hub</h1>
+            <p>Vincúlate con tus promotores para monitorear el desempeño global de toda la cadena (Promotores ➔ Coaches
+                ➔ Agentes).</p>
+            <button id="login-btn" class="btn btn-blue"
+                style="width:100%; justify-content:center; padding:15px; border-radius:12px;">
+                <i class="fa-brands fa-google"></i> Continuar con Google
+            </button>
+            <div style="margin-top: 25px; font-size: 11px; color: var(--slate); opacity: 0.6;">
+                v1.0.0 — Dashboard de Promotoría
+            </div>
+        </div>
+    </div>
+
+    <div class="app">
+
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-left">
+                <h1><i class="fa-solid fa-crown" style="font-size:22px;margin-right:10px;"></i>Director Hub
+                    <small style="font-size:10px; color:var(--slate);">v1.0.0</small>
+                </h1>
+                <p id="director-display">Director: —</p>
+                <p id="dircode-display" style="font-size:10px; color:var(--gold); font-weight:700;">Código: —</p>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-sm" onclick="openConfig()"><i class="fa fa-cog"></i> Configuración</button>
+                <button id="logout-btn" class="btn btn-red btn-sm" onclick="logout()"><i class="fa fa-sign-out"></i>
+                    Salir</button>
+            </div>
+        </div>
+
+        <!-- TAB NAV -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('leaderboard',this)"><i class="fa fa-table"></i>
+                Leaderboard / Ratios</button>
+            <button class="tab-btn" onclick="switchTab('kpis',this)"><i class="fa fa-chart-column"></i> KPIs
+                (Barras)</button>
+            <button class="tab-btn" onclick="switchTab('charts',this)"><i class="fa fa-chart-area"></i>
+                Tendencias</button>
+            <button class="tab-btn" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes
+                Coaches</button>
+        </div>
+
+        <!-- ═══════════════════════════════ TAB: LEADERBOARD ═══════════════════════════════ -->
+        <div id="tab-leaderboard" class="tab-panel active">
+            <div class="card">
+                <div class="lb-filters">
+                    <div>
+                        <label class="field-label">Filtrar por mes</label>
+                        <select id="lb-mes-filter" onchange="renderLeaderboard()">
+                            <option value="">Todos los meses</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Semana</label>
+                        <select id="lb-sem-filter" onchange="renderLeaderboard()">
+                            <option value="">Todas las semanas</option>
+                            <option value="1">Semana 1</option>
+                            <option value="2">Semana 2</option>
+                            <option value="3">Semana 3</option>
+                            <option value="4">Semana 4</option>
+                            <option value="5">Semana 5</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Promotor</label>
+                        <select id="lb-prom-filter" onchange="renderLeaderboard()">
+                            <option value="">Todos los promotores</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Equipo Coach</label>
+                        <select id="lb-team-filter" onchange="renderLeaderboard()">
+                            <option value="">Todos los equipos</option>
+                        </select>
+                    </div>
+                    <div style="margin-top:18px;">
+                        <button class="btn btn-sm"
+                            onclick="document.getElementById('lb-mes-filter').value='';document.getElementById('lb-sem-filter').value='';renderLeaderboard()"><i
+                                class="fa fa-filter-circle-xmark"></i>Quitar filtros</button>
+                        <button id="btn-tog-red" class="btn btn-sm" onclick="toggleRed()">
+                            <i class="fa fa-eye"></i> Ver Conciliación Real
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="lb-table">
+                        <thead id="lb-thead"></thead>
+                        <tbody id="lb-body">
+                            <tr class="no-data-row">
+                                <td colspan="17">No hay datos.</td>
+                            </tr>
+                        </tbody>
+                        <tfoot id="lb-foot"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════ TAB: KPIs ═══════════════════════════════ -->
+        <div id="tab-kpis" class="tab-panel">
+            <div class="card">
+                <div class="charts-controls">
+                    <div>
+                        <label class="field-label">Mes</label>
+                        <select id="kpi-mes-sel" onchange="renderKPIs()">
+                            <option value="">Todos los meses</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Promotor</label>
+                        <select id="kpi-prom-sel" onchange="renderKPIs()">
+                            <option value="">Todos los promotores</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Equipo Coach</label>
+                        <select id="kpi-team-sel" onchange="renderKPIs()">
+                            <option value="">Todos los equipos</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card full">
+                        <h3><i class="fa fa-star"></i> Prima Neta Total por Agente ($)</h3>
+                        <div class="chart-wrap"><canvas id="kpiPrima"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-users"></i> Contactos (P) vs Cierres (V)</h3>
+                        <div class="chart-wrap"><canvas id="kpiVolumen"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-bullseye"></i> % Eficiencia: Conversión de P ➔ V</h3>
+                        <div class="chart-wrap"><canvas id="kpiEfectividad"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-money-bill-trend-up"></i> $/V — Prima por Cierre</h3>
+                        <div class="chart-wrap"><canvas id="kpiPrimaV"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-file-circle-check"></i> $/S — Prima por Solicitud</h3>
+                        <div class="chart-wrap"><canvas id="kpiPrimaS"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════ TAB: TENDENCIAS ═══════════════════════════════ -->
+        <div id="tab-charts" class="tab-panel">
+            <div class="card">
+                <div class="charts-controls">
+                    <div>
+                        <label class="field-label">Promotor</label>
+                        <select id="chart-prom-sel" onchange="refreshTeamSelects(); renderCharts()">
+                            <option value="">Todos los promotores</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Equipo Coach</label>
+                        <select id="chart-team-sel" onchange="refreshAgentSelects(); renderCharts()">
+                            <option value="">Todos los equipos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Agente</label>
+                        <select id="chart-agent-sel" onchange="renderCharts()">
+                            <option value="__all__">Todos los agentes</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Mes</label>
+                        <select id="chart-mes-sel" onchange="renderCharts()">
+                            <option value="">Todos los meses</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card full">
+                        <h3><i class="fa fa-chart-line"></i> Histórico de Volumen (P, E, C, V, S)</h3>
+                        <div class="chart-wrap"><canvas id="chartVolume"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-sack-dollar"></i> Histórico de Prima ($ Neta)</h3>
+                        <div class="chart-wrap"><canvas id="chartPrima"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-arrow-up-right-dots"></i> Ratios de Conversión (P➔E, E➔C, C➔V)</h3>
+                        <div class="chart-wrap"><canvas id="chartRatios"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-gauge-high"></i> Tasa de Efectividad Automática (P➔V, P➔S)</h3>
+                        <div class="chart-wrap"><canvas id="chartEfectividad"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-coins"></i> Prima promedio por cierre ($/V) y por solicitud ($/S)</h3>
+                        <div class="chart-wrap"><canvas id="chartPrimaRatios"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ TAB: REPORTE MENSUAL ═══════════════════ -->
+        <div id="tab-reporte" class="tab-panel">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <div style="display:flex; gap:14px; align-items:center;">
+                        <p class="card-title" style="margin:0;"><i class="fa fa-file-contract"></i> Reportes Mensuales</p>
+                        <div style="min-width:180px;">
+                            <select id="rpt-prom-sel" onchange="refreshTeamSelects(); renderReporteHistory()" style="padding:6px 10px; font-size:11px;">
+                                <option value="">Todos los promotores</option>
+                            </select>
+                        </div>
+                        <div style="min-width:180px;">
+                            <select id="rpt-team-sel" onchange="renderReporteHistory()"
+                                style="padding:6px 10px; font-size:11px;">
+                                <option value="">Todos los equipos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm"
+                        onclick="document.getElementById('modal-reporte-log').classList.add('open')">
+                        <i class="fa fa-list"></i> Ver Historial de Reportes
+                    </button>
+                </div>
+                <div id="promotor-reporte-view">
+                    <div class="empty-state">
+                        <i class="fa fa-file-invoice"></i> Selecciona un reporte del historial para visualizarlo.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOG REPORTE MODAL -->
+        <div class="modal-overlay" id="modal-reporte-log">
+            <div class="modal-box" style="max-width:800px;">
+                <button class="modal-close"
+                    onclick="document.getElementById('modal-reporte-log').classList.remove('open')">&times;</button>
+                <h2><i class="fa fa-folder-open"></i> Log de Reportes de Coaches</h2>
+                <div id="rpt-history" style="margin-top:16px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="empty-state">No hay reportes de coaches aún.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONFIG MODAL -->
+        <div class="modal-overlay" id="config-modal">
+            <div class="modal-box">
+                <button class="modal-close" onclick="closeConfig()">&times;</button>
+                <h2><i class="fa fa-cog"></i> Configuración Promotor</h2>
+                <div style="display:flex;flex-direction:column;gap:20px;">
+                    <div>
+                        <label class="field-label">Nombre del Director</label>
+                        <input type="text" id="inp-director" placeholder="Tu nombre">
+                    </div>
+                    <div>
+                        <label class="field-label">Código de Promotoría</label>
+                        <input type="text" id="inp-promocode" placeholder="Ej. PROM-CENTRO-1">
+                        <p style="font-size:10px; color:var(--slate); margin-top:5px;">Este código es el que tus coaches
+                            deben ingresar en su app para que puedas ver sus datos.</p>
+                    </div>
+                    <div>
+                        <label class="field-label">Código de Director</label>
+                        <input type="text" id="inp-dircode" placeholder="Ej. DIR-NORTH-1">
+                        <p style="font-size:10px; color:var(--slate); margin-top:5px;">Ingresa el código que te dio tu
+                            director para compartirle tus datos.</p>
+                    </div>
+                    <div>
+                        <p class="section-label">Promotores Vinculados</p>
+                        <div class="agent-list" id="promotor-list"></div>
+                    </div>
+                    <button class="btn btn-green" onclick="saveConfigDirector()"><i class="fa fa-floppy-disk"></i>
+                        Guardar configuración</button>
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+            // --- FIREBASE CONFIG ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyCnhYA0Jq-1_b6nqQVx3BN47WXgg2YEDxs",
+                authDomain: "pecvs-testnet.firebaseapp.com",
+                projectId: "pecvs-testnet",
+                storageBucket: "pecvs-testnet.firebasestorage.app",
+                messagingSenderId: "76206458151",
+                appId: "1:76206458151:web:464559030e00d060c11502"
+            };
+
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+            import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+            import { getFirestore, doc, setDoc, getDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            const provider = new GoogleAuthProvider();
+
+            // ─── STATE ───────────────────────────────────────────────────────────────────
+            const COLS = ['P', 'E', 'C', 'V', 'S'];
+            const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+            let state = { directorName: '', directorCode: '', promotores: [], promotorCodes: [], promotorMap: {}, coaches: [], teamCodes: [], coachMap: {}, teamToPromotorMap: {}, agents: [], entries: [], reportes: [] };
+            let user = null;
+            let unsubPromotores = null;
+            let unsubCoaches = null;
+            let unsubAgents = null;
+
+            // ─── AUTH LOGIC ──────────────────────────────────────────────────────────────
+            document.getElementById('login-btn').addEventListener('click', () => {
+                signInWithPopup(auth, provider).catch(err => alert("Error login: " + err.message));
+            });
+
+            window.logout = function () {
+                if (confirm("¿Cerrar sesión?")) signOut(auth);
+            };
+
+            onAuthStateChanged(auth, async (u) => {
+                if (u) {
+                    user = u;
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    await loadDirectorData();
+                } else {
+                    user = null;
+                    document.getElementById('login-overlay').classList.remove('hidden');
+                }
+            });
+
+            async function loadDirectorData() {
+                if (!user) return;
+                const docRef = doc(db, "directores", user.email);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    state.directorName = data.directorName || '';
+                    state.directorCode = data.directorCode || '';
+                    refreshAll();
+                    startListeningPromotores();
+                } else {
+                    state.directorName = user.displayName;
+                    openConfig();
+                }
+            }
+
+            async function saveDirectorData() {
+                if (!user) return;
+                await setDoc(doc(db, "directores", user.email), {
+                    directorName: state.directorName,
+                    directorCode: state.directorCode
+                });
+            }
+
+            function startListeningPromotores() {
+                if (unsubPromotores) unsubPromotores();
+                if (!state.directorCode) return;
+
+                const q = query(collection(db, "promotores"), where("directorCode", "==", state.directorCode));
+                unsubPromotores = onSnapshot(q, (snapshot) => {
+                    const promotores = [];
+                    const pCodes = [];
+                    const pMap = {};
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        promotores.push(data.promotorName || 'Sin Nombre');
+                        if (data.promotorCode) {
+                            pCodes.push(data.promotorCode);
+                            pMap[data.promotorCode] = data.promotorName;
+                        }
+                    });
+                    state.promotores = promotores;
+                    state.promotorCodes = pCodes;
+                    state.promotorMap = pMap;
+                    renderPromotorList();
+                    refreshPromotorSelects();
+                    startListeningCoaches();
+                });
+            }
+
+            function startListeningCoaches() {
+                if (unsubCoaches) unsubCoaches();
+                if (!state.promotorCodes.length) {
+                    state.coaches = [];
+                    state.teamCodes = [];
+                    startListeningAgents();
+                    return;
+                }
+
+                const q = query(collection(db, "coaches"), where("promotorCode", "in", state.promotorCodes.slice(0, 30)));
+                unsubCoaches = onSnapshot(q, (snapshot) => {
+                    const allCoaches = [];
+                    const allTeamCodes = [];
+                    const coachMap = {};
+                    const tToP = {};
+                    const allAggregatedReportes = [];
+
+                    snapshot.forEach((doc) => {
+                        const coachData = doc.data();
+                        const cName = coachData.coachName || 'Sin Nombre';
+                        allCoaches.push(cName);
+                        if (coachData.teamCode) {
+                            allTeamCodes.push(coachData.teamCode);
+                            coachMap[coachData.teamCode] = cName;
+                            tToP[coachData.teamCode] = coachData.promotorCode;
+                        }
+                        if (coachData.reportes) {
+                            coachData.reportes.forEach(r => {
+                                r.coachName = cName;
+                                r.promotorCode = coachData.promotorCode;
+                                allAggregatedReportes.push(r);
+                            });
+                        }
+                    });
+
+                    state.coaches = allCoaches;
+                    state.teamCodes = allTeamCodes;
+                    state.coachMap = coachMap;
+                    state.teamToPromotorMap = tToP;
+                    state.reportes = allAggregatedReportes;
+
+                    refreshTeamSelects();
+                    startListeningAgents();
+                });
+            }
+
+            function startListeningAgents() {
+                if (unsubAgents) unsubAgents();
+                if (!state.teamCodes.length) {
+                    state.agents = [];
+                    state.entries = [];
+                    refreshAll();
+                    return;
+                }
+
+                const q = query(collection(db, "users"), where("teamCode", "in", state.teamCodes.slice(0, 30)));
+                unsubAgents = onSnapshot(q, (snapshot) => {
+                    const allEntries = [];
+                    const allAgents = [];
+                    snapshot.forEach((doc) => {
+                        const agentData = doc.data();
+                        if (agentData.agentName) {
+                            allAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode });
+                            if (agentData.entries) {
+                                agentData.entries.forEach(e => {
+                                    e.agent = agentData.agentName;
+                                    e.teamCode = agentData.teamCode;
+                                    allEntries.push(e);
+                                });
+                            }
+                        }
+                    });
+                    state.agents = allAgents;
+                    state.entries = allEntries;
+                    refreshAll();
+                });
+            }
+
+            function refreshAll() {
+                document.getElementById('director-display').textContent = 'Director: ' + (state.directorName || '—');
+                document.getElementById('dircode-display').textContent = 'Código: ' + (state.directorCode || '—');
+                refreshPromotorSelects();
+                refreshTeamSelects();
+                refreshAgentSelects();
+                renderLeaderboard();
+                renderCharts();
+                renderKPIs();
+                refreshMonthFilters();
+                renderReporteHistory();
+            }
+
+            function switchTab(name, btn) {
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById('tab-' + name).classList.add('active');
+                btn.classList.add('active');
+                if (name === 'charts') renderCharts();
+                if (name === 'kpis') renderKPIs();
+                if (name === 'leaderboard') renderLeaderboard();
+                if (name === 'reporte') renderReporteHistory();
+            }
+
+            function openConfig() {
+                document.getElementById('inp-director').value = state.directorName || '';
+                document.getElementById('inp-dircode').value = state.directorCode || '';
+                renderPromotorList();
+                document.getElementById('config-modal').classList.add('open');
+            }
+
+            function closeConfig() { document.getElementById('config-modal').classList.remove('open'); }
+
+            async function saveConfigDirector() {
+                const name = document.getElementById('inp-director').value.trim();
+                const code = document.getElementById('inp-dircode').value.trim().toUpperCase();
+                if (!name || !code) return alert("Por favor ingresa nombre y código.");
+
+                state.directorName = name;
+                state.directorCode = code;
+                await saveDirectorData();
+                alert("Configuración guardada.");
+                closeConfig();
+                refreshAll();
+                startListeningPromotores();
+            }
+
+            function renderPromotorList() {
+                const el = document.getElementById('promotor-list');
+                if (!el) return;
+                if (!state.promotores.length) { el.innerHTML = '<div style="color:var(--slate);font-size:11px;">No hay promotores vinculados aún.</div>'; return; }
+                el.innerHTML = state.promotores.map(p => `<div class="agent-chip"><span><i class="fa fa-crown" style="margin-right:8px; color:var(--gold)"></i>${p}</span></div>`).join('');
+            }
+
+            function refreshPromotorSelects() {
+                const ids = ['lb-prom-filter', 'kpi-prom-sel', 'chart-prom-sel', 'rpt-prom-sel'];
+                const opts = Object.entries(state.promotorMap).map(([code, name]) => `<option value="${code}">${name}</option>`).join('');
+                ids.forEach(id => {
+                    const el = document.getElementById(id); if (!el) return;
+                    const cur = el.value;
+                    el.innerHTML = '<option value="">Todos los promotores</option>' + opts;
+                    el.value = cur;
+                });
+            }
+
+            function refreshTeamSelects() {
+                const ids = ['lb-team-filter', 'kpi-team-sel', 'chart-team-sel', 'rpt-team-sel'];
+                const promF = document.getElementById('chart-prom-sel').value; // Basic anchor
+
+                const filteredCodes = Object.keys(state.coachMap).filter(tc => !promF || state.teamToPromotorMap[tc] === promF);
+                const opts = filteredCodes.map(code => `<option value="${code}">${state.coachMap[code]}</option>`).join('');
+
+                ids.forEach(id => {
+                    const el = document.getElementById(id); if (!el) return;
+                    const cur = el.value;
+                    el.innerHTML = '<option value="">Todos los equipos</option>' + opts;
+                    if (filteredCodes.includes(cur)) el.value = cur; else el.value = '';
+                });
+            }
+
+            function refreshAgentSelects() {
+                const teamF = document.getElementById('chart-team-sel').value;
+                let filteredAgents = state.agents;
+                if (teamF) filteredAgents = state.agents.filter(a => a.teamCode === teamF);
+
+                const opts = filteredAgents.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+                const sel = document.getElementById('chart-agent-sel');
+                if (sel) {
+                    const cur = sel.value;
+                    sel.innerHTML = '<option value="__all__">Todos los agentes</option>' + opts;
+                    if (filteredAgents.find(a => a.name === cur) || cur === '__all__') sel.value = cur;
+                    else sel.value = '__all__';
+                }
+            }
+
+            function refreshMonthFilters() {
+                const meses = [...new Set(state.entries.map(e => e.mes))];
+                const opts = meses.map(m => `<option value="${m}">${m}</option>`).join('');
+                ['lb-mes-filter', 'chart-mes-sel', 'kpi-mes-sel'].forEach(id => {
+                    const el = document.getElementById(id); if (!el) return;
+                    const cur = el.value;
+                    el.innerHTML = '<option value="">Todos los meses</option>' + opts;
+                    if (meses.includes(cur)) el.value = cur;
+                });
+            }
+
+            // ─── LEADERBOARD ──────────────────────────────────────────────────────────────
+            function ratio(a, b) { return b > 0 ? (a / b).toFixed(2) : '—'; }
+            let showRedData = false;
+            function toggleRed() {
+                showRedData = !showRedData;
+                renderLeaderboard();
+                const btn = document.getElementById('btn-tog-red');
+                btn.innerHTML = showRedData ? '<i class="fa fa-eye-slash"></i> Ocultar Conciliación' : '<i class="fa fa-eye"></i> Ver Conciliación Real';
+                btn.classList.toggle('btn-red', showRedData);
+            }
+
+            function validateDay(d) {
+                if (d.P === 0 && d.E === 0 && d.C === 0 && d.V === 0 && d.S === 0 && d.prima === 0) return { ok: true, errors: [] };
+                const errors = [];
+                if (d.P < d.E) errors.push("P < E");
+                if (d.E < d.C) errors.push("E < C");
+                if (d.C < d.V) errors.push("C < V");
+                if (d.S < d.V) errors.push("S < V");
+                if (d.V === 0 && d.S > 0) errors.push("S>0 requiere V>=1");
+                if (d.S > 0 && d.prima < 1) errors.push("Requiere Prima");
+                return { ok: errors.length === 0, errors };
+            }
+
+            function renderLeaderboard() {
+                const mesF = document.getElementById('lb-mes-filter').value;
+                const semF = document.getElementById('lb-sem-filter').value;
+                const promF = document.getElementById('lb-prom-filter').value;
+                const teamF = document.getElementById('lb-team-filter').value;
+                let filtered = state.entries.filter(e => (!mesF || e.mes === mesF) && (!semF || e.semana == semF) && (!promF || state.teamToPromotorMap[e.teamCode] === promF) && (!teamF || e.teamCode === teamF));
+
+                const agMap = {};
+                filtered.forEach(e => {
+                    if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
+                    e.dias.forEach(d => {
+                        const { ok } = validateDay(d);
+                        if (ok) {
+                            agMap[e.agent].P += d.P; agMap[e.agent].E += d.E; agMap[e.agent].C += d.C;
+                            agMap[e.agent].V += d.V; agMap[e.agent].S += d.S; agMap[e.agent].prima += d.prima;
+                        } else {
+                            agMap[e.agent].redS += d.S; agMap[e.agent].redPrima += d.prima;
+                        }
+                    });
+                });
+
+                const agents = Object.keys(agMap);
+                const thead = document.getElementById('lb-thead');
+                const tbody = document.getElementById('lb-body');
+                const tfoot = document.getElementById('lb-foot');
+
+                if (!agents.length) {
+                    tbody.innerHTML = `<tr class="no-data-row"><td colspan="17">No hay datos.</td></tr>`;
+                    tfoot.innerHTML = ''; return;
+                }
+
+                thead.innerHTML = `
+                <tr>
+                    <th rowspan="2">#</th><th rowspan="2">Agente</th>
+                    <th colspan="5" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Volumen PECVS$</th>
+                    <th colspan="4" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Ratios Jerarquía</th>
+                    <th colspan="2" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Ratios Efectividad</th>
+                    <th colspan="1" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Financiero</th>
+                    ${showRedData ? `<th colspan="3" style="border-left:2px solid var(--red);border-bottom:1px solid var(--red);background:rgba(239,68,68,0.1)">CONCILIACIÓN REAL (🔴 + 🟢)</th>` : ''}
+                </tr>
+                <tr>
+                    <th style="border-left:2px solid #475569">P</th><th>E</th><th>C</th><th>V</th><th>S</th>
+                    <th style="border-left:2px solid #475569">P/E</th><th>E/C</th><th>C/V</th><th>S/V</th>
+                    <th style="border-left:2px solid #475569">P/V</th><th>P/S</th>
+                    <th style="border-left:2px solid #475569">Prima Neta</th>
+                    ${showRedData ? `<th style="border-left:2px solid var(--red);color:var(--red)">S (R)</th><th style="color:var(--red)">$ (R)</th><th style="border-left:1px solid var(--red);color:var(--gold)">$ TOTAL</th>` : ''}
+                </tr>`;
+
+                agents.sort((a, b) => agMap[b].prima - agMap[a].prima);
+                tbody.innerHTML = agents.map((ag, i) => {
+                    const d = agMap[ag];
+                    const pF = d.prima.toLocaleString('es-MX', { minimumFractionDigits: 0 });
+                    return `<tr>
+                    <td class="rank-num">${i + 1}</td><td class="agent-name-cell">${ag}</td>
+                    <td style="border-left:2px solid #475569">${d.P}</td><td>${d.E}</td><td>${d.C}</td><td>${d.V}</td><td>${d.S}</td>
+                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratio(d.E, d.P)}</td><td>${ratio(d.C, d.E)}</td><td>${ratio(d.V, d.C)}</td><td>${ratio(d.S, d.V)}</td>
+                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratio(d.V, d.P)}</td><td>${ratio(d.S, d.P)}</td>
+                    <td style="font-weight:700;color:var(--green);border-left:2px solid #475569">$${pF}</td>
+                    ${showRedData ? `<td style="border-left:2px solid var(--red);color:var(--red)">${d.redS}</td><td>$${d.redPrima.toLocaleString()}</td><td style="font-weight:700;color:var(--gold)">$${(d.prima + d.redPrima).toLocaleString()}</td>` : ''}
+                </tr>`;
+                }).join('');
+
+                const tot = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
+                agents.forEach(ag => { COLS.forEach(c => tot[c] += agMap[ag][c]); tot.prima += agMap[ag].prima; tot.redS += agMap[ag].redS; tot.redPrima += agMap[ag].redPrima; });
+                tfoot.innerHTML = `<tr>
+                <td></td><td style="text-align:left;font-weight:800;">TOTAL EQUIPO</td>
+                <td style="border-left:2px solid #475569">${tot.P}</td><td>${tot.E}</td><td>${tot.C}</td><td>${tot.V}</td><td>${tot.S}</td>
+                <td style="border-left:2px solid #475569">${ratio(tot.E, tot.P)}</td><td>${ratio(tot.C, tot.E)}</td><td>${ratio(tot.V, tot.C)}</td><td>${ratio(tot.S, tot.V)}</td>
+                <td style="border-left:2px solid #475569">${ratio(tot.V, tot.P)}</td><td>${ratio(tot.S, tot.P)}</td>
+                <td style="font-weight:800;color:var(--gold);border-left:2px solid #475569">$${tot.prima.toLocaleString()}</td>
+                ${showRedData ? `<td style="border-left:2px solid var(--red);color:var(--red)">${tot.redS}</td><td>$${tot.redPrima.toLocaleString()}</td><td style="color:var(--gold);font-weight:800">$${(tot.prima + tot.redPrima).toLocaleString()}</td>` : ''}
+                </tr>`;
+            }
+
+            // ─── CHARTS ──────────────────────────────────────────────────────────────────
+            let charts = {};
+            function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+            const CHART_COLORS = { P: '#3b82f6', E: '#06b6d4', C: '#a855f7', V: '#10b981', S: '#f59e0b' };
+
+            function chartOpts(yLabel) {
+                return {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
+                        y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 9 } }, title: { display: true, text: yLabel, color: '#94a3b8', font: { size: 10 } } }
+                    }
+                };
+            }
+
+            function renderCharts() {
+                const agSel = document.getElementById('chart-agent-sel').value;
+                const mesSel = document.getElementById('chart-mes-sel').value;
+                const promSel = document.getElementById('chart-prom-sel').value;
+                const teamSel = document.getElementById('chart-team-sel').value;
+                let entries = state.entries.filter(e => (agSel === '__all__' || e.agent === agSel) && (!mesSel || e.mes === mesSel) && (!promSel || state.teamToPromotorMap[e.teamCode] === promSel) && (!teamSel || e.teamCode === teamSel));
+                const labelSet = [...new Set(entries.map(e => `${e.mes}·S${e.semana}`))].sort();
+
+                function aggByLabel(col) {
+                    return labelSet.map(lk => {
+                        const [m, sn] = lk.split('·'); const s = sn.replace('S', '');
+                        let suma = 0;
+                        entries.filter(e => e.mes === m && e.semana == s).forEach(e => {
+                            e.dias.forEach(d => { if (validateDay(d).ok) suma += (col === 'prima' ? d.prima : d[col]); });
+                        });
+                        return suma;
+                    });
+                }
+
+                destroyChart('volume');
+                charts['volume'] = new Chart(document.getElementById('chartVolume').getContext('2d'), {
+                    type: 'line',
+                    data: { labels: labelSet, datasets: COLS.map(c => ({ label: c, data: aggByLabel(c), borderColor: CHART_COLORS[c], tension: .4, fill: false })) },
+                    options: chartOpts('Cantidad')
+                });
+
+                destroyChart('prima');
+                charts['prima'] = new Chart(document.getElementById('chartPrima').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: labelSet, datasets: [{ label: 'Prima $', data: aggByLabel('prima'), backgroundColor: 'rgba(212,175,55,.5)', borderColor: '#d4af37', borderWidth: 1 }] },
+                    options: chartOpts('Monto $')
+                });
+
+                function ratioSeries(numCol, denCol, color, lbl) {
+                    return {
+                        label: lbl,
+                        data: labelSet.map(lk => {
+                            const [m, sn] = lk.split('·'); const s = sn.replace('S', '');
+                            const seg = entries.filter(e => e.mes === m && e.semana == s);
+                            let nm = 0, dn = 0;
+                            seg.forEach(e => e.dias.forEach(d => { if (validateDay(d).ok) { nm += (numCol === 'prima' ? d.prima : d[numCol]); dn += (denCol === 'prima' ? d.prima : d[denCol]); } }));
+                            return dn > 0 ? (nm / dn).toFixed(2) : 0;
+                        }),
+                        borderColor: color, tension: .4, fill: false
+                    };
+                }
+
+                destroyChart('ratios');
+                charts['ratios'] = new Chart(document.getElementById('chartRatios').getContext('2d'), {
+                    type: 'line',
+                    data: { labels: labelSet, datasets: [ratioSeries('E', 'P', '#06b6d4', 'P➔E'), ratioSeries('C', 'E', '#a855f7', 'E➔C'), ratioSeries('V', 'C', '#10b981', 'C➔V')] },
+                    options: chartOpts('Ratio')
+                });
+
+                destroyChart('efectividad');
+                charts['efectividad'] = new Chart(document.getElementById('chartEfectividad').getContext('2d'), {
+                    type: 'line',
+                    data: { labels: labelSet, datasets: [ratioSeries('V', 'P', '#f59e0b', 'P➔V'), ratioSeries('S', 'P', '#ef4444', 'P➔S')] },
+                    options: chartOpts('Tasa')
+                });
+
+                destroyChart('primaRatios');
+                charts['primaRatios'] = new Chart(document.getElementById('chartPrimaRatios').getContext('2d'), {
+                    type: 'line',
+                    data: { labels: labelSet, datasets: [ratioSeries('prima', 'V', '#d4af37', '$/V'), ratioSeries('prima', 'S', '#10b981', '$/S')] },
+                    options: chartOpts('$ Avg')
+                });
+            }
+
+            function renderKPIs() {
+                const mesSel = document.getElementById('kpi-mes-sel').value;
+                const promSel = document.getElementById('kpi-prom-sel').value;
+                const teamSel = document.getElementById('kpi-team-sel').value;
+                let entries = state.entries.filter(e => (!mesSel || e.mes === mesSel) && (!promSel || state.teamToPromotorMap[e.teamCode] === promSel) && (!teamSel || e.teamCode === teamSel));
+                const agMap = {};
+                entries.forEach(e => {
+                    if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
+                    e.dias.forEach(d => { if (validateDay(d).ok) { COLS.forEach(c => agMap[e.agent][c] += d[c]); agMap[e.agent].prima += d.prima; } });
+                });
+                const agents = Object.keys(agMap).sort((a, b) => agMap[b].prima - agMap[a].prima);
+
+                destroyChart('kpiPrima');
+                charts['kpiPrima'] = new Chart(document.getElementById('kpiPrima').getContext('2d'), {
+                    type: 'bar', data: { labels: agents, datasets: [{ label: 'Prima Neta ($)', data: agents.map(a => agMap[a].prima), backgroundColor: '#d4af37' }] },
+                    options: chartOpts('$')
+                });
+
+                destroyChart('kpiVolumen');
+                charts['kpiVolumen'] = new Chart(document.getElementById('kpiVolumen').getContext('2d'), {
+                    type: 'bar', data: { labels: agents, datasets: [{ label: 'V', data: agents.map(a => agMap[a].V), backgroundColor: CHART_COLORS.V }, { label: 'P', data: agents.map(a => agMap[a].P), backgroundColor: CHART_COLORS.P }] },
+                    options: chartOpts('Units')
+                });
+
+                destroyChart('kpiEfectividad');
+                charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
+                    type: 'bar', data: { labels: agents, datasets: [{ label: 'P ➔ V', data: agents.map(a => agMap[a].P > 0 ? (agMap[a].V / agMap[a].P).toFixed(2) : 0), backgroundColor: CHART_COLORS.C }] },
+                    options: chartOpts('Ratio')
+                });
+
+                destroyChart('kpiPrimaV');
+                charts['kpiPrimaV'] = new Chart(document.getElementById('kpiPrimaV').getContext('2d'), {
+                    type: 'bar', data: { labels: agents, datasets: [{ label: '$/V', data: agents.map(a => agMap[a].V > 0 ? (agMap[a].prima / agMap[a].V).toFixed(0) : 0), backgroundColor: '#d4af37' }] },
+                    options: chartOpts('$')
+                });
+
+                destroyChart('kpiPrimaS');
+                charts['kpiPrimaS'] = new Chart(document.getElementById('kpiPrimaS').getContext('2d'), {
+                    type: 'bar', data: { labels: agents, datasets: [{ label: '$/S', data: agents.map(a => agMap[a].S > 0 ? (agMap[a].prima / agMap[a].S).toFixed(0) : 0), backgroundColor: CHART_COLORS.S }] },
+                    options: chartOpts('$')
+                });
+            }
+
+            function loadReporte(mesStr, coachName) {
+                const r = (state.reportes || []).find(r => r.mes === mesStr && r.coachName === coachName);
+                if (!r) return;
+                document.getElementById('promotor-reporte-view').innerHTML = `
+                <div style="background:rgba(255,255,255,0.03); padding:24px; border-radius:12px; border:1px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                        <div><h3 style="margin:0; color:var(--gold);">${r.mes}</h3><p style="margin:5px 0 0; font-size:12px; color:var(--slate);">Coach: <strong>${r.coachName}</strong></p></div>
+                        <div style="text-align:right"><p style="margin:0; font-size:11px; color:var(--slate);">Fecha:</p><p style="margin:2px 0 0; font-size:12px;">${new Date(r.fecha).toLocaleDateString()}</p></div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                        <div><label class="field-label">Análisis</label><p style="font-size:14px; line-height:1.6; white-space:pre-wrap;">${r.analisis || '—'}</p></div>
+                        <div><label class="field-label">Fraude/Sospecha</label><p style="font-size:14px; line-height:1.6; white-space:pre-wrap;">${r.agentes || '—'}</p></div>
+                        <div><label class="field-label">Compromisos</label><p style="font-size:14px; line-height:1.6; white-space:pre-wrap;">${r.compromisos || '—'}</p></div>
+                        <div><label class="field-label">Notas</label><p style="font-size:14px; line-height:1.6; white-space:pre-wrap;">${r.notas || '—'}</p></div>
+                    </div>
+                </div>`;
+                document.getElementById('modal-reporte-log').classList.remove('open');
+            }
+
+            function renderReporteHistory() {
+                const el = document.getElementById('rpt-history'); if (!el) return;
+                const promF = document.getElementById('rpt-prom-sel').value;
+                const teamF = document.getElementById('rpt-team-sel').value;
+                const coachF = state.coachMap[teamF];
+
+                let list = state.reportes || [];
+                if (promF) list = list.filter(r => r.promotorCode === promF);
+                if (coachF) list = list.filter(r => r.coachName === coachF);
+
+                if (!list.length) { el.innerHTML = '<div class="empty-state">No hay reportes.</div>'; return; }
+                el.innerHTML = list.map(r => `
+                <div class="history-chip" onclick="loadReporte('${r.mes}', '${r.coachName}')" style="flex-direction:column; align-items:flex-start; padding:12px;">
+                    <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:5px;"><span style="font-weight:700;color:var(--gold)">${r.mes}</span><span style="color:var(--slate);font-size:10px;">${new Date(r.fecha).toLocaleDateString()}</span></div>
+                    <span style="color:var(--white);font-size:11px;">Coach: ${r.coachName}</span>
+                </div>`).join('');
+            }
+
+            // Exposures
+            window.openConfig = openConfig;
+            window.closeConfig = closeConfig;
+            window.saveConfigDirector = saveConfigDirector;
+            window.switchTab = switchTab;
+            window.toggleRed = toggleRed;
+            window.renderCharts = renderCharts;
+            window.renderKPIs = renderKPIs;
+            window.renderLeaderboard = renderLeaderboard;
+            window.renderReporteHistory = renderReporteHistory;
+            window.loadReporte = loadReporte;
+            window.refreshPromotorSelects = refreshPromotorSelects;
+            window.refreshAgentSelects = refreshAgentSelects;
+            window.refreshMonthFilters = refreshMonthFilters;
+            window.refreshTeamSelects = refreshTeamSelects;
+
+        </script>
+</body>
+
+</html>
+
+
+
