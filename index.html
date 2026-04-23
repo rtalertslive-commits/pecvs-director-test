@@ -604,7 +604,7 @@
                     </div>
                     <div>
                         <label class="field-label">Promotor</label>
-                        <select id="lb-prom-filter" onchange="renderLeaderboard()">
+                        <select id="lb-prom-filter" onchange="refreshTeamSelects(); renderLeaderboard()">
                             <option value="">Todos los promotores</option>
                         </select>
                     </div>
@@ -650,7 +650,7 @@
                     </div>
                     <div>
                         <label class="field-label">Promotor</label>
-                        <select id="kpi-prom-sel" onchange="renderKPIs()">
+                        <select id="kpi-prom-sel" onchange="refreshTeamSelects(); renderKPIs()">
                             <option value="">Todos los promotores</option>
                         </select>
                     </div>
@@ -1396,6 +1396,7 @@
         </script>
 </body>
 </html>
+
 
 
 
