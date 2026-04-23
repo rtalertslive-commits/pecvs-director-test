@@ -921,7 +921,7 @@
                     return;
                 }
 
-                const q = query(collection(db, "coaches"), where("promotorCode", "in", state.promotorCodes.slice(0, 30)));
+                const q = query(collection(db, "coaches"));
                 unsubCoaches = onSnapshot(q, (snapshot) => {
                     const allCoaches = [];
                     const allTeamCodes = [];
@@ -967,7 +967,7 @@
                     return;
                 }
 
-                const q = query(collection(db, "users"), where("teamCode", "in", state.teamCodes.slice(0, 30)));
+                const q = query(collection(db, "users"));
                 unsubAgents = onSnapshot(q, (snapshot) => {
                     const allEntries = [];
                     const allAgents = [];
