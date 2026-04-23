@@ -2,6 +2,9 @@
 <html lang="es">
 
 <head>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PECVS$ — Director Hub v1.0.0</title>
@@ -1375,9 +1378,25 @@
             window.refreshTeamSelects = refreshTeamSelects;
 
         </script>
+        <script>
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+                .then(reg => {
+                    reg.onupdatefound = () => {
+                        const newWorker = reg.installing;
+                        newWorker.onstatechange = () => {
+                            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                                console.log("New update available!");
+                                window.location.reload(true);
+                            }
+                        };
+                    };
+                });
+            }
+        </script>
 </body>
-
 </html>
+
 
 
 
