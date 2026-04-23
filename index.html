@@ -7,7 +7,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PECVS$ — Director Hub v1.0.2</title>
+    <title>PECVS$ — Director Hub v1.0.3</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap"
@@ -546,7 +546,7 @@
                 <i class="fa-brands fa-google"></i> Continuar con Google
             </button>
             <div style="margin-top: 25px; font-size: 11px; color: var(--slate); opacity: 0.6;">
-                v1.0.2 — Dashboard de Promotoría
+                v1.0.3 — Dashboard de Promotoría
             </div>
         </div>
     </div>
@@ -557,7 +557,7 @@
         <div class="header">
             <div class="header-left">
                 <h1><i class="fa-solid fa-crown" style="font-size:22px;margin-right:10px;"></i>Director Hub
-                    <small style="font-size:10px; color:var(--slate);">v1.0.2</small>
+                    <small style="font-size:10px; color:var(--slate);">v1.0.3</small>
                 </h1>
                 <p id="director-display">Director: —</p>
                 <p id="dircode-display" style="font-size:10px; color:var(--gold); font-weight:700;">Código: —</p>
@@ -1059,21 +1059,27 @@
             }
 
             function refreshTeamSelects() {
-                const ids = ['lb-team-filter', 'kpi-team-sel', 'chart-team-sel', 'rpt-team-sel'];
-                const promF = document.getElementById('chart-prom-sel').value; // Basic anchor
-
-                const filteredCodes = Object.keys(state.coachMap).filter(tc => !promF || state.teamToPromotorMap[tc] === promF);
-                const opts = filteredCodes.map(code => `<option value="${code}">${state.coachMap[code]}</option>`).join('');
-
-                ids.forEach(id => {
-                    const el = document.getElementById(id); if (!el) return;
+                const mappings = [
+                    { t: 'lb-team-filter', p: 'lb-prom-filter' },
+                    { t: 'kpi-team-sel', p: 'kpi-prom-sel' },
+                    { t: 'chart-team-sel', p: 'chart-prom-sel' },
+                    { t: 'rpt-team-sel', p: 'rpt-prom-sel' }
+                ];
+                mappings.forEach(({t, p}) => {
+                    const elPromF = document.getElementById(p);
+                    const promF = elPromF ? elPromF.value : '';
+                    const filteredCodes = Object.keys(state.coachMap).filter(tc => !promF || state.teamToPromotorMap[tc] === promF);
+                    const opts = filteredCodes.map(code => `<option value="${code}">${state.coachMap[code]}</option>`).join('');
+                    
+                    const el = document.getElementById(t); 
+                    if (!el) return;
                     const cur = el.value;
                     el.innerHTML = '<option value="">Todos los equipos</option>' + opts;
                     if (filteredCodes.includes(cur)) el.value = cur; else el.value = '';
                 });
             }
 
-            function refreshAgentSelects() {
+    function refreshAgentSelects() {
                 const teamF = document.getElementById('chart-team-sel').value;
                 let filteredAgents = state.agents;
                 if (teamF) filteredAgents = state.agents.filter(a => a.teamCode === teamF);
@@ -1396,6 +1402,7 @@
         </script>
 </body>
 </html>
+
 
 
 
