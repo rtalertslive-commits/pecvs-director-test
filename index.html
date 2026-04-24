@@ -1639,23 +1639,44 @@
             });
         }
 
-        function refreshChartAgents() {
-            const chartCoachEl = document.getElementById('chart-coach-sel');
-            const selectedCoach = chartCoachEl ? chartCoachEl.value : '';
-            let agentsForCoach = state.agents;
-            if (selectedCoach) {
-                agentsForCoach = state.agents.filter(a => state.agentCoachMap[a] === selectedCoach);
+        // ─── HELPER: devuelve teamCodes de agentes según filtros de promotor y coach ───
+        function getFilteredTeamCodes(promotorFilterId, coachFilterId) {
+            const promEmail = document.getElementById(promotorFilterId)?.value || '';
+            const coachEmail = document.getElementById(coachFilterId)?.value || '';
+
+            if (coachEmail) {
+                // Coach específico → solo su agentTeamCode
+                const coach = state.coachesMap[coachEmail];
+                return coach && coach.agentTeamCode ? [coach.agentTeamCode] : [];
             }
-            const opts = agentsForCoach
-                .slice()
-                .sort((a, b) => a.localeCompare(b))
-                .map(a => `<option value="${a}">${a}</option>`).join('');
+            if (promEmail) {
+                // Promotor específico → todos los coaches de ese promotor
+                const promoter = state.promotersMap[promEmail];
+                if (!promoter) return [];
+                return state.coaches
+                    .filter(c => c.promotorTeamCode === promoter.promotorCode)
+                    .map(c => c.agentTeamCode)
+                    .filter(tc => tc);
+            }
+            // Sin filtro → todos los teamCodes
+            return state.coaches.map(c => c.agentTeamCode).filter(tc => tc);
+        }
+
+        function refreshChartAgents() {
+            const promEmail = document.getElementById('chart-promotor-sel')?.value || '';
+            const coachEmail = document.getElementById('chart-coach-sel')?.value || '';
+            const allowedTeamCodes = getFilteredTeamCodes('chart-promotor-sel', 'chart-coach-sel');
+
+            const agentsForFilter = state.agents
+                .filter(a => allowedTeamCodes.includes(a.teamCode))
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            const opts = agentsForFilter.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
             const el = document.getElementById('chart-agent-sel');
             if (!el) return;
             const cur = el.value;
             el.innerHTML = '<option value="__all__">Todos (Total equipo)</option>' + opts;
-            // Preserve selection if still valid
-            if (cur === '__all__' || agentsForCoach.includes(cur)) el.value = cur;
+            if (cur === '__all__' || agentsForFilter.some(a => a.name === cur)) el.value = cur;
             else el.value = '__all__';
         }
 
@@ -1819,11 +1840,11 @@
         function renderLeaderboard() {
             const mesF = document.getElementById('lb-mes-filter').value;
             const semF = document.getElementById('lb-sem-filter').value;
-            const coachF = document.getElementById('lb-coach-filter') ? document.getElementById('lb-coach-filter').value : '';
+            const allowedTeamCodes = getFilteredTeamCodes('lb-promotor-filter', 'lb-coach-filter');
             let filtered = state.entries.filter(e =>
                 (!mesF || e.mes === mesF) &&
                 (!semF || e.semana == semF) &&
-                (!coachF || state.agentCoachMap[e.agent] === coachF)
+                allowedTeamCodes.includes(e.teamCode)
             );
 
             // aggregate per agent (re-summing only valid days + tracking red activity)
@@ -1943,13 +1964,11 @@
         function renderCharts() {
             const agSel = document.getElementById('chart-agent-sel').value;
             const period = document.getElementById('chart-period-sel').value;
-            const coachF = document.getElementById('chart-coach-sel') ? document.getElementById('chart-coach-sel').value : '';
             let entries = [];
 
-            // Apply coach filter first
-            const baseEntries = coachF
-                ? state.entries.filter(e => state.agentCoachMap[e.agent] === coachF)
-                : state.entries;
+            // Apply promotor+coach filter
+            const allowedTCChart = getFilteredTeamCodes('chart-promotor-sel', 'chart-coach-sel');
+            const baseEntries = state.entries.filter(e => allowedTCChart.includes(e.teamCode));
 
             // Find the latest month in the data
             let latestDate = null;
@@ -2113,13 +2132,11 @@
         // ─── KPI CHARTS ──────────────────────────────────────────────────────────────
         function renderKPIs() {
             const period = document.getElementById('kpi-period-sel').value;
-            const coachF = document.getElementById('kpi-coach-sel') ? document.getElementById('kpi-coach-sel').value : '';
             let entries = [];
 
-            // Apply coach filter first
-            const baseEntries = coachF
-                ? state.entries.filter(e => state.agentCoachMap[e.agent] === coachF)
-                : state.entries;
+            // Apply promotor+coach filter
+            const allowedTCKpi = getFilteredTeamCodes('kpi-promotor-sel', 'kpi-coach-sel');
+            const baseEntries = state.entries.filter(e => allowedTCKpi.includes(e.teamCode));
 
             // Find the latest month in the data
             let latestDate = null;
@@ -2325,13 +2342,20 @@
 
             refreshCoachReporteMonthFilter();
 
+            const promF = document.getElementById('rpt-promotor-filter') ? document.getElementById('rpt-promotor-filter').value : '';
             const coachF = document.getElementById('rpt-coach-filter') ? document.getElementById('rpt-coach-filter').value : '';
             const mesF = document.getElementById('rpt-mes-filter') ? document.getElementById('rpt-mes-filter').value : '';
 
-            // Build list of coaches to display
-            const coachesToShow = coachF
-                ? state.coaches.filter(c => c.email === coachF)
-                : state.coaches.slice().sort((a, b) => (a.coachName || '').localeCompare(b.coachName || ''));
+            // Build list of coaches to display — filter by promotor then by coach
+            let coachesToShow = state.coaches.slice();
+            if (promF) {
+                const promoter = state.promotersMap[promF];
+                if (promoter) coachesToShow = coachesToShow.filter(c => c.promotorTeamCode === promoter.promotorCode);
+            }
+            if (coachF) {
+                coachesToShow = coachesToShow.filter(c => c.email === coachF);
+            }
+            coachesToShow.sort((a, b) => (a.coachName || '').localeCompare(b.coachName || ''));
 
             if (!coachesToShow.length) {
                 container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay coaches en tu equipo todavía.</div>';
