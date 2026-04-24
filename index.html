@@ -1138,10 +1138,11 @@
         // coachesMap: { [coachEmail]: { coachName, teamCode, agents: [names], reportes: [], reclutamiento: [] } }
         // agentCoachMap: { [agentName]: coachEmail } - used to derive coach from agent entries
         let state = {
-            promoterName: '',
-            teamCode: '',      // code linking promoter → director (TEAM-DIRECTOR)
-            promotorCode: '',  // code promoter shares with coaches (TEAM-PROMOTOR-X)
-            promotorNum: null,
+            directorName: '',
+            directorCode: '',   // code director shares with promoters (TEAM-DIRECTOR)
+            promoters: [],      // [{email, promoterName, promotorCode}]
+            promotersMap: {},   // {email -> promoter data}
+            promotorCodes: [],  // [TEAM-PROMOTOR-1, TEAM-PROMOTOR-2, ...]
             agents: [],
             entries: [],
             coaches: [],        // [{email, coachName, agentTeamCode, reportes, reclutamiento}]
@@ -1551,6 +1552,14 @@
 
         function refreshPromotorSelects() {
             // Build options from state.promoters
+            if (!state.promoters || !state.promoters.length) {
+                ['lb-promotor-filter', 'kpi-promotor-sel', 'chart-promotor-sel', 'rpt-promotor-filter'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = '<option value="">Todos los promotores</option>';
+                });
+                return;
+            }
+
             const opts = state.promoters
                 .slice()
                 .sort((a, b) => (a.promoterName || '').localeCompare(b.promoterName || ''))
