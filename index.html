@@ -1225,43 +1225,120 @@
             unsubListeners = [];
         }
 
-        function startListeningCoaches() {
+        function startListeningPromotores() {
             stopAllListeners();
 
-            // Prefer embedded coaches array from promoter doc (most reliable source of truth)
-            if (state.embeddedCoaches && state.embeddedCoaches.length > 0) {
-                loadCoachesFromEmbedded();
-            } else {
-                // Fallback: query coaches by promotorTeamCode
-                const queryCode = state.promotorCode || state.teamCode;
-                if (queryCode) {
-                    const coachQ = query(collection(db, "coaches"), where("promotorTeamCode", "==", queryCode));
-                    const unsubCoaches = onSnapshot(coachQ, (snapshot) => {
-                        let coaches = [];
-                        const coachesMap = {};
-                        snapshot.forEach((docSnap) => {
-                            const cdata = docSnap.data();
-                            const coachEmail = docSnap.id;
-                            const coachEntry = {
-                                email: coachEmail,
-                                coachName: cdata.coachName || coachEmail,
-                                agentTeamCode: resolveAgentTeamCode(cdata),
-                                coachNum: cdata.coachNum,
-                                reportes: cdata.reportes || [],
-                                reclutamiento: cdata.reclutamiento || []
-                            };
-                            coaches.push(coachEntry);
-                            coachesMap[coachEmail] = coachEntry;
-                        });
-
-                        state.coaches = coaches;
-                        state.coachesMap = coachesMap;
-                        startListeningAgentsForCoaches();
-                        refreshAll();
-                    });
-                    unsubListeners.push(unsubCoaches);
-                }
+            if (!state.directorCode) {
+                state.promoters = [];
+                state.coaches = [];
+                state.entries = [];
+                refreshAll();
+                return;
             }
+
+            // Query promoters by directorCode
+            const promQ = query(collection(db, "promoters"), where("directorCode", "==", state.directorCode));
+            const unsubPromoters = onSnapshot(promQ, (snapshot) => {
+                const promoters = [];
+                const promotersMap = {};
+                const promotorCodes = [];
+
+                snapshot.forEach((docSnap) => {
+                    const pdata = docSnap.data();
+                    const promoterEmail = docSnap.id;
+                    const promoterEntry = {
+                        email: promoterEmail,
+                        promoterName: pdata.promoterName || promoterEmail,
+                        promotorCode: pdata.promotorCode || '',
+                        coaches: pdata.coaches || []
+                    };
+                    promoters.push(promoterEntry);
+                    promotersMap[promoterEmail] = promoterEntry;
+                    if (pdata.promotorCode) {
+                        promotorCodes.push(pdata.promotorCode);
+                    }
+                });
+
+                state.promoters = promoters;
+                state.promotersMap = promotersMap;
+                state.promotorCodes = promotorCodes;
+                refreshPromotorSelects();
+                startListeningCoaches();
+            });
+            unsubListeners.push(unsubPromoters);
+        }
+
+        function startListeningCoaches() {
+            // Query all coaches whose promotorTeamCode is in our promotorCodes list
+            if (!state.promotorCodes || state.promotorCodes.length === 0) {
+                state.coaches = [];
+                state.coachesMap = {};
+                startListeningAgents();
+                return;
+            }
+
+            const coachQ = query(collection(db, "coaches"), where("promotorTeamCode", "in", state.promotorCodes));
+            const unsubCoaches = onSnapshot(coachQ, (snapshot) => {
+                let coaches = [];
+                const coachesMap = {};
+
+                snapshot.forEach((docSnap) => {
+                    const cdata = docSnap.data();
+                    const coachEmail = docSnap.id;
+                    const coachEntry = {
+                        email: coachEmail,
+                        coachName: cdata.coachName || coachEmail,
+                        agentTeamCode: resolveAgentTeamCode(cdata),
+                        coachNum: cdata.coachNum,
+                        reportes: cdata.reportes || [],
+                        reclutamiento: cdata.reclutamiento || []
+                    };
+                    coaches.push(coachEntry);
+                    coachesMap[coachEmail] = coachEntry;
+                });
+
+                state.coaches = coaches;
+                state.coachesMap = coachesMap;
+                startListeningAgents();
+            });
+            unsubListeners.push(unsubCoaches);
+        }
+
+        function startListeningAgents() {
+            // Get all unique agentTeamCodes from coaches
+            const teamCodes = [...new Set(state.coaches.map(c => c.agentTeamCode).filter(tc => tc))];
+
+            if (!teamCodes.length) {
+                state.agents = [];
+                state.entries = [];
+                refreshAll();
+                return;
+            }
+
+            const usersQ = query(collection(db, "users"), where("teamCode", "in", teamCodes));
+            const unsubUsers = onSnapshot(usersQ, (snapshot) => {
+                const allEntries = [];
+                const allAgents = [];
+
+                snapshot.forEach((docSnap) => {
+                    const agentData = docSnap.data();
+                    if (agentData.agentName) {
+                        allAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode });
+                        if (agentData.entries) {
+                            agentData.entries.forEach(e => {
+                                e.agent = agentData.agentName;
+                                e.teamCode = agentData.teamCode;
+                                allEntries.push(e);
+                            });
+                        }
+                    }
+                });
+
+                state.agents = allAgents;
+                state.entries = allEntries;
+                refreshAll();
+            });
+            unsubListeners.push(unsubUsers);
         }
 
         // Derive the teamCode that agents use to link to this coach.
@@ -1467,20 +1544,65 @@
             }
         }
 
-        function refreshCoachFilters() {
-            // Build options from state.coaches - key is email, value is coachName for display
-            const opts = state.coaches
+        function refreshPromotorSelects() {
+            // Build options from state.promoters
+            const opts = state.promoters
                 .slice()
-                .sort((a, b) => (a.coachName || '').localeCompare(b.coachName || ''))
-                .map(c => `<option value="${c.email}">${c.coachName}</option>`).join('');
+                .sort((a, b) => (a.promoterName || '').localeCompare(b.promoterName || ''))
+                .map(p => `<option value="${p.email}">${p.promoterName}</option>`).join('');
 
-            ['lb-coach-filter', 'kpi-coach-sel', 'chart-coach-sel', 'rpt-coach-filter'].forEach(id => {
+            ['lb-promotor-filter', 'kpi-promotor-sel', 'chart-promotor-sel', 'rpt-promotor-filter'].forEach(id => {
                 const el = document.getElementById(id);
+                if (!el) return;
+                const cur = el.value;
+                el.innerHTML = '<option value="">Todos los promotores</option>' + opts;
+                // Preserve selection if still valid
+                if (cur && state.promoters.some(p => p.email === cur)) el.value = cur;
+                else el.value = '';
+            });
+        }
+
+        function refreshCoachFilters() {
+            // Filter coaches by selected promotor if any
+            const lbPromF = document.getElementById('lb-promotor-filter');
+            const kpiPromF = document.getElementById('kpi-promotor-sel');
+            const chartPromF = document.getElementById('chart-promotor-sel');
+            const rptPromF = document.getElementById('rpt-promotor-filter');
+
+            // Get selected promotor from each tab's dropdown
+            const filterCoachhsByPromotor = (coachFilterId, promotorFilterId) => {
+                const promEl = document.getElementById(promotorFilterId);
+                const selectedProm = promEl ? promEl.value : '';
+                if (!selectedProm) return state.coaches;
+                return state.coaches.filter(c => {
+                    const coach = state.coachesMap[c.email];
+                    return coach && coach.promotorCode && state.promotersMap[selectedProm] &&
+                           state.promotersMap[selectedProm].promotorCode === coach.promotorCode;
+                });
+            };
+
+            // Update coach filters for each tab
+            const coachFilterIds = [
+                { coach: 'lb-coach-filter', promotor: 'lb-promotor-filter' },
+                { coach: 'kpi-coach-sel', promotor: 'kpi-promotor-sel' },
+                { coach: 'chart-coach-sel', promotor: 'chart-promotor-sel' },
+                { coach: 'rpt-coach-filter', promotor: 'rpt-promotor-filter' }
+            ];
+
+            coachFilterIds.forEach(({ coach, promotor }) => {
+                const coaches = filterCoachhsByPromotor(coach, promotor);
+                const opts = coaches
+                    .slice()
+                    .sort((a, b) => (a.coachName || '').localeCompare(b.coachName || ''))
+                    .map(c => `<option value="${c.email}">${c.coachName}</option>`).join('');
+
+                const el = document.getElementById(coach);
                 if (!el) return;
                 const cur = el.value;
                 el.innerHTML = '<option value="">Todos los coaches</option>' + opts;
                 // Preserve selection if still valid
-                if (cur && state.coaches.some(c => c.email === cur)) el.value = cur;
+                if (cur && coaches.some(c => c.email === cur)) el.value = cur;
+                else el.value = '';
             });
         }
 
