@@ -1092,7 +1092,7 @@
                 </div>
                 <div>
                     <label class="field-label">Tu Código de Director (compártelo con tus promotores)</label>
-                    <input type="text" id="inp-teamcode" placeholder="Ej. TEAM-DIRECTOR" readonly>
+                    <input type="text" id="inp-teamcode" placeholder="Ej. TEAM-DIRECTOR">
                     <p style="font-size:10px; color:var(--slate); margin-top:5px;">Los promotores ingresan este código en su webapp para vincularse a ti.</p>
                 </div>
                 <div>
@@ -1462,7 +1462,8 @@
         }
 
         function refreshAll() {
-            document.getElementById('coach-display').textContent = 'Promotor: ' + (state.directorName || '—');
+            document.getElementById('director-display').textContent = 'Director: ' + (state.directorName || '—');
+            refreshPromotorSelects();
             refreshCoachFilters();
             refreshChartAgents();
             renderLeaderboard();
@@ -1486,27 +1487,24 @@
 
         // ─── CONFIG ──────────────────────────────────────────────────────────────────
         window.openConfig = function () {
-            const inpCoach = document.getElementById('inp-coach');
-            const inpTeam = document.getElementById('inp-teamcode');
-            const inpPromo = document.getElementById('inp-promocode');
-            if (inpCoach) inpCoach.value = state.directorName || '';
-            if (inpTeam) inpTeam.value = state.promotorCode || '';
-            // Show teamCode (director code) in 3rd field
-            if (inpPromo) inpPromo.value = state.teamCode || '';
-            renderCoachList();
+            const inpDirector = document.getElementById('inp-director');
+            const inpTeamCode = document.getElementById('inp-teamcode');
+            if (inpDirector) inpDirector.value = state.directorName || '';
+            if (inpTeamCode) inpTeamCode.value = state.directorCode || '';
+            renderPromotorList();
             document.getElementById('config-modal').classList.add('open');
         }
 
         window.closeConfig = function () { document.getElementById('config-modal').classList.remove('open'); }
 
-        window.renderCoachList = function () {
+        window.renderPromotorList = function () {
             const el = document.getElementById('agent-list');
             if (!el) return;
-            if (!state.coaches.length) { el.innerHTML = '<div style="color:var(--slate);font-size:11px;padding:8px 0;">No hay coaches vinculados con este código de equipo todavía.</div>'; return; }
-            el.innerHTML = state.coaches.map((c) => `
+            if (!state.promoters.length) { el.innerHTML = '<div style="color:var(--slate);font-size:11px;padding:8px 0;">No hay promotores vinculados con este código todavía.</div>'; return; }
+            el.innerHTML = state.promoters.map((p) => `
                 <div class="agent-chip" style="justify-content:space-between; padding:10px 15px;">
-                    <span style="font-weight:600;"><i class="fa fa-user-tie" style="color:var(--gold); margin-right:8px;"></i>${c.coachName}</span>
-                    <span style="font-size:9px; color:var(--slate); text-transform:uppercase; letter-spacing:1px;">${c.email}</span>
+                    <span style="font-weight:600;"><i class="fa fa-user-tie" style="color:var(--gold); margin-right:8px;"></i>${p.promoterName}</span>
+                    <span style="font-size:9px; color:var(--slate); text-transform:uppercase; letter-spacing:1px;">${p.email}</span>
                 </div>
             `).join('');
         }
@@ -1521,11 +1519,11 @@
                     btn.disabled = true;
                 }
 
-                state.directorName = document.getElementById('inp-coach').value.trim();
-                // Only update promoterName, codes are read-only (loaded from promoter doc)
+                state.directorName = document.getElementById('inp-director').value.trim();
+                state.directorCode = document.getElementById('inp-teamcode').value.trim();
 
-                await saveState();
-                startListeningCoaches();
+                await saveDirectorData();
+                startListeningPromotores();
                 refreshAll();
 
                 if (btn) {
