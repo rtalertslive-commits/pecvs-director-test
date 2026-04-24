@@ -1290,6 +1290,7 @@
                         coachName: cdata.coachName || coachEmail,
                         agentTeamCode: resolveAgentTeamCode(cdata),
                         coachNum: cdata.coachNum,
+                        promotorTeamCode: cdata.promotorTeamCode || '',
                         reportes: cdata.reportes || [],
                         reclutamiento: cdata.reclutamiento || []
                     };
@@ -1570,13 +1571,13 @@
             // Get selected promotor from each tab's dropdown
             const filterCoachhsByPromotor = (coachFilterId, promotorFilterId) => {
                 const promEl = document.getElementById(promotorFilterId);
-                const selectedProm = promEl ? promEl.value : '';
-                if (!selectedProm) return state.coaches;
-                return state.coaches.filter(c => {
-                    const coach = state.coachesMap[c.email];
-                    return coach && coach.promotorCode && state.promotersMap[selectedProm] &&
-                           state.promotersMap[selectedProm].promotorCode === coach.promotorCode;
-                });
+                const selectedPromEmail = promEl ? promEl.value : '';
+                if (!selectedPromEmail) return state.coaches;
+
+                const selectedPromoter = state.promotersMap[selectedPromEmail];
+                if (!selectedPromoter || !selectedPromoter.promotorCode) return state.coaches;
+
+                return state.coaches.filter(c => c.promotorTeamCode === selectedPromoter.promotorCode);
             };
 
             // Update coach filters for each tab
