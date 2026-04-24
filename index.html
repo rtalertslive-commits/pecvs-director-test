@@ -1322,8 +1322,8 @@
                 return;
             }
 
-            // Firestore 'in' supports max 30 values — split into batches of 10
-            const BATCH = 10;
+            // Firestore 'in' supports max 30 values — split into batches of 29
+            const BATCH = 29;
             const batches = [];
             for (let i = 0; i < teamCodes.length; i += BATCH) {
                 batches.push(teamCodes.slice(i, i + BATCH));
