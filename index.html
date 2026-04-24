@@ -1309,44 +1309,63 @@
         }
 
         function startListeningAgents() {
+            // Reset batch cache on every call (new listener session)
+            state._agentBatches = {};
+
             // Get all unique agentTeamCodes from coaches
             const teamCodes = [...new Set(state.coaches.map(c => c.agentTeamCode).filter(tc => tc))];
 
-            console.log('teamCodes from coaches:', teamCodes);
-            console.log('state.coaches:', state.coaches);
-
             if (!teamCodes.length) {
-                console.log('No teamCodes found');
                 state.agents = [];
                 state.entries = [];
                 refreshAll();
                 return;
             }
 
-            const usersQ = query(collection(db, "users"), where("teamCode", "in", teamCodes));
-            const unsubUsers = onSnapshot(usersQ, (snapshot) => {
-                const allEntries = [];
-                const allAgents = [];
+            // Firestore 'in' supports max 30 values — split into batches of 10
+            const BATCH = 10;
+            const batches = [];
+            for (let i = 0; i < teamCodes.length; i += BATCH) {
+                batches.push(teamCodes.slice(i, i + BATCH));
+            }
 
-                snapshot.forEach((docSnap) => {
-                    const agentData = docSnap.data();
-                    if (agentData.agentName) {
-                        allAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode });
-                        if (agentData.entries) {
-                            agentData.entries.forEach(e => {
-                                e.agent = agentData.agentName;
-                                e.teamCode = agentData.teamCode;
-                                allEntries.push(e);
-                            });
+            // Accumulated results across all batches
+            let allAgents = [];
+            let allEntries = [];
+            let doneCount = 0;
+
+            batches.forEach((batch, bIdx) => {
+                const usersQ = query(collection(db, "users"), where("teamCode", "in", batch));
+                const unsub = onSnapshot(usersQ, (snapshot) => {
+                    // Each time any batch fires, recompute that batch's contribution
+                    // Simple approach: collect all and re-merge on every update
+                    const batchAgents = [];
+                    const batchEntries = [];
+                    snapshot.forEach((docSnap) => {
+                        const agentData = docSnap.data();
+                        if (agentData.agentName) {
+                            batchAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode });
+                            if (agentData.entries) {
+                                agentData.entries.forEach(e => {
+                                    e.agent = agentData.agentName;
+                                    e.teamCode = agentData.teamCode;
+                                    batchEntries.push(e);
+                                });
+                            }
                         }
-                    }
-                });
+                    });
 
-                state.agents = allAgents;
-                state.entries = allEntries;
-                refreshAll();
+                    // Store batch results in state batch cache
+                    if (!state._agentBatches) state._agentBatches = {};
+                    state._agentBatches[bIdx] = { agents: batchAgents, entries: batchEntries };
+
+                    // Merge all batches
+                    state.agents = Object.values(state._agentBatches).flatMap(b => b.agents);
+                    state.entries = Object.values(state._agentBatches).flatMap(b => b.entries);
+                    refreshAll();
+                });
+                unsubListeners.push(unsub);
             });
-            unsubListeners.push(unsubUsers);
         }
 
         // Derive the teamCode that agents use to link to this coach.
