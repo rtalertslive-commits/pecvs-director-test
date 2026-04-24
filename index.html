@@ -2,12 +2,9 @@
 <html lang="es">
 
 <head>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PECVS$ — Director Hub v1.0.3</title>
+    <title>PECVS$ — Director Analytics v1.0.0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap"
@@ -309,7 +306,168 @@
             overflow-y: auto;
         }
 
-        /* BITACORA STYLE REMOVED */
+        .agent-chip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            border-radius: 8px;
+            padding: 9px 14px;
+            font-size: 13px;
+        }
+
+        .agent-chip span {
+            font-weight: 500;
+        }
+
+        .chip-del {
+            background: none;
+            border: none;
+            color: var(--red);
+            cursor: pointer;
+            font-size: 14px;
+            opacity: .6;
+            transition: .2s;
+            padding: 0;
+        }
+
+        .chip-del:hover {
+            opacity: 1;
+        }
+
+        .add-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* BITACORA SECTION */
+        .bitacora-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 14px;
+            align-items: end;
+            margin-bottom: 20px;
+        }
+
+        .week-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .week-table th {
+            padding: 10px 8px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--gold);
+            background: rgba(0, 0, 0, .2);
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .week-table th:first-child {
+            text-align: left;
+            width: 100px;
+        }
+
+        .week-table td {
+            padding: 8px 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+        }
+
+        .week-table tfoot tr {
+            background: rgba(212, 175, 55, .08);
+            border-top: 2px solid var(--gold);
+        }
+
+        .week-table tfoot td {
+            color: var(--gold-l);
+            font-weight: 700;
+            font-size: 13px;
+            padding: 12px 6px;
+            text-align: center;
+        }
+
+        .week-table tfoot td:first-child {
+            text-align: left;
+        }
+
+        .day-label {
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--white);
+            text-align: left !important;
+            padding-left: 10px !important;
+        }
+
+        .num-input {
+            width: 72px;
+            text-align: center;
+            padding: 7px 4px;
+        }
+
+        .prima-input {
+            width: 100px;
+            text-align: right;
+        }
+
+        .total-cell {
+            font-weight: 700;
+            color: var(--teal);
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .save-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* HISTORY */
+        .history-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .history-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .03);
+            font-size: 12px;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .history-chip:hover {
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, .08);
+        }
+
+        .history-chip .del-entry {
+            color: var(--red);
+            font-size: 11px;
+            opacity: .5;
+            transition: .2s;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .history-chip .del-entry:hover {
+            opacity: 1;
+        }
 
         /* LEADERBOARD */
         .lb-filters {
@@ -340,6 +498,10 @@
             background: rgba(0, 0, 0, .2);
             border-bottom: 1px solid var(--border);
             text-align: center;
+        }
+
+        .lb-table thead tr:first-child th:nth-child(2) {
+            text-align: left;
         }
 
         .lb-table td {
@@ -377,6 +539,39 @@
 
         .ratio-cell {
             font-family: 'Inter', monospace;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .badge-ok {
+            background: rgba(16, 185, 129, .15);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, .3);
+        }
+
+        .badge-warn {
+            background: rgba(245, 158, 11, .15);
+            color: var(--orange);
+            border: 1px solid rgba(245, 158, 11, .3);
+        }
+
+        .badge-bad {
+            background: rgba(239, 68, 68, .15);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, .3);
+        }
+
+        .no-data-row td {
+            color: var(--slate);
+            text-align: center;
+            padding: 30px;
+            font-style: italic;
         }
 
         .table-scroll {
@@ -427,6 +622,35 @@
             position: relative;
         }
 
+        /* FUNNEL INDICATOR */
+        .funnel-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .funnel-pill {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .1);
+        }
+
+        .funnel-pill.ok {
+            background: rgba(16, 185, 129, .1);
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .funnel-pill.bad {
+            background: rgba(239, 68, 68, .1);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
         /* SECTION DIVIDER */
         .section-label {
             font-size: 10px;
@@ -468,7 +692,7 @@
             border: 1px solid var(--gold);
             border-radius: 12px;
             padding: 36px;
-            max-width: 600px;
+            max-width: 500px;
             width: 90%;
             position: relative;
         }
@@ -515,6 +739,24 @@
             margin-bottom: 16px;
         }
 
+        .info-box strong {
+            color: #fff;
+        }
+
+        .embudo-rule {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--slate);
+            margin-bottom: 12px;
+        }
+
+        .embudo-rule span {
+            font-weight: 800;
+            color: var(--gold);
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -537,16 +779,15 @@
     <!-- LOGIN OVERLAY -->
     <div id="login-overlay" class="login-overlay">
         <div class="login-card">
-            <div style="font-size: 50px; margin-bottom: 20px;">📊</div>
-            <h1>PECVS$ Director Hub</h1>
-            <p>Vincúlate con tus promotores para monitorear el desempeño global de toda la cadena (Promotores ➔ Coaches
-                ➔ Agentes).</p>
+            <div style="font-size: 50px; margin-bottom: 20px;">📋</div>
+            <h1>PECVS$ Analytics Hub</h1>
+            <p>Acceso exclusivo para Coaches y Supervisores. Gestiona tu equipo en tiempo real desde la nube.</p>
             <button id="login-btn" class="btn btn-blue"
                 style="width:100%; justify-content:center; padding:15px; border-radius:12px;">
                 <i class="fa-brands fa-google"></i> Continuar con Google
             </button>
             <div style="margin-top: 25px; font-size: 11px; color: var(--slate); opacity: 0.6;">
-                v1.0.3 — Dashboard de Promotoría
+                v1.0.0 — Sincronización mediante Google Firebase
             </div>
         </div>
     </div>
@@ -556,11 +797,11 @@
         <!-- HEADER -->
         <div class="header">
             <div class="header-left">
-                <h1><i class="fa-solid fa-crown" style="font-size:22px;margin-right:10px;"></i>Director Hub
-                    <small style="font-size:10px; color:var(--slate);">v1.0.3</small>
+                <h1><i class="fa-solid fa-chart-line" style="font-size:22px;margin-right:10px;"></i>PECVS$ Analytics
+                    <small style="font-size:10px; color:var(--slate);">v1.0.0</small>
                 </h1>
                 <p id="director-display">Director: —</p>
-                <p id="dircode-display" style="font-size:10px; color:var(--gold); font-weight:700;">Código: —</p>
+                <p id="team-display" style="font-size:10px; color:var(--gold); font-weight:700;">Código: Sin Código</p>
             </div>
             <div class="header-right">
                 <button class="btn btn-sm" onclick="openConfig()"><i class="fa fa-cog"></i> Configuración</button>
@@ -571,14 +812,13 @@
 
         <!-- TAB NAV -->
         <div class="tab-nav">
-            <button class="tab-btn active" onclick="switchTab('leaderboard',this)"><i class="fa fa-table"></i>
-                Leaderboard / Ratios</button>
-            <button class="tab-btn" onclick="switchTab('kpis',this)"><i class="fa fa-chart-column"></i> KPIs
-                (Barras)</button>
+            <button class="tab-btn active" onclick="switchTab('leaderboard',this)"><i class="fa fa-table"></i> Leaderboard /
+                Ratios</button>
+            <button class="tab-btn" onclick="switchTab('kpis',this)"><i class="fa fa-chart-column"></i>
+                KPIs (Barras)</button>
             <button class="tab-btn" onclick="switchTab('charts',this)"><i class="fa fa-chart-area"></i>
                 Tendencias</button>
-            <button class="tab-btn" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes
-                Coaches</button>
+            <button class="tab-btn" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
         </div>
 
         <!-- ═══════════════════════════════ TAB: LEADERBOARD ═══════════════════════════════ -->
@@ -586,8 +826,20 @@
             <div class="card">
                 <div class="lb-filters">
                     <div>
+                        <label class="field-label">Equipo Promotor</label>
+                        <select id="lb-promotor-filter" onchange="refreshCoachFilters(); renderLeaderboard()">
+                            <option value="">Todos los promotores</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Equipo Coach</label>
+                        <select id="lb-coach-filter" onchange="renderLeaderboard()">
+                            <option value="">Todos los coaches</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="field-label">Filtrar por mes</label>
-                        <select id="lb-mes-filter" onchange="renderLeaderboard()">
+                        <select id="lb-mes-filter" onchange="refreshLeaderboardWeeks(); renderLeaderboard()">
                             <option value="">Todos los meses</option>
                         </select>
                     </div>
@@ -600,23 +852,12 @@
                             <option value="3">Semana 3</option>
                             <option value="4">Semana 4</option>
                             <option value="5">Semana 5</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label">Promotor</label>
-                        <select id="lb-prom-filter" onchange="refreshTeamSelects(); renderLeaderboard()">
-                            <option value="">Todos los promotores</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label">Equipo Coach</label>
-                        <select id="lb-team-filter" onchange="renderLeaderboard()">
-                            <option value="">Todos los equipos</option>
+                            <option value="6">Semana 6</option>
                         </select>
                     </div>
                     <div style="margin-top:18px;">
                         <button class="btn btn-sm"
-                            onclick="document.getElementById('lb-mes-filter').value='';document.getElementById('lb-sem-filter').value='';renderLeaderboard()"><i
+                            onclick="lb_coach_filter.value='';lb_mes_filter.value='';lb_sem_filter.value='';renderLeaderboard()"><i
                                 class="fa fa-filter-circle-xmark"></i>Quitar filtros</button>
                         <button id="btn-tog-red" class="btn btn-sm" onclick="toggleRed()">
                             <i class="fa fa-eye"></i> Ver Conciliación Real
@@ -624,12 +865,48 @@
                     </div>
                 </div>
 
+                <!-- Info box removed per user request -->
+
                 <div class="table-scroll">
                     <table class="lb-table">
-                        <thead id="lb-thead"></thead>
+                        <thead id="lb-thead">
+                            <tr>
+                                <th rowspan="2">#</th>
+                                <th rowspan="2">Agente</th>
+                                <th colspan="5" style="border-left:2px solid #475569;border-bottom:1px solid #475569">
+                                    Volumen PECVS$</th>
+                                <th colspan="4" style="border-left:2px solid #475569;border-bottom:1px solid #475569">
+                                    Ratios PECVS</th>
+                                <th colspan="2" style="border-left:2px solid #475569;border-bottom:1px solid #475569">
+                                    Ratios de efectividad</th>
+                                <th colspan="3" style="border-left:2px solid #475569;border-bottom:1px solid #475569">
+                                    Prima promedio ($)</th>
+                                <th colspan="2" style="border-left:2px solid #475569;border-bottom:1px solid #475569">
+                                    Actividad NO Válida (🔴)</th>
+                            </tr>
+                            <tr>
+                                <th style="border-left:2px solid #475569">P</th>
+                                <th>E</th>
+                                <th>C</th>
+                                <th>V</th>
+                                <th>S</th>
+                                <th title="Contactos por entrevista" style="border-left:2px solid #475569">P/E</th>
+                                <th title="Entrevistas por cotización">E/C</th>
+                                <th title="Cotizaciones por cierre">C/V</th>
+                                <th title="Solicitudes por cierre">S/V</th>
+                                <th title="Contactos por cierre" style="border-left:2px solid #475569">P/V</th>
+                                <th title="Contactos por solicitud">P/S</th>
+                                <th title="Prima Total" style="border-left:2px solid #475569">Neta</th>
+                                <th title="Prima por cierre">$/V</th>
+                                <th title="Prima por solicitud">$/S</th>
+                                <th title="Solicitudes en días rojos"
+                                    style="border-left:2px solid #475569;color:var(--red)">S (R)</th>
+                                <th title="Prima en días rojos" style="color:var(--red)">$ (R)</th>
+                            </tr>
+                        </thead>
                         <tbody id="lb-body">
                             <tr class="no-data-row">
-                                <td colspan="17">No hay datos.</td>
+                                <td colspan="17">No hay datos. Carga entradas en la Bitácora.</td>
                             </tr>
                         </tbody>
                         <tfoot id="lb-foot"></tfoot>
@@ -643,44 +920,69 @@
             <div class="card">
                 <div class="charts-controls">
                     <div>
-                        <label class="field-label">Mes</label>
-                        <select id="kpi-mes-sel" onchange="renderKPIs()">
-                            <option value="">Todos los meses</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label">Promotor</label>
-                        <select id="kpi-prom-sel" onchange="refreshTeamSelects(); renderKPIs()">
+                        <label class="field-label">Equipo Promotor</label>
+                        <select id="kpi-promotor-sel" onchange="refreshCoachFilters(); renderKPIs()">
                             <option value="">Todos los promotores</option>
                         </select>
                     </div>
                     <div>
                         <label class="field-label">Equipo Coach</label>
-                        <select id="kpi-team-sel" onchange="renderKPIs()">
-                            <option value="">Todos los equipos</option>
+                        <select id="kpi-coach-sel" onchange="renderKPIs()">
+                            <option value="">Todos los coaches</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Período</label>
+                        <select id="kpi-period-sel" onchange="renderKPIs()">
+                            <option value="1m">Último mes</option>
+                            <option value="3m">Últimos 3 meses</option>
+                            <option value="6m">Últimos 6 meses</option>
+                            <option value="12m">Últimos 12 meses</option>
+                            <option value="all">Todo el historial</option>
                         </select>
                     </div>
                 </div>
                 <div class="charts-grid">
                     <div class="chart-card full">
-                        <h3><i class="fa fa-star"></i> Prima Neta Total por Agente ($)</h3>
+                        <h3><i class="fa fa-dollar-sign"></i> Prima Neta por Agente</h3>
                         <div class="chart-wrap"><canvas id="kpiPrima"></canvas></div>
                     </div>
                     <div class="chart-card">
-                        <h3><i class="fa fa-users"></i> Contactos (P) vs Cierres (V)</h3>
+                        <h3><i class="fa fa-bars-progress"></i> Cierres (V) vs Contactos (P)</h3>
                         <div class="chart-wrap"><canvas id="kpiVolumen"></canvas></div>
                     </div>
                     <div class="chart-card">
-                        <h3><i class="fa fa-bullseye"></i> % Eficiencia: Conversión de P ➔ V</h3>
+                        <h3><i class="fa fa-bullseye"></i> % Eficiencia: Conversión de P ➔ V (Cierre)</h3>
                         <div class="chart-wrap"><canvas id="kpiEfectividad"></canvas></div>
                     </div>
+                    <div class="chart-card full">
+                        <h3><i class="fa fa-arrows-to-circle"></i> Volumen PECVS Completo por Agente</h3>
+                        <div class="chart-wrap"><canvas id="kpiVolumeFull"></canvas></div>
+                    </div>
                     <div class="chart-card">
-                        <h3><i class="fa fa-money-bill-trend-up"></i> $/V — Prima por Cierre</h3>
+                        <h3><i class="fa fa-hand-holding-dollar"></i> Prima Promedio por Cierre ($/V)</h3>
                         <div class="chart-wrap"><canvas id="kpiPrimaV"></canvas></div>
                     </div>
                     <div class="chart-card">
-                        <h3><i class="fa fa-file-circle-check"></i> $/S — Prima por Solicitud</h3>
+                        <h3><i class="fa fa-money-bill-trend-up"></i> Prima Promedio por Solicitud ($/S)</h3>
                         <div class="chart-wrap"><canvas id="kpiPrimaS"></canvas></div>
+                    </div>
+                    <!-- FUNNEL RATIOS KPI -->
+                    <div class="chart-card">
+                        <h3><i class="fa fa-percentage"></i> % Eficiencia: Conversión de P ➔ E</h3>
+                        <div class="chart-wrap"><canvas id="kpiRatioEP"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-percentage"></i> % Eficiencia: Conversión de E ➔ C</h3>
+                        <div class="chart-wrap"><canvas id="kpiRatioCE"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-percentage"></i> % Eficiencia: Conversión de C ➔ V</h3>
+                        <div class="chart-wrap"><canvas id="kpiRatioVC"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-percentage"></i> % Eficiencia: Conversión de V ➔ S</h3>
+                        <div class="chart-wrap"><canvas id="kpiRatioSV"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -691,45 +993,48 @@
             <div class="card">
                 <div class="charts-controls">
                     <div>
-                        <label class="field-label">Promotor</label>
-                        <select id="chart-prom-sel" onchange="refreshTeamSelects(); renderCharts()">
+                        <label class="field-label">Equipo Promotor</label>
+                        <select id="chart-promotor-sel" onchange="refreshCoachFilters(); refreshChartAgents(); renderCharts()">
                             <option value="">Todos los promotores</option>
                         </select>
                     </div>
                     <div>
                         <label class="field-label">Equipo Coach</label>
-                        <select id="chart-team-sel" onchange="refreshAgentSelects(); renderCharts()">
-                            <option value="">Todos los equipos</option>
+                        <select id="chart-coach-sel" onchange="refreshChartAgents(); renderCharts()">
+                            <option value="">Todos los coaches</option>
                         </select>
                     </div>
                     <div>
                         <label class="field-label">Agente</label>
                         <select id="chart-agent-sel" onchange="renderCharts()">
-                            <option value="__all__">Todos los agentes</option>
+                            <option value="__all__">Todos (Total equipo)</option>
                         </select>
                     </div>
                     <div>
-                        <label class="field-label">Mes</label>
-                        <select id="chart-mes-sel" onchange="renderCharts()">
-                            <option value="">Todos los meses</option>
+                        <label class="field-label">Período</label>
+                        <select id="chart-period-sel" onchange="renderCharts()">
+                            <option value="12m">Últimos 12 meses</option>
+                            <option value="3m">Últimos 3 meses</option>
+                            <option value="6m">Últimos 6 meses</option>
+                            <option value="all">Todo el historial</option>
                         </select>
                     </div>
                 </div>
                 <div class="charts-grid">
                     <div class="chart-card full">
-                        <h3><i class="fa fa-chart-line"></i> Histórico de Volumen (P, E, C, V, S)</h3>
+                        <h3><i class="fa fa-bars-progress"></i> Volumen PECVS semanal</h3>
                         <div class="chart-wrap"><canvas id="chartVolume"></canvas></div>
                     </div>
                     <div class="chart-card">
-                        <h3><i class="fa fa-sack-dollar"></i> Histórico de Prima ($ Neta)</h3>
+                        <h3><i class="fa fa-dollar-sign"></i> Prima Neta por semana</h3>
                         <div class="chart-wrap"><canvas id="chartPrima"></canvas></div>
                     </div>
                     <div class="chart-card">
-                        <h3><i class="fa fa-arrow-up-right-dots"></i> Ratios de Conversión (P➔E, E➔C, C➔V)</h3>
+                        <h3><i class="fa fa-percent"></i> Ratios de embudo (P/E · E/C · C/V)</h3>
                         <div class="chart-wrap"><canvas id="chartRatios"></canvas></div>
                     </div>
                     <div class="chart-card">
-                        <h3><i class="fa fa-gauge-high"></i> Tasa de Efectividad Automática (P➔V, P➔S)</h3>
+                        <h3><i class="fa fa-bullseye"></i> Ratios de efectividad (P/V · P/S)</h3>
                         <div class="chart-wrap"><canvas id="chartEfectividad"></canvas></div>
                     </div>
                     <div class="chart-card">
@@ -740,84 +1045,71 @@
             </div>
         </div>
 
-        <!-- ═══════════════════ TAB: REPORTE MENSUAL ═══════════════════ -->
+        <!-- ═══════════════════ TAB: REPORTES DE COACHES ═══════════════════ -->
         <div id="tab-reporte" class="tab-panel">
             <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                    <div style="display:flex; gap:14px; align-items:center;">
-                        <p class="card-title" style="margin:0;"><i class="fa fa-file-contract"></i> Reportes Mensuales</p>
-                        <div style="min-width:180px;">
-                            <select id="rpt-prom-sel" onchange="refreshTeamSelects(); renderReporteHistory()" style="padding:6px 10px; font-size:11px;">
-                                <option value="">Todos los promotores</option>
-                            </select>
-                        </div>
-                        <div style="min-width:180px;">
-                            <select id="rpt-team-sel" onchange="renderReporteHistory()"
-                                style="padding:6px 10px; font-size:11px;">
-                                <option value="">Todos los equipos</option>
-                            </select>
-                        </div>
+                <p class="card-title"><i class="fa fa-file-lines"></i> Reportes de Coaches</p>
+                <p style="font-size:12px;color:var(--slate);margin-bottom:15px;">
+                    Visualiza los reportes mensuales enviados por los coaches de tu equipo, incluyendo análisis, fraude, compromisos y reclutamiento.
+                </p>
+                <div class="charts-controls" style="margin-bottom:20px;">
+                    <div>
+                        <label class="field-label">Equipo Promotor</label>
+                        <select id="rpt-promotor-filter" onchange="refreshCoachFilters(); renderCoachReportes()">
+                            <option value="">Todos los promotores</option>
+                        </select>
                     </div>
-                    <button class="btn btn-sm"
-                        onclick="document.getElementById('modal-reporte-log').classList.add('open')">
-                        <i class="fa fa-list"></i> Ver Historial de Reportes
-                    </button>
-                </div>
-                <div id="promotor-reporte-view">
-                    <div class="empty-state">
-                        <i class="fa fa-file-invoice"></i> Selecciona un reporte del historial para visualizarlo.
+                    <div>
+                        <label class="field-label">Equipo Coach</label>
+                        <select id="rpt-coach-filter" onchange="renderCoachReportes()">
+                            <option value="">Todos los coaches</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Mes</label>
+                        <select id="rpt-mes-filter" onchange="renderCoachReportes()">
+                            <option value="">Todos los meses</option>
+                        </select>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- LOG REPORTE MODAL -->
-        <div class="modal-overlay" id="modal-reporte-log">
-            <div class="modal-box" style="max-width:800px;">
-                <button class="modal-close"
-                    onclick="document.getElementById('modal-reporte-log').classList.remove('open')">&times;</button>
-                <h2><i class="fa fa-folder-open"></i> Log de Reportes de Coaches</h2>
-                <div id="rpt-history" style="margin-top:16px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div class="empty-state">No hay reportes de coaches aún.</div>
+                <div id="coach-reportes-list" style="display:flex;flex-direction:column;gap:16px;">
+                    <div class="empty-state"><i class="fa fa-inbox"></i>Cargando reportes...</div>
                 </div>
             </div>
         </div>
 
-        <!-- CONFIG MODAL -->
-        <div class="modal-overlay" id="config-modal">
-            <div class="modal-box">
-                <button class="modal-close" onclick="closeConfig()">&times;</button>
-                <h2><i class="fa fa-cog"></i> Configuración Promotor</h2>
-                <div style="display:flex;flex-direction:column;gap:20px;">
-                    <div>
-                        <label class="field-label">Nombre del Director</label>
-                        <input type="text" id="inp-director" placeholder="Tu nombre">
-                    </div>
-                    <div>
-                        <label class="field-label">Código de Promotoría</label>
-                        <input type="text" id="inp-promocode" placeholder="Ej. PROM-CENTRO-1">
-                        <p style="font-size:10px; color:var(--slate); margin-top:5px;">Este código es el que tus coaches
-                            deben ingresar en su app para que puedas ver sus datos.</p>
-                    </div>
-                    <div>
-                        <label class="field-label">Código de Director</label>
-                        <input type="text" id="inp-dircode" placeholder="Ej. DIR-NORTH-1">
-                        <p style="font-size:10px; color:var(--slate); margin-top:5px;">Ingresa el código que te dio tu
-                            director para compartirle tus datos.</p>
-                    </div>
-                    <div>
-                        <p class="section-label">Promotores Vinculados</p>
-                        <div class="agent-list" id="promotor-list"></div>
-                    </div>
-                    <button class="btn btn-green" onclick="saveConfigDirector()"><i class="fa fa-floppy-disk"></i>
-                        Guardar configuración</button>
+    </div>
+
+    <!-- CONFIG MODAL -->
+    <div class="modal-overlay" id="config-modal">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeConfig()">&times;</button>
+            <h2><i class="fa fa-cog"></i> Configuración</h2>
+            <div style="display:flex;flex-direction:column;gap:20px;">
+                <div>
+                    <label class="field-label">Nombre del Director</label>
+                    <input type="text" id="inp-director" placeholder="Tu nombre">
                 </div>
+                <div>
+                    <label class="field-label">Tu Código de Director (compártelo con tus promotores)</label>
+                    <input type="text" id="inp-teamcode" placeholder="Ej. TEAM-DIRECTOR" readonly>
+                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">Los promotores ingresan este código en su webapp para vincularse a ti.</p>
+                </div>
+                <div>
+                    <p class="section-label">Promotores en tu Equipo</p>
+                    <div class="agent-list" id="agent-list"></div>
+                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">Los coaches que ingresen tu código
+                        aparecerán aquí automáticamente.</p>
+                </div>
+                <button class="btn btn-green" onclick="saveConfig()"><i class="fa fa-floppy-disk"></i>Guardar
+                    configuración</button>
             </div>
         </div>
+    </div>
 
-        <script type="module">
-            // --- FIREBASE CONFIG ---
-            const firebaseConfig = {
+    <script type="module">
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = {
                 apiKey: "AIzaSyCnhYA0Jq-1_b6nqQVx3BN47WXgg2YEDxs",
                 authDomain: "pecvs-testnet.firebaseapp.com",
                 projectId: "pecvs-testnet",
@@ -826,587 +1118,1210 @@
                 appId: "1:76206458151:web:464559030e00d060c11502"
             };
 
-            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-            import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-            import { getFirestore, doc, setDoc, getDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        // --- IMPORT FIREBASE ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-            const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
-            const db = getFirestore(app);
-            const provider = new GoogleAuthProvider();
+        // Initialize
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
 
-            // ─── STATE ───────────────────────────────────────────────────────────────────
-            const COLS = ['P', 'E', 'C', 'V', 'S'];
-            const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        // ─── STATE ───────────────────────────────────────────────────────────────────
+        const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        const COLS = ['P', 'E', 'C', 'V', 'S'];
+        const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-            let state = { directorName: '', directorCode: '', promotores: [], promotorCodes: [], promotorMap: {}, coaches: [], teamCodes: [], coachMap: {}, teamToPromotorMap: {}, agents: [], entries: [], reportes: [] };
-            let user = null;
-            let unsubPromotores = null;
-            let unsubCoaches = null;
-            let unsubAgents = null;
+        // state for Promoter: tracks promoter info, all coaches under them, their agents and entries
+        // coachesMap: { [coachEmail]: { coachName, teamCode, agents: [names], reportes: [], reclutamiento: [] } }
+        // agentCoachMap: { [agentName]: coachEmail } - used to derive coach from agent entries
+        let state = {
+            promoterName: '',
+            teamCode: '',      // code linking promoter → director (TEAM-DIRECTOR)
+            promotorCode: '',  // code promoter shares with coaches (TEAM-PROMOTOR-X)
+            promotorNum: null,
+            agents: [],
+            entries: [],
+            coaches: [],        // [{email, coachName, agentTeamCode, reportes, reclutamiento}]
+            coachesMap: {},     // {email -> coach data}
+            agentCoachMap: {}   // {agentName -> coachEmail}
+        };
+        let user = null;
+        let unsubListeners = []; // multiple listeners for each coach team
 
-            // ─── AUTH LOGIC ──────────────────────────────────────────────────────────────
-            document.getElementById('login-btn').addEventListener('click', () => {
-                signInWithPopup(auth, provider).catch(err => alert("Error login: " + err.message));
-            });
+        // ─── AUTH LOGIC ──────────────────────────────────────────────────────────────
+        document.getElementById('login-btn').addEventListener('click', () => {
+            signInWithPopup(auth, provider).catch(err => alert("Error login: " + err.message));
+        });
 
-            window.logout = function () {
-                if (confirm("¿Cerrar sesión?")) signOut(auth);
-            };
+        window.logout = function () {
+            if (confirm("¿Cerrar sesión?")) signOut(auth);
+        };
 
-            onAuthStateChanged(auth, async (u) => {
-                if (u) {
-                    user = u;
-                    document.getElementById('login-overlay').classList.add('hidden');
-                    await loadDirectorData();
-                } else {
-                    user = null;
-                    document.getElementById('login-overlay').classList.remove('hidden');
-                }
-            });
-
-            async function loadDirectorData() {
-                if (!user) return;
-                const docRef = doc(db, "directores", user.email);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    state.directorName = data.directorName || '';
-                    state.directorCode = data.directorCode || '';
-                    refreshAll();
-                    startListeningPromotores();
-                } else {
-                    state.directorName = user.displayName;
-                    openConfig();
-                }
+        onAuthStateChanged(auth, async (u) => {
+            if (u) {
+                user = u;
+                document.getElementById('login-overlay').classList.add('hidden');
+                await loadDirectorData();
+                init();
+            } else {
+                user = null;
+                document.getElementById('login-overlay').classList.remove('hidden');
             }
+        });
 
-            async function saveDirectorData() {
-                if (!user) return;
-                await setDoc(doc(db, "directores", user.email), {
+        // ─── SERVICE WORKER ──────────────────────────────────────────────────────────
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    reg.onupdatefound = () => {
+                        const newSW = reg.installing;
+                        newSW.onstatechange = () => {
+                            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm('Nueva versión disponible (v1.0.0). ¿Recargar ahora para actualizar?')) {
+                                    window.location.reload();
+                                }
+                            }
+                        };
+                    };
+                }).catch(err => console.error('SW registration failed:', err));
+            });
+        }
+
+        async function loadDirectorData() {
+            if (!user) return;
+            const docRef = doc(db, "directors", user.email);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                state.directorName = data.directorName || user.displayName || '';
+                state.directorCode = data.directorCode || '';
+                // Store the embedded promoters array as fallback (from hierarchy loader)
+                state.embeddedPromoters = Array.isArray(data.promoters) ? data.promoters : [];
+                document.getElementById('team-display').textContent = 'Mi código: ' + (state.directorCode || 'Sin Código');
+                startListeningPromotores();
+            } else {
+                // First time director
+                state.directorName = user.displayName || '';
+                openConfig();
+            }
+        }
+
+        async function saveDirectorData() {
+            if (!user) return;
+            try {
+                await setDoc(doc(db, "directors", user.email), {
                     directorName: state.directorName,
                     directorCode: state.directorCode
-                });
+                }, { merge: true });
+                document.getElementById('team-display').textContent = 'Mi código: ' + (state.directorCode || 'Sin Código');
+            } catch (err) { console.error("Error saving director:", err); }
+        }
+
+        function stopAllListeners() {
+            unsubListeners.forEach(fn => { try { fn(); } catch (e) { } });
+            unsubListeners = [];
+        }
+
+        function startListeningCoaches() {
+            stopAllListeners();
+
+            // Prefer embedded coaches array from promoter doc (most reliable source of truth)
+            if (state.embeddedCoaches && state.embeddedCoaches.length > 0) {
+                loadCoachesFromEmbedded();
+            } else {
+                // Fallback: query coaches by promotorTeamCode
+                const queryCode = state.promotorCode || state.teamCode;
+                if (queryCode) {
+                    const coachQ = query(collection(db, "coaches"), where("promotorTeamCode", "==", queryCode));
+                    const unsubCoaches = onSnapshot(coachQ, (snapshot) => {
+                        let coaches = [];
+                        const coachesMap = {};
+                        snapshot.forEach((docSnap) => {
+                            const cdata = docSnap.data();
+                            const coachEmail = docSnap.id;
+                            const coachEntry = {
+                                email: coachEmail,
+                                coachName: cdata.coachName || coachEmail,
+                                agentTeamCode: resolveAgentTeamCode(cdata),
+                                coachNum: cdata.coachNum,
+                                reportes: cdata.reportes || [],
+                                reclutamiento: cdata.reclutamiento || []
+                            };
+                            coaches.push(coachEntry);
+                            coachesMap[coachEmail] = coachEntry;
+                        });
+
+                        state.coaches = coaches;
+                        state.coachesMap = coachesMap;
+                        startListeningAgentsForCoaches();
+                        refreshAll();
+                    });
+                    unsubListeners.push(unsubCoaches);
+                }
             }
+        }
 
-            function startListeningPromotores() {
-                if (unsubPromotores) unsubPromotores();
-                if (!state.directorCode) return;
+        // Derive the teamCode that agents use to link to this coach.
+        // The loader bug: saves coach's teamCode = TEAM-PROMOTOR-X instead of TEAM-COACH-X.
+        // Agents always use TEAM-COACH-{coachNum}. So if stored teamCode looks like a promotor
+        // code, fall back to TEAM-COACH-{coachNum}.
+        function resolveAgentTeamCode(cdata, fallbackCoachNum) {
+            const stored = cdata.teamCode || '';
+            const coachNum = cdata.coachNum || fallbackCoachNum || '';
+            if (!stored || stored.startsWith('TEAM-PROMOTOR-') || stored.startsWith('TEAM-DIRECTOR')) {
+                return coachNum ? 'TEAM-COACH-' + coachNum : '';
+            }
+            return stored;
+        }
 
-                const q = query(collection(db, "promotores"), where("directorCode", "==", state.directorCode));
-                unsubPromotores = onSnapshot(q, (snapshot) => {
-                    const promotores = [];
-                    const pCodes = [];
-                    const pMap = {};
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        promotores.push(data.promotorName || 'Sin Nombre');
-                        if (data.promotorCode) {
-                            pCodes.push(data.promotorCode);
-                            pMap[data.promotorCode] = data.promotorName;
+        async function loadCoachesFromEmbedded() {
+            const coaches = [];
+            const coachesMap = {};
+            for (const c of state.embeddedCoaches) {
+                try {
+                    const snap = await getDoc(doc(db, "coaches", c.email));
+                    if (snap.exists()) {
+                        const cdata = snap.data();
+                        const entry = {
+                            email: c.email,
+                            coachName: cdata.coachName || c.name || c.email,
+                            agentTeamCode: resolveAgentTeamCode(cdata, c.coachNum),
+                            coachNum: cdata.coachNum || c.coachNum,
+                            reportes: cdata.reportes || [],
+                            reclutamiento: cdata.reclutamiento || []
+                        };
+                        coaches.push(entry);
+                        coachesMap[c.email] = entry;
+                    } else {
+                        const entry = {
+                            email: c.email,
+                            coachName: c.name || c.email,
+                            agentTeamCode: 'TEAM-COACH-' + (c.coachNum || ''),
+                            coachNum: c.coachNum,
+                            reportes: [],
+                            reclutamiento: []
+                        };
+                        coaches.push(entry);
+                        coachesMap[c.email] = entry;
+                    }
+                } catch (e) { console.error('Error loading coach', c.email, e); }
+            }
+            state.coaches = coaches;
+            state.coachesMap = coachesMap;
+            startListeningAgentsForCoaches();
+            refreshAll();
+        }
+
+        // Keep separate list of agent unsubscribers so we can reset them when coaches change
+        let agentUnsubs = [];
+        function clearAgentUnsubs() {
+            agentUnsubs.forEach(fn => { try { fn(); } catch (e) { } });
+            agentUnsubs = [];
+        }
+
+        function startListeningAgentsForCoaches() {
+            clearAgentUnsubs();
+
+            // Aggregate state
+            const aggregated = {
+                entries: [],
+                agents: [],
+                agentCoachMap: {}
+            };
+
+            state.coaches.forEach(coach => {
+                if (!coach.agentTeamCode) return;
+                const agentQ = query(collection(db, "users"), where("teamCode", "==", coach.agentTeamCode));
+                const unsub = onSnapshot(agentQ, (snapshot) => {
+                    // Rebuild state per coach teamCode whenever there's a change
+                    // Remove previous entries/agents from this coach
+                    aggregated.entries = aggregated.entries.filter(e => aggregated.agentCoachMap[e.agent] !== coach.email);
+                    aggregated.agents = aggregated.agents.filter(a => aggregated.agentCoachMap[a] !== coach.email);
+
+                    // Remove mappings for this coach
+                    Object.keys(aggregated.agentCoachMap).forEach(ag => {
+                        if (aggregated.agentCoachMap[ag] === coach.email) {
+                            delete aggregated.agentCoachMap[ag];
                         }
                     });
-                    state.promotores = promotores;
-                    state.promotorCodes = pCodes;
-                    state.promotorMap = pMap;
-                    renderPromotorList();
-                    refreshPromotorSelects();
-                    startListeningCoaches();
-                });
-            }
 
-            function startListeningCoaches() {
-                if (unsubCoaches) unsubCoaches();
-                if (!state.promotorCodes.length) {
-                    state.coaches = [];
-                    state.teamCodes = [];
-                    startListeningAgents();
-                    return;
-                }
-
-                const q = query(collection(db, "coaches"));
-                unsubCoaches = onSnapshot(q, (snapshot) => {
-                    const allCoaches = [];
-                    const allTeamCodes = [];
-                    const coachMap = {};
-                    const tToP = {};
-                    const allAggregatedReportes = [];
-
-                    snapshot.forEach((doc) => {
-                        const coachData = doc.data();
-                        const cName = coachData.coachName || 'Sin Nombre';
-                        allCoaches.push(cName);
-                        if (coachData.teamCode) {
-                            allTeamCodes.push(coachData.teamCode);
-                            coachMap[coachData.teamCode] = cName;
-                            tToP[coachData.teamCode] = coachData.promotorCode;
-                        }
-                        if (coachData.reportes) {
-                            coachData.reportes.forEach(r => {
-                                r.coachName = cName;
-                                r.promotorCode = coachData.promotorCode;
-                                allAggregatedReportes.push(r);
-                            });
-                        }
-                    });
-
-                    state.coaches = allCoaches;
-                    state.teamCodes = allTeamCodes;
-                    state.coachMap = coachMap;
-                    state.teamToPromotorMap = tToP;
-                    state.reportes = allAggregatedReportes;
-
-                    refreshTeamSelects();
-                    startListeningAgents();
-                });
-            }
-
-            function startListeningAgents() {
-                if (unsubAgents) unsubAgents();
-                if (!state.teamCodes.length) {
-                    state.agents = [];
-                    state.entries = [];
-                    refreshAll();
-                    return;
-                }
-
-                const q = query(collection(db, "users"));
-                unsubAgents = onSnapshot(q, (snapshot) => {
-                    const allEntries = [];
-                    const allAgents = [];
-                    snapshot.forEach((doc) => {
-                        const agentData = doc.data();
+                    snapshot.forEach((docSnap) => {
+                        const agentData = docSnap.data();
                         if (agentData.agentName) {
-                            allAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode });
+                            if (!aggregated.agents.includes(agentData.agentName)) {
+                                aggregated.agents.push(agentData.agentName);
+                            }
+                            aggregated.agentCoachMap[agentData.agentName] = coach.email;
                             if (agentData.entries) {
                                 agentData.entries.forEach(e => {
                                     e.agent = agentData.agentName;
-                                    e.teamCode = agentData.teamCode;
-                                    allEntries.push(e);
+                                    const existingIdx = aggregated.entries.findIndex(ae => ae.agent === e.agent && ae.mes === e.mes && ae.semana == e.semana);
+                                    if (existingIdx >= 0) aggregated.entries[existingIdx] = e;
+                                    else aggregated.entries.push(e);
                                 });
                             }
                         }
                     });
-                    state.agents = allAgents;
-                    state.entries = allEntries;
+
+                    state.entries = aggregated.entries;
+                    state.agents = aggregated.agents;
+                    state.agentCoachMap = aggregated.agentCoachMap;
                     refreshAll();
                 });
-            }
+                agentUnsubs.push(unsub);
+            });
+        }
 
-            function refreshAll() {
-                document.getElementById('director-display').textContent = 'Director: ' + (state.directorName || '—');
-                document.getElementById('dircode-display').textContent = 'Código: ' + (state.directorCode || '—');
-                refreshPromotorSelects();
-                refreshTeamSelects();
-                refreshAgentSelects();
-                renderLeaderboard();
-                renderCharts();
-                renderKPIs();
-                refreshMonthFilters();
-                renderReporteHistory();
-            }
+        // ─── INIT ─────────────────────────────────────────────────────────────────────
+        window.init = function () {
+            refreshAll();
+        }
 
-            function switchTab(name, btn) {
-                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.getElementById('tab-' + name).classList.add('active');
-                btn.classList.add('active');
-                if (name === 'charts') renderCharts();
-                if (name === 'kpis') renderKPIs();
-                if (name === 'leaderboard') renderLeaderboard();
-                if (name === 'reporte') renderReporteHistory();
-            }
+        window.saveState = async function () {
+            await saveDirectorData();
+        }
 
-            function openConfig() {
-                document.getElementById('inp-director').value = state.directorName || '';
-                document.getElementById('inp-dircode').value = state.directorCode || '';
-                renderPromotorList();
-                document.getElementById('config-modal').classList.add('open');
-            }
+        function refreshAll() {
+            document.getElementById('coach-display').textContent = 'Promotor: ' + (state.directorName || '—');
+            refreshCoachFilters();
+            refreshChartAgents();
+            renderLeaderboard();
+            renderCharts();
+            renderKPIs();
+            refreshMonthFilters();
+            renderCoachReportes();
+        }
 
-            function closeConfig() { document.getElementById('config-modal').classList.remove('open'); }
+        // ─── TABS ─────────────────────────────────────────────────────────────────────
+        function switchTab(name, btn) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            btn.classList.add('active');
+            if (name === 'charts') renderCharts();
+            if (name === 'kpis') renderKPIs();
+            if (name === 'leaderboard') renderLeaderboard();
+            if (name === 'reporte') renderCoachReportes();
+        }
 
-            async function saveConfigDirector() {
-                const name = document.getElementById('inp-director').value.trim();
-                const code = document.getElementById('inp-dircode').value.trim().toUpperCase();
-                if (!name || !code) return alert("Por favor ingresa nombre y código.");
+        // ─── CONFIG ──────────────────────────────────────────────────────────────────
+        window.openConfig = function () {
+            const inpCoach = document.getElementById('inp-coach');
+            const inpTeam = document.getElementById('inp-teamcode');
+            const inpPromo = document.getElementById('inp-promocode');
+            if (inpCoach) inpCoach.value = state.directorName || '';
+            if (inpTeam) inpTeam.value = state.promotorCode || '';
+            // Show teamCode (director code) in 3rd field
+            if (inpPromo) inpPromo.value = state.teamCode || '';
+            renderCoachList();
+            document.getElementById('config-modal').classList.add('open');
+        }
 
-                state.directorName = name;
-                state.directorCode = code;
-                await saveDirectorData();
-                alert("Configuración guardada.");
-                closeConfig();
+        window.closeConfig = function () { document.getElementById('config-modal').classList.remove('open'); }
+
+        window.renderCoachList = function () {
+            const el = document.getElementById('agent-list');
+            if (!el) return;
+            if (!state.coaches.length) { el.innerHTML = '<div style="color:var(--slate);font-size:11px;padding:8px 0;">No hay coaches vinculados con este código de equipo todavía.</div>'; return; }
+            el.innerHTML = state.coaches.map((c) => `
+                <div class="agent-chip" style="justify-content:space-between; padding:10px 15px;">
+                    <span style="font-weight:600;"><i class="fa fa-user-tie" style="color:var(--gold); margin-right:8px;"></i>${c.coachName}</span>
+                    <span style="font-size:9px; color:var(--slate); text-transform:uppercase; letter-spacing:1px;">${c.email}</span>
+                </div>
+            `).join('');
+        }
+
+        window.saveConfig = async function () {
+            try {
+                // Determine source element to show loading state if possible
+                const btn = (window.event && window.event.target && window.event.target.tagName === 'BUTTON') ? window.event.target : null;
+                const oldHtml = btn ? btn.innerHTML : '';
+                if (btn) {
+                    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Guardando...';
+                    btn.disabled = true;
+                }
+
+                state.directorName = document.getElementById('inp-coach').value.trim();
+                // Only update promoterName, codes are read-only (loaded from promoter doc)
+
+                await saveState();
+                startListeningCoaches();
                 refreshAll();
-                startListeningPromotores();
-            }
 
-            function renderPromotorList() {
-                const el = document.getElementById('promotor-list');
+                if (btn) {
+                    btn.innerHTML = '<i class="fa fa-check"></i> ¡Guardado!';
+                    setTimeout(() => {
+                        btn.innerHTML = oldHtml;
+                        btn.disabled = false;
+                        closeConfig();
+                    }, 1000);
+                } else {
+                    closeConfig();
+                }
+            } catch (err) {
+                console.error("Error saving promoter:", err);
+                alert("Error al guardar: " + err.message);
+            }
+        }
+
+        function refreshCoachFilters() {
+            // Build options from state.coaches - key is email, value is coachName for display
+            const opts = state.coaches
+                .slice()
+                .sort((a, b) => (a.coachName || '').localeCompare(b.coachName || ''))
+                .map(c => `<option value="${c.email}">${c.coachName}</option>`).join('');
+
+            ['lb-coach-filter', 'kpi-coach-sel', 'chart-coach-sel', 'rpt-coach-filter'].forEach(id => {
+                const el = document.getElementById(id);
                 if (!el) return;
-                if (!state.promotores.length) { el.innerHTML = '<div style="color:var(--slate);font-size:11px;">No hay promotores vinculados aún.</div>'; return; }
-                el.innerHTML = state.promotores.map(p => `<div class="agent-chip"><span><i class="fa fa-crown" style="margin-right:8px; color:var(--gold)"></i>${p}</span></div>`).join('');
-            }
+                const cur = el.value;
+                el.innerHTML = '<option value="">Todos los coaches</option>' + opts;
+                // Preserve selection if still valid
+                if (cur && state.coaches.some(c => c.email === cur)) el.value = cur;
+            });
+        }
 
-            function refreshPromotorSelects() {
-                const ids = ['lb-prom-filter', 'kpi-prom-sel', 'chart-prom-sel', 'rpt-prom-sel'];
-                const opts = Object.entries(state.promotorMap).map(([code, name]) => `<option value="${code}">${name}</option>`).join('');
-                ids.forEach(id => {
-                    const el = document.getElementById(id); if (!el) return;
-                    const cur = el.value;
-                    el.innerHTML = '<option value="">Todos los promotores</option>' + opts;
-                    el.value = cur;
+        function refreshChartAgents() {
+            const chartCoachEl = document.getElementById('chart-coach-sel');
+            const selectedCoach = chartCoachEl ? chartCoachEl.value : '';
+            let agentsForCoach = state.agents;
+            if (selectedCoach) {
+                agentsForCoach = state.agents.filter(a => state.agentCoachMap[a] === selectedCoach);
+            }
+            const opts = agentsForCoach
+                .slice()
+                .sort((a, b) => a.localeCompare(b))
+                .map(a => `<option value="${a}">${a}</option>`).join('');
+            const el = document.getElementById('chart-agent-sel');
+            if (!el) return;
+            const cur = el.value;
+            el.innerHTML = '<option value="__all__">Todos (Total equipo)</option>' + opts;
+            // Preserve selection if still valid
+            if (cur === '__all__' || agentsForCoach.includes(cur)) el.value = cur;
+            else el.value = '__all__';
+        }
+
+        // ─── CALENDAR LOGIC (used only by leaderboard week count) ────────────────────
+
+        function getMonthCalendar(year, month) {
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const firstDayJS = new Date(year, month - 1, 1).getDay(); // 0=Sun
+            const firstDayMon = (firstDayJS + 6) % 7; // 0=Mon ... 6=Sun
+            const weeks = [];
+            let week = [];
+            let dow = firstDayMon;
+            for (let d = 1; d <= daysInMonth; d++) {
+                week.push({ dayName: DAYS[dow], date: d });
+                if (dow === 6 || d === daysInMonth) { weeks.push(week); week = []; }
+                dow = (dow + 1) % 7;
+            }
+            return weeks;
+        }
+
+        // ─── MONTH FILTERS ────────────────────────────────────────────────────────────
+        function refreshMonthFilters() {
+            const mesesConDatos = [...new Set(state.entries.map(e => e.mes))];
+
+            // Extraer años únicos de los datos existentes
+            const yearsWithData = [...new Set(mesesConDatos.map(m => {
+                const parts = m.split(' ');
+                return parseInt(parts[parts.length - 1]);
+            }))].sort((a, b) => b - a);
+
+            // Usar año actual si no hay datos, o los años que tienen datos
+            const yearsToShow = yearsWithData.length > 0 ? yearsWithData : [new Date().getFullYear()];
+
+            // Crear opciones de meses para cada año
+            let todosLosMeses = '';
+            yearsToShow.forEach(year => {
+                MONTHS_ES.forEach(m => {
+                    const fullMesStr = m + ' ' + year;
+                    todosLosMeses += `<option value="${fullMesStr}">${m} ${year}</option>`;
                 });
+            });
+
+            const lbFilter = document.getElementById('lb-mes-filter');
+            const curLb = lbFilter.value;
+            lbFilter.innerHTML = '<option value="">Todos los meses</option>' + todosLosMeses;
+            if (mesesConDatos.includes(curLb) || curLb === '') lbFilter.value = curLb;
+
+            // Set default leaderboard to last month and last week
+            initLeaderboardDefaults();
+        }
+
+        function initLeaderboardDefaults() {
+            if (state.entries.length === 0) return;
+
+            // Find last month by sorting chronologically by year and month
+            const mesesConDatos = [...new Set(state.entries.map(e => e.mes.trim()))];
+            const lastMes = mesesConDatos.sort((a, b) => {
+                const partsA = a.split(' ').filter(p => p.length > 0);
+                const partsB = b.split(' ').filter(p => p.length > 0);
+                const mesA = partsA[0];
+                const yearA = parseInt(partsA[partsA.length - 1]);
+                const mesB = partsB[0];
+                const yearB = parseInt(partsB[partsB.length - 1]);
+                const monthA = MONTHS_ES.indexOf(mesA) + 1;
+                const monthB = MONTHS_ES.indexOf(mesB) + 1;
+                const yA = yearA || 0;
+                const yB = yearB || 0;
+                if (yA !== yB) return yA - yB;
+                return monthA - monthB;
+            }).reverse()[0];
+
+            const lbFilter = document.getElementById('lb-mes-filter');
+            lbFilter.value = lastMes;
+
+            // Force refresh of weeks after setting the month
+            refreshLeaderboardWeeks();
+
+            // Find last week in that month
+            const entriesLastMes = state.entries.filter(e => e.mes.trim() === lastMes);
+            if (entriesLastMes.length > 0) {
+                const lastWeek = Math.max(...entriesLastMes.map(e => parseInt(e.semana)));
+                document.getElementById('lb-sem-filter').value = lastWeek;
             }
+        }
 
-            function refreshTeamSelects() {
-                const mappings = [
-                    { t: 'lb-team-filter', p: 'lb-prom-filter' },
-                    { t: 'kpi-team-sel', p: 'kpi-prom-sel' },
-                    { t: 'chart-team-sel', p: 'chart-prom-sel' },
-                    { t: 'rpt-team-sel', p: 'rpt-prom-sel' }
-                ];
-                mappings.forEach(({t, p}) => {
-                    const elPromF = document.getElementById(p);
-                    const promF = elPromF ? elPromF.value : '';
-                    const filteredCodes = Object.keys(state.coachMap).filter(tc => !promF || state.teamToPromotorMap[tc] === promF);
-                    const opts = filteredCodes.map(code => `<option value="${code}">${state.coachMap[code]}</option>`).join('');
-                    
-                    const el = document.getElementById(t); 
-                    if (!el) return;
-                    const cur = el.value;
-                    el.innerHTML = '<option value="">Todos los equipos</option>' + opts;
-                    if (filteredCodes.includes(cur)) el.value = cur; else el.value = '';
-                });
+        // ─── LEADERBOARD ──────────────────────────────────────────────────────────────
+        function ratio(a, b) { return b > 0 ? (a / b).toFixed(2) : '—'; }
+
+        let showRedData = false;
+        function toggleRed() {
+            showRedData = !showRedData;
+            renderLeaderboard();
+            const btn = document.getElementById('btn-tog-red');
+            btn.innerHTML = showRedData ? '<i class="fa fa-eye-slash"></i> Ocultar Conciliación' : '<i class="fa fa-eye"></i> Ver Conciliación Real';
+            btn.classList.toggle('btn-red', showRedData);
+        }
+
+        function validateDay(d) {
+            if (d.P === 0 && d.E === 0 && d.C === 0 && d.V === 0 && d.S === 0 && d.prima === 0) return { ok: true, errors: [] };
+            const errors = [];
+            if (d.P < d.E) errors.push("Contactos (P) < Entrevistas (E)");
+            if (d.E < d.C) errors.push("Entrevistas (E) < Cotizaciones (C)");
+            if (d.C < d.V) errors.push("Cotizaciones (C) < Cierres (V)");
+            if (d.S < d.V) errors.push("Solicitudes (S) < Cierres (V)");
+            if (d.V === 0 && d.S > 0) {
+                errors.push("Si hay solicitudes, como mínimo tiene que haber 1 cierre");
+            } else if (d.S > d.V * 2) {
+                errors.push("Solicitudes (S) > Doble de Cierres (2V)");
             }
+            if (d.S > 0 && d.prima < 1) errors.push("Debe ingresar Prima ($) si hay solicitudes");
+            return { ok: errors.length === 0, errors };
+        }
 
-    function refreshAgentSelects() {
-                const teamF = document.getElementById('chart-team-sel').value;
-                let filteredAgents = state.agents;
-                if (teamF) filteredAgents = state.agents.filter(a => a.teamCode === teamF);
+        function refreshLeaderboardWeeks() {
+            const mesFilter = document.getElementById('lb-mes-filter');
+            const semFilter = document.getElementById('lb-sem-filter');
+            if (!mesFilter || !semFilter) {
+                console.log('[refreshLeaderboardWeeks] Filters not found');
+                return;
+            }
+            const selectedMes = mesFilter.value || '';
+            const prevSem = semFilter.value;
 
-                const opts = filteredAgents.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
-                const sel = document.getElementById('chart-agent-sel');
-                if (sel) {
-                    const cur = sel.value;
-                    sel.innerHTML = '<option value="__all__">Todos los agentes</option>' + opts;
-                    if (filteredAgents.find(a => a.name === cur) || cur === '__all__') sel.value = cur;
-                    else sel.value = '__all__';
+            // Determinar el número de semanas a mostrar
+            let numWeeks = 6; // Por defecto 6 para cubrir el caso sin mes seleccionado
+
+            if (selectedMes) {
+                // Parsear "Enero 2026" - el año es lo último, el mes es todo antes
+                const trimmed = selectedMes.trim();
+                const lastSpace = trimmed.lastIndexOf(' ');
+                if (lastSpace !== -1) {
+                    const mesName = trimmed.substring(0, lastSpace).trim();
+                    const yearStr = trimmed.substring(lastSpace + 1).trim();
+                    const year = parseInt(yearStr);
+                    const monthIndex = MONTHS_ES.indexOf(mesName);
+
+                    console.log('[refreshLeaderboardWeeks] selectedMes:', selectedMes, '| mesName:', mesName, '| year:', year, '| monthIndex:', monthIndex);
+
+                    if (monthIndex !== -1 && !isNaN(year)) {
+                        const month = monthIndex + 1;
+                        const weeks = getMonthCalendar(year, month);
+                        numWeeks = weeks.length;
+                        console.log('[refreshLeaderboardWeeks] ' + mesName + ' ' + year + ' tiene ' + numWeeks + ' semanas');
+                    }
                 }
             }
 
-            function refreshMonthFilters() {
-                const meses = [...new Set(state.entries.map(e => e.mes))];
-                const opts = meses.map(m => `<option value="${m}">${m}</option>`).join('');
-                ['lb-mes-filter', 'chart-mes-sel', 'kpi-mes-sel'].forEach(id => {
-                    const el = document.getElementById(id); if (!el) return;
-                    const cur = el.value;
-                    el.innerHTML = '<option value="">Todos los meses</option>' + opts;
-                    if (meses.includes(cur)) el.value = cur;
+            // Construir opciones
+            let html = '<option value="">Todas las semanas</option>';
+            for (let i = 1; i <= numWeeks; i++) {
+                html += '<option value="' + i + '">Semana ' + i + '</option>';
+            }
+            semFilter.innerHTML = html;
+
+            // Restaurar valor previo si es válido
+            if (prevSem && parseInt(prevSem) <= numWeeks) {
+                semFilter.value = prevSem;
+            }
+        }
+
+        function renderLeaderboard() {
+            const mesF = document.getElementById('lb-mes-filter').value;
+            const semF = document.getElementById('lb-sem-filter').value;
+            const coachF = document.getElementById('lb-coach-filter') ? document.getElementById('lb-coach-filter').value : '';
+            let filtered = state.entries.filter(e =>
+                (!mesF || e.mes === mesF) &&
+                (!semF || e.semana == semF) &&
+                (!coachF || state.agentCoachMap[e.agent] === coachF)
+            );
+
+            // aggregate per agent (re-summing only valid days + tracking red activity)
+            const agMap = {};
+            filtered.forEach(e => {
+                if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
+                e.dias.forEach(d => {
+                    const { ok } = validateDay(d);
+                    if (ok) {
+                        COLS.forEach(c => agMap[e.agent][c] += d[c]);
+                        agMap[e.agent].prima += d.prima;
+                    } else {
+                        agMap[e.agent].redS += d.S;
+                        agMap[e.agent].redPrima += d.prima;
+                    }
                 });
+            });
+
+            const agents = Object.keys(agMap);
+            const thead = document.getElementById('lb-thead');
+            const tbody = document.getElementById('lb-body');
+            const tfoot = document.getElementById('lb-foot');
+
+            if (!agents.length) {
+                tbody.innerHTML = `<tr class="no-data-row"><td colspan="${showRedData ? 20 : 17}">No hay datos con los filtros actuales.</td></tr>`;
+                tfoot.innerHTML = ''; return;
             }
 
-            // ─── LEADERBOARD ──────────────────────────────────────────────────────────────
-            function ratio(a, b) { return b > 0 ? (a / b).toFixed(2) : '—'; }
-            let showRedData = false;
-            function toggleRed() {
-                showRedData = !showRedData;
-                renderLeaderboard();
-                const btn = document.getElementById('btn-tog-red');
-                btn.innerHTML = showRedData ? '<i class="fa fa-eye-slash"></i> Ocultar Conciliación' : '<i class="fa fa-eye"></i> Ver Conciliación Real';
-                btn.classList.toggle('btn-red', showRedData);
-            }
-
-            function validateDay(d) {
-                if (d.P === 0 && d.E === 0 && d.C === 0 && d.V === 0 && d.S === 0 && d.prima === 0) return { ok: true, errors: [] };
-                const errors = [];
-                if (d.P < d.E) errors.push("P < E");
-                if (d.E < d.C) errors.push("E < C");
-                if (d.C < d.V) errors.push("C < V");
-                if (d.S < d.V) errors.push("S < V");
-                if (d.V === 0 && d.S > 0) errors.push("S>0 requiere V>=1");
-                if (d.S > 0 && d.prima < 1) errors.push("Requiere Prima");
-                return { ok: errors.length === 0, errors };
-            }
-
-            function renderLeaderboard() {
-                const mesF = document.getElementById('lb-mes-filter').value;
-                const semF = document.getElementById('lb-sem-filter').value;
-                const promF = document.getElementById('lb-prom-filter').value;
-                const teamF = document.getElementById('lb-team-filter').value;
-                let filtered = state.entries.filter(e => (!mesF || e.mes === mesF) && (!semF || e.semana == semF) && (!promF || state.teamToPromotorMap[e.teamCode] === promF) && (!teamF || e.teamCode === teamF));
-
-                const agMap = {};
-                filtered.forEach(e => {
-                    if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
-                    e.dias.forEach(d => {
-                        const { ok } = validateDay(d);
-                        if (ok) {
-                            agMap[e.agent].P += d.P; agMap[e.agent].E += d.E; agMap[e.agent].C += d.C;
-                            agMap[e.agent].V += d.V; agMap[e.agent].S += d.S; agMap[e.agent].prima += d.prima;
-                        } else {
-                            agMap[e.agent].redS += d.S; agMap[e.agent].redPrima += d.prima;
-                        }
-                    });
-                });
-
-                const agents = Object.keys(agMap);
-                const thead = document.getElementById('lb-thead');
-                const tbody = document.getElementById('lb-body');
-                const tfoot = document.getElementById('lb-foot');
-
-                if (!agents.length) {
-                    tbody.innerHTML = `<tr class="no-data-row"><td colspan="17">No hay datos.</td></tr>`;
-                    tfoot.innerHTML = ''; return;
-                }
-
-                thead.innerHTML = `
+            // Dynamic Header
+            thead.innerHTML = `
                 <tr>
-                    <th rowspan="2">#</th><th rowspan="2">Agente</th>
+                    <th rowspan="2">#</th>
+                    <th rowspan="2">Agente</th>
                     <th colspan="5" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Volumen PECVS$</th>
-                    <th colspan="4" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Ratios Jerarquía</th>
-                    <th colspan="2" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Ratios Efectividad</th>
-                    <th colspan="1" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Financiero</th>
-                    ${showRedData ? `<th colspan="3" style="border-left:2px solid var(--red);border-bottom:1px solid var(--red);background:rgba(239,68,68,0.1)">CONCILIACIÓN REAL (🔴 + 🟢)</th>` : ''}
+                    <th colspan="4" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Ratios PECVS</th>
+                    <th colspan="2" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Ratios</th>
+                    <th colspan="3" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Prima promedio ($)</th>
+                    ${showRedData ? `<th colspan="3" style="border-left:2px solid var(--red);border-bottom:1px solid var(--red);background:rgba(239,68,68,0.1)">RECONCILIACIÓN (🔴 + 🟢)</th>` : ''}
                 </tr>
                 <tr>
                     <th style="border-left:2px solid #475569">P</th><th>E</th><th>C</th><th>V</th><th>S</th>
                     <th style="border-left:2px solid #475569">P/E</th><th>E/C</th><th>C/V</th><th>S/V</th>
                     <th style="border-left:2px solid #475569">P/V</th><th>P/S</th>
-                    <th style="border-left:2px solid #475569">Prima Neta</th>
-                    ${showRedData ? `<th style="border-left:2px solid var(--red);color:var(--red)">S (R)</th><th style="color:var(--red)">$ (R)</th><th style="border-left:1px solid var(--red);color:var(--gold)">$ TOTAL</th>` : ''}
+                    <th style="border-left:2px solid #475569">Neta</th><th>$/V</th><th>$/S</th>
+                    ${showRedData ? `
+                    <th style="border-left:2px solid var(--red);color:var(--red)">S (R)</th>
+                    <th style="color:var(--red)">$ (R)</th>
+                    <th style="border-left:1px solid var(--red);color:var(--gold)">$ TOTAL</th>
+                    ` : ''}
                 </tr>`;
 
-                agents.sort((a, b) => agMap[b].prima - agMap[a].prima);
-                tbody.innerHTML = agents.map((ag, i) => {
-                    const d = agMap[ag];
-                    const pF = d.prima.toLocaleString('es-MX', { minimumFractionDigits: 0 });
-                    return `<tr>
-                    <td class="rank-num">${i + 1}</td><td class="agent-name-cell">${ag}</td>
+            // sort by prima desc
+            agents.sort((a, b) => agMap[b].prima - agMap[a].prima);
+
+            tbody.innerHTML = agents.map((ag, i) => {
+                const d = agMap[ag];
+                const primaFmt = d.prima.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const redPrimaFmt = d.redPrima.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                const totalPrimaFmt = (d.prima + d.redPrima).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return `<tr>
+                    <td class="rank-num">${i + 1}</td>
+                    <td class="agent-name-cell">${ag}</td>
                     <td style="border-left:2px solid #475569">${d.P}</td><td>${d.E}</td><td>${d.C}</td><td>${d.V}</td><td>${d.S}</td>
-                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratio(d.E, d.P)}</td><td>${ratio(d.C, d.E)}</td><td>${ratio(d.V, d.C)}</td><td>${ratio(d.S, d.V)}</td>
-                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratio(d.V, d.P)}</td><td>${ratio(d.S, d.P)}</td>
-                    <td style="font-weight:700;color:var(--green);border-left:2px solid #475569">$${pF}</td>
-                    ${showRedData ? `<td style="border-left:2px solid var(--red);color:var(--red)">${d.redS}</td><td>$${d.redPrima.toLocaleString()}</td><td style="font-weight:700;color:var(--gold)">$${(d.prima + d.redPrima).toLocaleString()}</td>` : ''}
+                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratio(d.E, d.P)}</td>
+                    <td class="ratio-cell">${ratio(d.C, d.E)}</td>
+                    <td class="ratio-cell">${ratio(d.V, d.C)}</td>
+                    <td class="ratio-cell">${ratio(d.S, d.V)}</td>
+                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratio(d.V, d.P)}</td>
+                    <td class="ratio-cell">${ratio(d.S, d.P)}</td>
+                    <td style="font-weight:700;color:var(--green);border-left:2px solid #475569">$${primaFmt}</td>
+                    <td class="ratio-cell">${ratio(d.prima, d.V)}</td>
+                    <td class="ratio-cell">${ratio(d.prima, d.S)}</td>
+                    ${showRedData ? `
+                    <td style="border-left:2px solid var(--red);color:var(--red);opacity:0.8">${d.redS}</td>
+                    <td style="color:var(--red);opacity:0.8">$${redPrimaFmt}</td>
+                    <td style="border-left:1px solid var(--red);font-weight:700;color:var(--gold)">$${totalPrimaFmt}</td>
+                    ` : ''}
                 </tr>`;
-                }).join('');
+            }).join('');
 
-                const tot = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
-                agents.forEach(ag => { COLS.forEach(c => tot[c] += agMap[ag][c]); tot.prima += agMap[ag].prima; tot.redS += agMap[ag].redS; tot.redPrima += agMap[ag].redPrima; });
-                tfoot.innerHTML = `<tr>
-                <td></td><td style="text-align:left;font-weight:800;">TOTAL EQUIPO</td>
+            // totals row
+            const tot = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
+            agents.forEach(ag => {
+                COLS.forEach(c => tot[c] += agMap[ag][c]);
+                tot.prima += agMap[ag].prima;
+                tot.redS += agMap[ag].redS;
+                tot.redPrima += agMap[ag].redPrima;
+            });
+            const totPrima = tot.prima.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const totRedPrima = tot.redPrima.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            const totFinal = (tot.prima + tot.redPrima).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            tfoot.innerHTML = `<tr>
+                <td></td><td style="text-align:left;font-weight:800;">EQUIPO TOTAL</td>
                 <td style="border-left:2px solid #475569">${tot.P}</td><td>${tot.E}</td><td>${tot.C}</td><td>${tot.V}</td><td>${tot.S}</td>
-                <td style="border-left:2px solid #475569">${ratio(tot.E, tot.P)}</td><td>${ratio(tot.C, tot.E)}</td><td>${ratio(tot.V, tot.C)}</td><td>${ratio(tot.S, tot.V)}</td>
+                <td style="border-left:2px solid #475569">${ratio(tot.E, tot.P)}</td><td>${ratio(tot.C, tot.E)}</td>
+                <td>${ratio(tot.V, tot.C)}</td><td>${ratio(tot.S, tot.V)}</td>
                 <td style="border-left:2px solid #475569">${ratio(tot.V, tot.P)}</td><td>${ratio(tot.S, tot.P)}</td>
-                <td style="font-weight:800;color:var(--gold);border-left:2px solid #475569">$${tot.prima.toLocaleString()}</td>
-                ${showRedData ? `<td style="border-left:2px solid var(--red);color:var(--red)">${tot.redS}</td><td>$${tot.redPrima.toLocaleString()}</td><td style="color:var(--gold);font-weight:800">$${(tot.prima + tot.redPrima).toLocaleString()}</td>` : ''}
-                </tr>`;
+                <td style="font-weight:800;color:var(--gold);border-left:2px solid #475569">$${totPrima}</td>
+                <td>${ratio(tot.prima, tot.V)}</td><td>${ratio(tot.prima, tot.S)}</td>
+                ${showRedData ? `
+                <td style="border-left:2px solid var(--red);color:var(--red)">${tot.redS}</td>
+                <td style="color:var(--red)">$${totRedPrima}</td>
+                <td style="border-left:1px solid var(--red);color:var(--gold);font-weight:800">$${totFinal}</td>
+                ` : ''}
+            </tr>`;
+        }
+
+        // ─── CHARTS ──────────────────────────────────────────────────────────────────
+        let charts = {};
+        function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+        const CHART_COLORS = {
+            P: '#3b82f6', E: '#06b6d4', C: '#a855f7', V: '#10b981', S: '#f59e0b'
+        };
+
+        function renderCharts() {
+            const agSel = document.getElementById('chart-agent-sel').value;
+            const period = document.getElementById('chart-period-sel').value;
+            const coachF = document.getElementById('chart-coach-sel') ? document.getElementById('chart-coach-sel').value : '';
+            let entries = [];
+
+            // Apply coach filter first
+            const baseEntries = coachF
+                ? state.entries.filter(e => state.agentCoachMap[e.agent] === coachF)
+                : state.entries;
+
+            // Find the latest month in the data
+            let latestDate = null;
+            baseEntries.forEach(e => {
+                const [mes, year] = e.mes.split(' ');
+                const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                if (!latestDate || entryDate > latestDate) {
+                    latestDate = entryDate;
+                }
+            });
+
+            let filtered = baseEntries;
+            if (latestDate) {
+                if (period === '12m') {
+                    const last12Months = new Date(latestDate.getFullYear(), latestDate.getMonth() - 11, 1);
+                    filtered = baseEntries.filter(e => {
+                        const [mes, year] = e.mes.split(' ');
+                        const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                        const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                        return entryDate >= last12Months;
+                    });
+                } else if (period === '3m') {
+                    const last3Months = new Date(latestDate.getFullYear(), latestDate.getMonth() - 2, 1);
+                    filtered = baseEntries.filter(e => {
+                        const [mes, year] = e.mes.split(' ');
+                        const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                        const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                        return entryDate >= last3Months;
+                    });
+                } else if (period === '6m') {
+                    const last6Months = new Date(latestDate.getFullYear(), latestDate.getMonth() - 5, 1);
+                    filtered = baseEntries.filter(e => {
+                        const [mes, year] = e.mes.split(' ');
+                        const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                        const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                        return entryDate >= last6Months;
+                    });
+                }
             }
 
-            // ─── CHARTS ──────────────────────────────────────────────────────────────────
-            let charts = {};
-            function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
-            const CHART_COLORS = { P: '#3b82f6', E: '#06b6d4', C: '#a855f7', V: '#10b981', S: '#f59e0b' };
+            entries = filtered.filter(e => agSel === '__all__' || e.agent === agSel);
 
-            function chartOpts(yLabel) {
+            // Build x-axis labels: unique "mes · SemN" sorted by date
+            const labelSet = [...new Set(entries.map(e => `${e.mes}·S${e.semana}`))].sort((a, b) => {
+                const [mesA, semA] = a.split('·');
+                const [mesB, semB] = b.split('·');
+                const [mA, yA] = mesA.split(' ');
+                const [mB, yB] = mesB.split(' ');
+                const monthA = MONTHS_ES.indexOf(mA) + 1;
+                const monthB = MONTHS_ES.indexOf(mB) + 1;
+                const yearA = parseInt(yA);
+                const yearB = parseInt(yB);
+                if (yearA !== yearB) return yearA - yearB;
+                if (monthA !== monthB) return monthA - monthB;
+                return parseInt(semA.replace('S', '')) - parseInt(semB.replace('S', ''));
+            });
+            const labels = labelSet.map(l => l.replace('·', ' · Sem '));
+
+            // Aggregate per label (re-summing only valid days)
+            function aggByLabel(col) {
+                return labelSet.map(lk => {
+                    const [m, sn] = lk.split('·'); const s = sn.replace('S', '');
+                    let suma = 0;
+                    entries.filter(e => e.mes === m && e.semana == s).forEach(e => {
+                        e.dias.forEach(d => {
+                            const { ok } = validateDay(d);
+                            if (ok) suma += (col === 'prima' ? d.prima : d[col]);
+                        });
+                    });
+                    return suma;
+                });
+            }
+
+            // Volume chart
+            destroyChart('volume');
+            const ctxV = document.getElementById('chartVolume').getContext('2d');
+            charts['volume'] = new Chart(ctxV, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: COLS.map(c => ({
+                        label: c, data: aggByLabel(c), borderColor: CHART_COLORS[c],
+                        backgroundColor: CHART_COLORS[c] + '33', tension: .4, fill: false, pointRadius: 4
+                    }))
+                },
+                options: chartOpts('Actividad')
+            });
+
+            // Prima chart
+            destroyChart('prima');
+            const ctxP = document.getElementById('chartPrima').getContext('2d');
+            charts['prima'] = new Chart(ctxP, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ label: 'Prima $', data: aggByLabel('prima'), backgroundColor: 'rgba(212,175,55,.5)', borderColor: '#d4af37', borderWidth: 2 }]
+                },
+                options: chartOpts('Prima Neta')
+            });
+
+            // Helper: compute ratio series per label
+            function ratioSeries(numCol, denCol, color, lbl) {
                 return {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } },
-                    scales: {
-                        x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
-                        y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 9 } }, title: { display: true, text: yLabel, color: '#94a3b8', font: { size: 10 } } }
-                    }
+                    label: lbl,
+                    data: labelSet.map(lk => {
+                        const [m, sn] = lk.split('·'); const s = sn.replace('S', '');
+                        const seg = entries.filter(e => e.mes === m && e.semana == s);
+                        const num = seg.reduce((sum, e) => sum + (numCol === 'prima' ? e.totales.prima : e.totales[numCol]), 0);
+                        const den = seg.reduce((sum, e) => sum + (denCol === 'prima' ? e.totales.prima : e.totales[denCol]), 0);
+                        return den > 0 ? parseFloat((num / den).toFixed(3)) : null;
+                    }),
+                    borderColor: color, backgroundColor: color + '22', tension: .4, fill: false, pointRadius: 4
                 };
             }
 
-            function renderCharts() {
-                const agSel = document.getElementById('chart-agent-sel').value;
-                const mesSel = document.getElementById('chart-mes-sel').value;
-                const promSel = document.getElementById('chart-prom-sel').value;
-                const teamSel = document.getElementById('chart-team-sel').value;
-                let entries = state.entries.filter(e => (agSel === '__all__' || e.agent === agSel) && (!mesSel || e.mes === mesSel) && (!promSel || state.teamToPromotorMap[e.teamCode] === promSel) && (!teamSel || e.teamCode === teamSel));
-                const labelSet = [...new Set(entries.map(e => `${e.mes}·S${e.semana}`))].sort();
+            // Embudo ratios: P/E, E/C, C/V
+            destroyChart('ratios');
+            const ctxR = document.getElementById('chartRatios').getContext('2d');
+            charts['ratios'] = new Chart(ctxR, {
+                type: 'line',
+                data: {
+                    labels, datasets: [
+                        ratioSeries('E', 'P', '#06b6d4', '% Eficiencia: Conversión de P ➔ E'),
+                        ratioSeries('C', 'E', '#a855f7', '% Eficiencia: Conversión de E ➔ C'),
+                        ratioSeries('V', 'C', '#10b981', '% Eficiencia: Conversión de C ➔ V')
+                    ]
+                },
+                options: chartOpts('Unidades')
+            });
 
-                function aggByLabel(col) {
-                    return labelSet.map(lk => {
-                        const [m, sn] = lk.split('·'); const s = sn.replace('S', '');
-                        let suma = 0;
-                        entries.filter(e => e.mes === m && e.semana == s).forEach(e => {
-                            e.dias.forEach(d => { if (validateDay(d).ok) suma += (col === 'prima' ? d.prima : d[col]); });
-                        });
-                        return suma;
+            // Efectividad: P/V, P/S
+            destroyChart('efectividad');
+            const ctxEf = document.getElementById('chartEfectividad').getContext('2d');
+            charts['efectividad'] = new Chart(ctxEf, {
+                type: 'line',
+                data: {
+                    labels, datasets: [
+                        ratioSeries('V', 'P', '#f59e0b', '% Eficiencia: Conversión P ➔ V (Cierre)'),
+                        ratioSeries('S', 'P', '#ef4444', '% Eficiencia: Conversión P ➔ S (Solicitud)')
+                    ]
+                },
+                options: chartOpts('Tasa (0\u20131)')
+            });
+
+            // Prima promedio: $/V, $/S
+            destroyChart('primaRatios');
+            const ctxPR = document.getElementById('chartPrimaRatios').getContext('2d');
+            charts['primaRatios'] = new Chart(ctxPR, {
+                type: 'line',
+                data: {
+                    labels, datasets: [
+                        ratioSeries('prima', 'V', '#d4af37', '$/V — Prima por cierre'),
+                        ratioSeries('prima', 'S', '#10b981', '$/S — Prima por solicitud')
+                    ]
+                },
+                options: chartOpts('$ MXN')
+            });
+        }
+
+        // ─── KPI CHARTS ──────────────────────────────────────────────────────────────
+        function renderKPIs() {
+            const period = document.getElementById('kpi-period-sel').value;
+            const coachF = document.getElementById('kpi-coach-sel') ? document.getElementById('kpi-coach-sel').value : '';
+            let entries = [];
+
+            // Apply coach filter first
+            const baseEntries = coachF
+                ? state.entries.filter(e => state.agentCoachMap[e.agent] === coachF)
+                : state.entries;
+
+            // Find the latest month in the data
+            let latestDate = null;
+            baseEntries.forEach(e => {
+                const [mes, year] = e.mes.split(' ');
+                const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                if (!latestDate || entryDate > latestDate) {
+                    latestDate = entryDate;
+                }
+            });
+
+            if (!latestDate) {
+                entries = baseEntries;
+            } else {
+                if (period === '1m') {
+                    const last1Month = new Date(latestDate.getFullYear(), latestDate.getMonth(), 1);
+                    entries = baseEntries.filter(e => {
+                        const [mes, year] = e.mes.split(' ');
+                        const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                        const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                        return entryDate >= last1Month;
                     });
+                } else if (period === '3m') {
+                    const last3Months = new Date(latestDate.getFullYear(), latestDate.getMonth() - 2, 1);
+                    entries = baseEntries.filter(e => {
+                        const [mes, year] = e.mes.split(' ');
+                        const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                        const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                        return entryDate >= last3Months;
+                    });
+                } else if (period === '6m') {
+                    const last6Months = new Date(latestDate.getFullYear(), latestDate.getMonth() - 5, 1);
+                    entries = baseEntries.filter(e => {
+                        const [mes, year] = e.mes.split(' ');
+                        const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                        const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                        return entryDate >= last6Months;
+                    });
+                } else if (period === '12m') {
+                    const last12Months = new Date(latestDate.getFullYear(), latestDate.getMonth() - 11, 1);
+                    entries = baseEntries.filter(e => {
+                        const [mes, year] = e.mes.split(' ');
+                        const monthIdx = MONTHS_ES.indexOf(mes) + 1;
+                        const entryDate = new Date(parseInt(year), monthIdx - 1, 1);
+                        return entryDate >= last12Months;
+                    });
+                } else {
+                    entries = baseEntries;
                 }
+            }
 
-                destroyChart('volume');
-                charts['volume'] = new Chart(document.getElementById('chartVolume').getContext('2d'), {
-                    type: 'line',
-                    data: { labels: labelSet, datasets: COLS.map(c => ({ label: c, data: aggByLabel(c), borderColor: CHART_COLORS[c], tension: .4, fill: false })) },
-                    options: chartOpts('Cantidad')
-                });
+            const agMap = {};
+            entries.forEach(e => {
+                if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
+                COLS.forEach(c => agMap[e.agent][c] += e.totales[c]);
+                agMap[e.agent].prima += e.totales.prima;
+            });
 
-                destroyChart('prima');
-                charts['prima'] = new Chart(document.getElementById('chartPrima').getContext('2d'), {
+            const agents = Object.keys(agMap);
+            agents.sort((a, b) => agMap[b].prima - agMap[a].prima);
+
+            const labels = agents;
+            const primas = agents.map(a => agMap[a].prima);
+            const Vs = agents.map(a => agMap[a].V);
+            const Ps = agents.map(a => agMap[a].P);
+            const pvs = agents.map(a => agMap[a].P > 0 ? parseFloat((agMap[a].V / agMap[a].P).toFixed(2)) : 0);
+
+            destroyChart('kpiPrima');
+            charts['kpiPrima'] = new Chart(document.getElementById('kpiPrima').getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Prima Neta ($)', data: primas, backgroundColor: CHART_COLORS.S }] },
+                options: chartOpts('Monto $')
+            });
+
+            destroyChart('kpiVolumen');
+            charts['kpiVolumen'] = new Chart(document.getElementById('kpiVolumen').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels, datasets: [
+                        { label: 'Cierres (V)', data: Vs, backgroundColor: CHART_COLORS.V },
+                        { label: 'Contactos (P)', data: Ps, backgroundColor: CHART_COLORS.P }
+                    ]
+                },
+                options: chartOpts('Cantidad')
+            });
+
+            destroyChart('kpiEfectividad');
+            charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets: [{ label: '% Eficiencia: Conversión de P ➔ V (Cierre)', data: pvs, backgroundColor: CHART_COLORS.C }] },
+                options: chartOpts('Porcentaje (0.2 = 20%)')
+            });
+
+            // Prima Promedio / V
+            const pV = agents.map(a => agMap[a].V > 0 ? (agMap[a].prima / agMap[a].V).toFixed(2) : 0);
+            destroyChart('kpiPrimaV');
+            charts['kpiPrimaV'] = new Chart(document.getElementById('kpiPrimaV').getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Prima Promedio por Cierre ($/V)', data: pV, backgroundColor: '#d4af37' }] },
+                options: chartOpts('$ USD/MXN')
+            });
+
+            // Prima Promedio / S
+            const pS = agents.map(a => agMap[a].S > 0 ? (agMap[a].prima / agMap[a].S).toFixed(2) : 0);
+            destroyChart('kpiPrimaS');
+            charts['kpiPrimaS'] = new Chart(document.getElementById('kpiPrimaS').getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Prima Promedio por Solicitud ($/S)', data: pS, backgroundColor: CHART_COLORS.S }] },
+                options: chartOpts('$ USD/MXN')
+            });
+
+            // Volumen Full PECVS
+            const dataP = agents.map(a => agMap[a].P);
+            const dataE = agents.map(a => agMap[a].E);
+            const dataC = agents.map(a => agMap[a].C);
+            const dataV = agents.map(a => agMap[a].V);
+            const dataS = agents.map(a => agMap[a].S);
+            destroyChart('kpiVolumeFull');
+            charts['kpiVolumeFull'] = new Chart(document.getElementById('kpiVolumeFull').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'P', data: dataP, backgroundColor: CHART_COLORS.P },
+                        { label: 'E', data: dataE, backgroundColor: CHART_COLORS.E },
+                        { label: 'C', data: dataC, backgroundColor: CHART_COLORS.C },
+                        { label: 'V', data: dataV, backgroundColor: CHART_COLORS.V },
+                        { label: 'S', data: dataS, backgroundColor: CHART_COLORS.S }
+                    ]
+                },
+                options: chartOpts('Cantidad Unidades')
+            });
+
+            // Ratios de Embudo
+            const ratios = [
+                { id: 'kpiRatioEP', label: '% Eficiencia: Conversión de P ➔ E', top: 'E', bot: 'P', color: CHART_COLORS.E },
+                { id: 'kpiRatioCE', label: '% Eficiencia: Conversión de E ➔ C', top: 'C', bot: 'E', color: CHART_COLORS.C },
+                { id: 'kpiRatioVC', label: '% Eficiencia: Conversión de C ➔ V', top: 'V', bot: 'C', color: CHART_COLORS.V },
+                { id: 'kpiRatioSV', label: '% Eficiencia: Conversión de V ➔ S', top: 'S', bot: 'V', color: CHART_COLORS.S }
+            ];
+
+            ratios.forEach(r => {
+                const data = agents.map(a => agMap[a][r.bot] > 0 ? parseFloat((agMap[a][r.top] / agMap[a][r.bot]).toFixed(2)) : 0);
+                destroyChart(r.id);
+                charts[r.id] = new Chart(document.getElementById(r.id).getContext('2d'), {
                     type: 'bar',
-                    data: { labels: labelSet, datasets: [{ label: 'Prima $', data: aggByLabel('prima'), backgroundColor: 'rgba(212,175,55,.5)', borderColor: '#d4af37', borderWidth: 1 }] },
-                    options: chartOpts('Monto $')
+                    data: { labels, datasets: [{ label: r.label, data: data, backgroundColor: r.color }] },
+                    options: chartOpts('Ratio (Tasa 0-1)')
+                });
+            });
+        }
+
+        function chartOpts(yLabel) {
+            return {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                    y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } }, title: { display: true, text: yLabel, color: '#94a3b8', font: { size: 10 } } }
+                }
+            };
+        }
+
+        // ─── REPORTES DE COACHES (Promotor view) ─────────────────────────────────────
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function refreshCoachReporteMonthFilter() {
+            const sel = document.getElementById('rpt-mes-filter');
+            if (!sel) return;
+
+            // Collect unique months from all coaches' reportes
+            const mesesSet = new Set();
+            state.coaches.forEach(c => {
+                (c.reportes || []).forEach(r => { if (r.mes) mesesSet.add(r.mes); });
+                (c.reclutamiento || []).forEach(r => { if (r.mes) mesesSet.add(r.mes); });
+            });
+            const meses = [...mesesSet].sort((a, b) => {
+                const pa = a.split(' '); const pb = b.split(' ');
+                const mA = MONTHS_ES.indexOf(pa[0]) + 1; const mB = MONTHS_ES.indexOf(pb[0]) + 1;
+                const yA = parseInt(pa[1]) || 0; const yB = parseInt(pb[1]) || 0;
+                if (yA !== yB) return yB - yA;
+                return mB - mA;
+            });
+
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">Todos los meses</option>' +
+                meses.map(m => `<option value="${m}">${m}</option>`).join('');
+            if (cur && meses.includes(cur)) sel.value = cur;
+        }
+
+        function renderCoachReportes() {
+            const container = document.getElementById('coach-reportes-list');
+            if (!container) return;
+
+            refreshCoachReporteMonthFilter();
+
+            const coachF = document.getElementById('rpt-coach-filter') ? document.getElementById('rpt-coach-filter').value : '';
+            const mesF = document.getElementById('rpt-mes-filter') ? document.getElementById('rpt-mes-filter').value : '';
+
+            // Build list of coaches to display
+            const coachesToShow = coachF
+                ? state.coaches.filter(c => c.email === coachF)
+                : state.coaches.slice().sort((a, b) => (a.coachName || '').localeCompare(b.coachName || ''));
+
+            if (!coachesToShow.length) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay coaches en tu equipo todavía.</div>';
+                return;
+            }
+
+            // For each coach, gather reportes by month (combined with reclutamiento)
+            const allBlocks = [];
+
+            coachesToShow.forEach(coach => {
+                const reportes = coach.reportes || [];
+                const reclutamiento = coach.reclutamiento || [];
+
+                // Get unique meses for this coach
+                const mesesSet = new Set();
+                reportes.forEach(r => { if (r.mes) mesesSet.add(r.mes); });
+                reclutamiento.forEach(r => { if (r.mes) mesesSet.add(r.mes); });
+                let meses = [...mesesSet];
+
+                if (mesF) meses = meses.filter(m => m === mesF);
+
+                // Sort newest first
+                meses.sort((a, b) => {
+                    const pa = a.split(' '); const pb = b.split(' ');
+                    const mA = MONTHS_ES.indexOf(pa[0]) + 1; const mB = MONTHS_ES.indexOf(pb[0]) + 1;
+                    const yA = parseInt(pa[1]) || 0; const yB = parseInt(pb[1]) || 0;
+                    if (yA !== yB) return yB - yA;
+                    return mB - mA;
                 });
 
-                function ratioSeries(numCol, denCol, color, lbl) {
-                    return {
-                        label: lbl,
-                        data: labelSet.map(lk => {
-                            const [m, sn] = lk.split('·'); const s = sn.replace('S', '');
-                            const seg = entries.filter(e => e.mes === m && e.semana == s);
-                            let nm = 0, dn = 0;
-                            seg.forEach(e => e.dias.forEach(d => { if (validateDay(d).ok) { nm += (numCol === 'prima' ? d.prima : d[numCol]); dn += (denCol === 'prima' ? d.prima : d[denCol]); } }));
-                            return dn > 0 ? (nm / dn).toFixed(2) : 0;
-                        }),
-                        borderColor: color, tension: .4, fill: false
-                    };
+                meses.forEach(mes => {
+                    const rpt = reportes.find(r => r.mes === mes);
+                    const recl = reclutamiento.find(r => r.mes === mes);
+                    allBlocks.push({
+                        coachName: coach.coachName,
+                        coachEmail: coach.email,
+                        mes,
+                        rpt,
+                        recl
+                    });
+                });
+            });
+
+            if (!allBlocks.length) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay reportes de coaches con los filtros actuales.</div>';
+                return;
+            }
+
+            // Sort all blocks: newest first, then by coach name
+            allBlocks.sort((a, b) => {
+                const pa = a.mes.split(' '); const pb = b.mes.split(' ');
+                const mA = MONTHS_ES.indexOf(pa[0]) + 1; const mB = MONTHS_ES.indexOf(pb[0]) + 1;
+                const yA = parseInt(pa[1]) || 0; const yB = parseInt(pb[1]) || 0;
+                if (yA !== yB) return yB - yA;
+                if (mA !== mB) return mB - mA;
+                return (a.coachName || '').localeCompare(b.coachName || '');
+            });
+
+            container.innerHTML = allBlocks.map(blk => {
+                const rpt = blk.rpt;
+                const recl = blk.recl;
+
+                let reclutamientoHtml = '';
+                if (recl) {
+                    if (recl.q1 === 'si') {
+                        reclutamientoHtml = `
+                            <div><strong style="color:var(--gold);">Prospectos a cargo (Q2):</strong> ${escapeHtml(recl.q2 || '0')}</div>
+                            <div><strong style="color:var(--gold);">Nombres (Q3):</strong> ${escapeHtml(recl.q3 || '—')}</div>
+                            <div><strong style="color:var(--gold);">Compromiso de formalización (Q4):</strong> ${escapeHtml(recl.q4 || '—')}</div>
+                        `;
+                    } else {
+                        reclutamientoHtml = `<div style="color:var(--slate);">No tiene prospectos en entrenamiento actualmente.</div>`;
+                    }
+                } else {
+                    reclutamientoHtml = `<div style="color:var(--slate);">Sin datos de reclutamiento.</div>`;
                 }
 
-                destroyChart('ratios');
-                charts['ratios'] = new Chart(document.getElementById('chartRatios').getContext('2d'), {
-                    type: 'line',
-                    data: { labels: labelSet, datasets: [ratioSeries('E', 'P', '#06b6d4', 'P➔E'), ratioSeries('C', 'E', '#a855f7', 'E➔C'), ratioSeries('V', 'C', '#10b981', 'C➔V')] },
-                    options: chartOpts('Ratio')
-                });
+                const fechaStr = rpt && rpt.fecha ? new Date(rpt.fecha).toLocaleDateString('es-MX') : '';
 
-                destroyChart('efectividad');
-                charts['efectividad'] = new Chart(document.getElementById('chartEfectividad').getContext('2d'), {
-                    type: 'line',
-                    data: { labels: labelSet, datasets: [ratioSeries('V', 'P', '#f59e0b', 'P➔V'), ratioSeries('S', 'P', '#ef4444', 'P➔S')] },
-                    options: chartOpts('Tasa')
-                });
-
-                destroyChart('primaRatios');
-                charts['primaRatios'] = new Chart(document.getElementById('chartPrimaRatios').getContext('2d'), {
-                    type: 'line',
-                    data: { labels: labelSet, datasets: [ratioSeries('prima', 'V', '#d4af37', '$/V'), ratioSeries('prima', 'S', '#10b981', '$/S')] },
-                    options: chartOpts('$ Avg')
-                });
-            }
-
-            function renderKPIs() {
-                const mesSel = document.getElementById('kpi-mes-sel').value;
-                const promSel = document.getElementById('kpi-prom-sel').value;
-                const teamSel = document.getElementById('kpi-team-sel').value;
-                let entries = state.entries.filter(e => (!mesSel || e.mes === mesSel) && (!promSel || state.teamToPromotorMap[e.teamCode] === promSel) && (!teamSel || e.teamCode === teamSel));
-                const agMap = {};
-                entries.forEach(e => {
-                    if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
-                    e.dias.forEach(d => { if (validateDay(d).ok) { COLS.forEach(c => agMap[e.agent][c] += d[c]); agMap[e.agent].prima += d.prima; } });
-                });
-                const agents = Object.keys(agMap).sort((a, b) => agMap[b].prima - agMap[a].prima);
-
-                destroyChart('kpiPrima');
-                charts['kpiPrima'] = new Chart(document.getElementById('kpiPrima').getContext('2d'), {
-                    type: 'bar', data: { labels: agents, datasets: [{ label: 'Prima Neta ($)', data: agents.map(a => agMap[a].prima), backgroundColor: '#d4af37' }] },
-                    options: chartOpts('$')
-                });
-
-                destroyChart('kpiVolumen');
-                charts['kpiVolumen'] = new Chart(document.getElementById('kpiVolumen').getContext('2d'), {
-                    type: 'bar', data: { labels: agents, datasets: [{ label: 'V', data: agents.map(a => agMap[a].V), backgroundColor: CHART_COLORS.V }, { label: 'P', data: agents.map(a => agMap[a].P), backgroundColor: CHART_COLORS.P }] },
-                    options: chartOpts('Units')
-                });
-
-                destroyChart('kpiEfectividad');
-                charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
-                    type: 'bar', data: { labels: agents, datasets: [{ label: 'P ➔ V', data: agents.map(a => agMap[a].P > 0 ? (agMap[a].V / agMap[a].P).toFixed(2) : 0), backgroundColor: CHART_COLORS.C }] },
-                    options: chartOpts('Ratio')
-                });
-
-                destroyChart('kpiPrimaV');
-                charts['kpiPrimaV'] = new Chart(document.getElementById('kpiPrimaV').getContext('2d'), {
-                    type: 'bar', data: { labels: agents, datasets: [{ label: '$/V', data: agents.map(a => agMap[a].V > 0 ? (agMap[a].prima / agMap[a].V).toFixed(0) : 0), backgroundColor: '#d4af37' }] },
-                    options: chartOpts('$')
-                });
-
-                destroyChart('kpiPrimaS');
-                charts['kpiPrimaS'] = new Chart(document.getElementById('kpiPrimaS').getContext('2d'), {
-                    type: 'bar', data: { labels: agents, datasets: [{ label: '$/S', data: agents.map(a => agMap[a].S > 0 ? (agMap[a].prima / agMap[a].S).toFixed(0) : 0), backgroundColor: CHART_COLORS.S }] },
-                    options: chartOpts('$')
-                });
-            }
-
-            function loadReporte(mesStr, coachName) {
-                const r = (state.reportes || []).find(r => r.mes === mesStr && r.coachName === coachName);
-                if (!r) return;
-                document.getElementById('promotor-reporte-view').innerHTML = `
-                <div style="background:rgba(255,255,255,0.03); padding:24px; border-radius:12px; border:1px solid var(--border);">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;">
-                        <div><h3 style="margin:0; color:var(--gold);">${r.mes}</h3><p style="margin:5px 0 0; font-size:12px; color:var(--slate);">Coach: <strong>${r.coachName}</strong></p></div>
-                        <div style="text-align:right"><p style="margin:0; font-size:11px; color:var(--slate);">Fecha:</p><p style="margin:2px 0 0; font-size:12px;">${new Date(r.fecha).toLocaleDateString()}</p></div>
+                return `
+                <div style="background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <div style="font-family:'Playfair Display', serif; font-size:20px; color:var(--gold); font-weight:700;">
+                                <i class="fa fa-user-tie"></i> ${escapeHtml(blk.coachName)}
+                            </div>
+                            <div style="font-size:11px; color:var(--slate);">${escapeHtml(blk.coachEmail)}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:700; color:var(--white); font-size:14px;">${escapeHtml(blk.mes)}</div>
+                            ${fechaStr ? `<div style="font-size:10px; color:var(--slate);">Enviado: ${fechaStr}</div>` : ''}
+                        </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                        <div><label class="field-label">Análisis</label><p style="font-size:14px; line-height:1.6; white-space:pre-wrap;">${r.analisis || '—'}</p></div>
-                        <div><label class="field-label">Fraude/Sospecha</label><p style="font-size:14px; line-height:1.6; white-space:pre-wrap;">${r.agentes || '—'}</p></div>
-                        <div><label class="field-label">Compromisos</label><p style="font-size:14px; line-height:1.6; white-space:pre-wrap;">${r.compromisos || '—'}</p></div>
-                        <div><label class="field-label">Notas</label><p style="font-size:14px; line-height:1.6; white-space:pre-wrap;">${r.notas || '—'}</p></div>
+
+                    ${rpt ? `
+                    <div style="display:grid; gap:14px; font-size:13px; line-height:1.55;">
+                        <div style="padding:12px; background:rgba(59,130,246,0.08); border-left:3px solid var(--blue); border-radius:6px;">
+                            <div style="font-weight:700; color:var(--blue); margin-bottom:6px;"><i class="fa fa-chart-line"></i> Análisis general del mes</div>
+                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.analisis || '—')}</div>
+                        </div>
+                        <div style="padding:12px; background:rgba(239,68,68,0.08); border-left:3px solid var(--red); border-radius:6px;">
+                            <div style="font-weight:700; color:var(--red); margin-bottom:6px;"><i class="fa fa-triangle-exclamation"></i> Sospecha de fraude en actividad</div>
+                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.agentes || '—')}</div>
+                        </div>
+                        <div style="padding:12px; background:rgba(16,185,129,0.08); border-left:3px solid var(--green); border-radius:6px;">
+                            <div style="font-weight:700; color:var(--green); margin-bottom:6px;"><i class="fa fa-handshake"></i> Compromisos del coach</div>
+                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.compromisos || '—')}</div>
+                        </div>
+                        ${rpt.notas ? `
+                        <div style="padding:12px; background:rgba(148,163,184,0.08); border-left:3px solid var(--slate); border-radius:6px;">
+                            <div style="font-weight:700; color:var(--slate); margin-bottom:6px;"><i class="fa fa-note-sticky"></i> Notas adicionales</div>
+                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.notas)}</div>
+                        </div>
+                        ` : ''}
                     </div>
-                </div>`;
-                document.getElementById('modal-reporte-log').classList.remove('open');
-            }
+                    ` : `<div style="color:var(--slate); font-style:italic; padding:10px 0;">Este coach no ha enviado reporte de ventas para ${escapeHtml(blk.mes)}.</div>`}
 
-            function renderReporteHistory() {
-                const el = document.getElementById('rpt-history'); if (!el) return;
-                const promF = document.getElementById('rpt-prom-sel').value;
-                const teamF = document.getElementById('rpt-team-sel').value;
-                const coachF = state.coachMap[teamF];
+                    <div style="margin-top:14px; padding:12px; background:rgba(212,175,55,0.08); border-left:3px solid var(--gold); border-radius:6px; font-size:13px; line-height:1.55;">
+                        <div style="font-weight:700; color:var(--gold); margin-bottom:8px;"><i class="fa fa-user-plus"></i> Reclutamiento</div>
+                        ${reclutamientoHtml}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
 
-                let list = state.reportes || [];
-                if (promF) list = list.filter(r => r.promotorCode === promF);
-                if (coachF) list = list.filter(r => r.coachName === coachF);
-
-                if (!list.length) { el.innerHTML = '<div class="empty-state">No hay reportes.</div>'; return; }
-                el.innerHTML = list.map(r => `
-                <div class="history-chip" onclick="loadReporte('${r.mes}', '${r.coachName}')" style="flex-direction:column; align-items:flex-start; padding:12px;">
-                    <div style="display:flex; justify-content:space-between; width:100%; margin-bottom:5px;"><span style="font-weight:700;color:var(--gold)">${r.mes}</span><span style="color:var(--slate);font-size:10px;">${new Date(r.fecha).toLocaleDateString()}</span></div>
-                    <span style="color:var(--white);font-size:11px;">Coach: ${r.coachName}</span>
-                </div>`).join('');
-            }
-
-            // Exposures
-            window.openConfig = openConfig;
-            window.closeConfig = closeConfig;
-            window.saveConfigDirector = saveConfigDirector;
-            window.switchTab = switchTab;
-            window.toggleRed = toggleRed;
-            window.renderCharts = renderCharts;
-            window.renderKPIs = renderKPIs;
-            window.renderLeaderboard = renderLeaderboard;
-            window.renderReporteHistory = renderReporteHistory;
-            window.loadReporte = loadReporte;
-            window.refreshPromotorSelects = refreshPromotorSelects;
-            window.refreshAgentSelects = refreshAgentSelects;
-            window.refreshMonthFilters = refreshMonthFilters;
-            window.refreshTeamSelects = refreshTeamSelects;
-
-        </script>
-        <script>
-            if ("serviceWorker" in navigator) {
-                navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
-                .then(reg => {
-                    reg.onupdatefound = () => {
-                        const newWorker = reg.installing;
-                        newWorker.onstatechange = () => {
-                            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                                console.log("New update available!");
-                                window.location.reload(true);
-                            }
-                        };
-                    };
-                });
-            }
-        </script>
+        // ─── BOOT ─────────────────────────────────────────────────────────────────────
+        window.refreshAll = refreshAll;
+        window.switchTab = switchTab;
+        window.toggleRed = toggleRed;
+        window.renderCharts = renderCharts;
+        window.renderKPIs = renderKPIs;
+        window.renderLeaderboard = renderLeaderboard;
+        window.refreshLeaderboardWeeks = refreshLeaderboardWeeks;
+        window.refreshMonthFilters = refreshMonthFilters;
+        window.initLeaderboardDefaults = initLeaderboardDefaults;
+        window.refreshCoachFilters = refreshCoachFilters;
+        window.refreshChartAgents = refreshChartAgents;
+        window.renderCoachReportes = renderCoachReportes;
+        window.refreshCoachReporteMonthFilter = refreshCoachReporteMonthFilter;
+        window.validateDay = validateDay;
+        window.ratio = ratio;
+        window.destroyChart = destroyChart;
+        window.chartOpts = chartOpts;
+    </script>
 </body>
+
 </html>
-
-
-
-
-
-
-
-
