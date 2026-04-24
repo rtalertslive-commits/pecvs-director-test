@@ -1271,12 +1271,14 @@
         function startListeningCoaches() {
             // Query all coaches whose promotorTeamCode is in our promotorCodes list
             if (!state.promotorCodes || state.promotorCodes.length === 0) {
+                console.log('No promotorCodes, clearing coaches');
                 state.coaches = [];
                 state.coachesMap = {};
                 startListeningAgents();
                 return;
             }
 
+            console.log('Loading coaches for promotorCodes:', state.promotorCodes);
             const coachQ = query(collection(db, "coaches"), where("promotorTeamCode", "in", state.promotorCodes));
             const unsubCoaches = onSnapshot(coachQ, (snapshot) => {
                 let coaches = [];
@@ -1309,7 +1311,11 @@
             // Get all unique agentTeamCodes from coaches
             const teamCodes = [...new Set(state.coaches.map(c => c.agentTeamCode).filter(tc => tc))];
 
+            console.log('teamCodes from coaches:', teamCodes);
+            console.log('state.coaches:', state.coaches);
+
             if (!teamCodes.length) {
+                console.log('No teamCodes found');
                 state.agents = [];
                 state.entries = [];
                 refreshAll();
