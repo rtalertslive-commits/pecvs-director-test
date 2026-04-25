@@ -1048,33 +1048,51 @@
 
         <!-- ═══════════════════ TAB: REPORTES DE COACHES ═══════════════════ -->
         <div id="tab-reporte" class="tab-panel">
-            <div class="card">
-                <p class="card-title"><i class="fa fa-file-lines"></i> Reportes de Coaches</p>
-                <p style="font-size:12px;color:var(--slate);margin-bottom:15px;">
-                    Visualiza los reportes mensuales enviados por los coaches de tu equipo, incluyendo análisis, fraude, compromisos y reclutamiento.
-                </p>
-                <div class="charts-controls" style="margin-bottom:20px;">
-                    <div>
-                        <label class="field-label">Equipo Promotor</label>
-                        <select id="rpt-promotor-filter" onchange="refreshCoachFilters(); renderCoachReportes()">
-                            <option value="">Todos los promotores</option>
-                        </select>
+            <!-- Sub-tab switcher -->
+            <div style="display:flex; gap:8px; margin-bottom:20px;">
+                <button id="rpt-sub-btn-ventas" onclick="switchReporteSub('ventas')" style="padding:8px 18px; border-radius:8px; border:none; background:var(--gold); color:#000; font-weight:700; font-size:13px; cursor:pointer;">📊 Reportes de Ventas</button>
+                <button id="rpt-sub-btn-reclutamiento" onclick="switchReporteSub('reclutamiento')" style="padding:8px 18px; border-radius:8px; border:none; background:rgba(255,255,255,0.08); color:var(--white); font-weight:600; font-size:13px; cursor:pointer;">👥 Reclutamiento 2026</button>
+            </div>
+
+            <!-- VENTAS SECTION -->
+            <div id="rpt-section-ventas">
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-chart-line"></i> Reportes de Ventas</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:15px;">Análisis mensual, sospecha de fraude, compromisos y notas de cada coach.</p>
+                    <div class="charts-controls" style="margin-bottom:20px;">
+                        <div>
+                            <label class="field-label">Equipo Promotor</label>
+                            <select id="rpt-promotor-filter" onchange="refreshCoachFilters(); renderCoachReportes()">
+                                <option value="">Todos los promotores</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Equipo Coach</label>
+                            <select id="rpt-coach-filter" onchange="renderCoachReportes()">
+                                <option value="">Todos los coaches</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Mes</label>
+                            <select id="rpt-mes-filter" onchange="renderVentasSection()">
+                                <option value="">Todos los meses</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="field-label">Equipo Coach</label>
-                        <select id="rpt-coach-filter" onchange="renderCoachReportes()">
-                            <option value="">Todos los coaches</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label">Mes</label>
-                        <select id="rpt-mes-filter" onchange="renderCoachReportes()">
-                            <option value="">Todos los meses</option>
-                        </select>
+                    <div id="coach-reportes-list" style="display:flex;flex-direction:column;gap:16px;">
+                        <div class="empty-state"><i class="fa fa-inbox"></i>Cargando reportes...</div>
                     </div>
                 </div>
-                <div id="coach-reportes-list" style="display:flex;flex-direction:column;gap:16px;">
-                    <div class="empty-state"><i class="fa fa-inbox"></i>Cargando reportes...</div>
+            </div>
+
+            <!-- RECLUTAMIENTO SECTION -->
+            <div id="rpt-section-reclutamiento" style="display:none;">
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-user-plus"></i> Reclutamiento 2026</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:20px;">Seguimiento mensual de reclutamiento por coach. <span style="color:var(--green);font-weight:600;">Verde = Sí</span> · <span style="color:var(--red);font-weight:600;">Rojo = No</span> · Gris = Sin reporte</p>
+                    <div id="reclutamiento-grid" style="display:flex;flex-direction:column;gap:16px;">
+                        <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1173,6 +1191,19 @@
                 </button>
                 <button class="btn btn-sm" onclick="closeApproveModal()">Cancelar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- RECL DETAIL MODAL -->
+    <div class="modal-overlay" id="recl-detail-modal">
+        <div class="modal-box" style="max-width:480px;">
+            <button class="modal-close" onclick="closeReclDetail()">&times;</button>
+            <h2 style="font-family:'Playfair Display',serif; color:var(--green); margin-top:0; font-size:20px;">
+                <i class="fa fa-user-plus"></i> Reclutamiento
+            </h2>
+            <div id="recl-detail-header" style="font-size:12px; color:var(--slate); margin-bottom:16px;"></div>
+            <div id="recl-detail-content" style="display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.6;"></div>
+            <button class="btn btn-sm" style="margin-top:20px; width:100%;" onclick="closeReclDetail()">Cerrar</button>
         </div>
     </div>
 
@@ -2501,17 +2532,132 @@
             if (cur && meses.includes(cur)) sel.value = cur;
         }
 
-        function renderCoachReportes() {
+        const MESES_ABREV = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const MESES_FULL_2026 = ['Enero 2026','Febrero 2026','Marzo 2026','Abril 2026','Mayo 2026','Junio 2026','Julio 2026','Agosto 2026','Septiembre 2026','Octubre 2026','Noviembre 2026','Diciembre 2026'];
+
+        window.switchReporteSub = function(sub) {
+            document.getElementById('rpt-section-ventas').style.display = sub === 'ventas' ? '' : 'none';
+            document.getElementById('rpt-section-reclutamiento').style.display = sub === 'reclutamiento' ? '' : 'none';
+            const btnV = document.getElementById('rpt-sub-btn-ventas');
+            const btnR = document.getElementById('rpt-sub-btn-reclutamiento');
+            if (btnV) { btnV.style.background = sub === 'ventas' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'; btnV.style.color = sub === 'ventas' ? '#000' : 'var(--white)'; }
+            if (btnR) { btnR.style.background = sub === 'reclutamiento' ? 'var(--green)' : 'rgba(255,255,255,0.08)'; btnR.style.color = sub === 'reclutamiento' ? '#000' : 'var(--white)'; }
+            if (sub === 'reclutamiento') renderReclutamientoSection();
+        };
+
+        window.closeReclDetail = function() {
+            document.getElementById('recl-detail-modal').classList.remove('open');
+        };
+
+        window.showReclDetail = function(coachName, mes, reclJson) {
+            const recl = JSON.parse(decodeURIComponent(reclJson));
+            document.getElementById('recl-detail-header').innerHTML = `<strong style="color:var(--white);">${escapeHtml(coachName)}</strong> · ${escapeHtml(mes)}`;
+            document.getElementById('recl-detail-content').innerHTML = `
+                <div style="padding:12px; background:rgba(16,185,129,0.09); border-left:3px solid var(--green); border-radius:6px;">
+                    <div style="font-weight:700; color:var(--green); margin-bottom:4px;"><i class="fa fa-circle-check"></i> ¿Tiene prospectos en entrenamiento?</div>
+                    <div>Sí</div>
+                </div>
+                <div style="padding:12px; background:rgba(255,255,255,0.04); border-left:3px solid var(--gold); border-radius:6px;">
+                    <div style="font-weight:700; color:var(--gold); margin-bottom:4px;"><i class="fa fa-users"></i> Número de prospectos a cargo</div>
+                    <div>${escapeHtml(recl.q2 || '—')}</div>
+                </div>
+                <div style="padding:12px; background:rgba(255,255,255,0.04); border-left:3px solid var(--blue); border-radius:6px;">
+                    <div style="font-weight:700; color:var(--blue); margin-bottom:4px;"><i class="fa fa-id-card"></i> Nombres de prospectos</div>
+                    <div style="white-space:pre-wrap;">${escapeHtml(recl.q3 || '—')}</div>
+                </div>
+                <div style="padding:12px; background:rgba(255,255,255,0.04); border-left:3px solid var(--teal); border-radius:6px;">
+                    <div style="font-weight:700; color:var(--teal); margin-bottom:4px;"><i class="fa fa-handshake"></i> Compromiso de formalización</div>
+                    <div style="white-space:pre-wrap;">${escapeHtml(recl.q4 || '—')}</div>
+                </div>
+            `;
+            document.getElementById('recl-detail-modal').classList.add('open');
+        };
+
+        function renderReclutamientoSection() {
+            const container = document.getElementById('reclutamiento-grid');
+            if (!container) return;
+
+            const coachF = document.getElementById('rpt-coach-filter')?.value || '';
+            const coachesToShow = coachF
+                ? state.coaches.filter(c => c.email === coachF)
+                : state.coaches.slice().sort((a, b) => (a.coachName||'').localeCompare(b.coachName||''));
+
+            if (!coachesToShow.length) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay coaches en tu equipo todavía.</div>';
+                return;
+            }
+
+            container.innerHTML = coachesToShow.map(coach => {
+                const reclMap = {};
+                (coach.reclutamiento || []).forEach(r => { if (r.mes) reclMap[r.mes] = r; });
+
+                const boxes = MESES_FULL_2026.map((mesFull, i) => {
+                    const recl = reclMap[mesFull];
+                    const abrev = MESES_ABREV[i];
+                    let bg = 'rgba(255,255,255,0.06)';
+                    let icon = '';
+                    let clickable = false;
+                    let cursor = 'default';
+
+                    if (recl) {
+                        if (recl.q1 === 'si') {
+                            bg = 'rgba(16,185,129,0.25)';
+                            icon = '✓';
+                            clickable = true;
+                            cursor = 'pointer';
+                        } else if (recl.q1 === 'no') {
+                            bg = 'rgba(239,68,68,0.25)';
+                            icon = '✗';
+                        }
+                    }
+
+                    const borderColor = recl
+                        ? (recl.q1 === 'si' ? 'var(--green)' : 'var(--red)')
+                        : 'rgba(255,255,255,0.08)';
+
+                    const clickAttr = clickable
+                        ? `onclick="showReclDetail('${escapeHtml(coach.coachName)}','${mesFull}','${encodeURIComponent(JSON.stringify(recl))}')" title="Ver detalles"`
+                        : '';
+
+                    return `<div ${clickAttr} style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;background:${bg};border:1px solid ${borderColor};border-radius:8px;cursor:${cursor};min-height:62px;transition:opacity .15s;" ${clickable ? 'onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'"' : ''}>
+                        <div style="font-size:10px;font-weight:700;color:var(--slate);letter-spacing:0.5px;">${abrev}</div>
+                        <div style="font-size:18px;font-weight:800;color:${recl ? (recl.q1==='si' ? 'var(--green)' : 'var(--red)') : 'rgba(255,255,255,0.15)'};">${icon || '·'}</div>
+                    </div>`;
+                }).join('');
+
+                const siCount = MESES_FULL_2026.filter(m => reclMap[m]?.q1 === 'si').length;
+                const noCount = MESES_FULL_2026.filter(m => reclMap[m]?.q1 === 'no').length;
+
+                return `
+                <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+                        <div>
+                            <div style="font-weight:700;font-size:15px;color:var(--white);"><i class="fa fa-user-tie" style="color:var(--gold);margin-right:6px;"></i>${escapeHtml(coach.coachName)}</div>
+                            <div style="font-size:11px;color:var(--slate);">${escapeHtml(coach.email)}</div>
+                        </div>
+                        <div style="display:flex;gap:10px;font-size:12px;">
+                            <span style="color:var(--green);font-weight:700;"><i class="fa fa-circle-check"></i> ${siCount} Sí</span>
+                            <span style="color:var(--red);font-weight:700;"><i class="fa fa-circle-xmark"></i> ${noCount} No</span>
+                            <span style="color:var(--slate);">${12-siCount-noCount} sin reporte</span>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;">
+                        ${boxes}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderVentasSection() {
             const container = document.getElementById('coach-reportes-list');
             if (!container) return;
 
             refreshCoachReporteMonthFilter();
 
-            const promF = document.getElementById('rpt-promotor-filter') ? document.getElementById('rpt-promotor-filter').value : '';
-            const coachF = document.getElementById('rpt-coach-filter') ? document.getElementById('rpt-coach-filter').value : '';
-            const mesF = document.getElementById('rpt-mes-filter') ? document.getElementById('rpt-mes-filter').value : '';
+            const promF = document.getElementById('rpt-promotor-filter')?.value || '';
+            const coachF = document.getElementById('rpt-coach-filter')?.value || '';
+            const mesF = document.getElementById('rpt-mes-filter')?.value || '';
 
-            // Build list of coaches to display — filter by promotor then by coach
             let coachesToShow = state.coaches.slice();
             if (promF) {
                 const promoter = state.promotersMap[promF];
@@ -2520,131 +2666,91 @@
             if (coachF) {
                 coachesToShow = coachesToShow.filter(c => c.email === coachF);
             }
-            coachesToShow.sort((a, b) => (a.coachName || '').localeCompare(b.coachName || ''));
+            coachesToShow.sort((a, b) => (a.coachName||'').localeCompare(b.coachName||''));
 
             if (!coachesToShow.length) {
                 container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay coaches en tu equipo todavía.</div>';
                 return;
             }
 
-            // For each coach, gather reportes by month (combined with reclutamiento)
             const allBlocks = [];
-
             coachesToShow.forEach(coach => {
                 const reportes = coach.reportes || [];
-                const reclutamiento = coach.reclutamiento || [];
-
-                // Get unique meses for this coach
                 const mesesSet = new Set();
                 reportes.forEach(r => { if (r.mes) mesesSet.add(r.mes); });
-                reclutamiento.forEach(r => { if (r.mes) mesesSet.add(r.mes); });
                 let meses = [...mesesSet];
-
                 if (mesF) meses = meses.filter(m => m === mesF);
-
-                // Sort newest first
                 meses.sort((a, b) => {
-                    const pa = a.split(' '); const pb = b.split(' ');
-                    const mA = MONTHS_ES.indexOf(pa[0]) + 1; const mB = MONTHS_ES.indexOf(pb[0]) + 1;
-                    const yA = parseInt(pa[1]) || 0; const yB = parseInt(pb[1]) || 0;
+                    const pa = a.split(' '), pb = b.split(' ');
+                    const mA = MONTHS_ES.indexOf(pa[0])+1, mB = MONTHS_ES.indexOf(pb[0])+1;
+                    const yA = parseInt(pa[1])||0, yB = parseInt(pb[1])||0;
                     if (yA !== yB) return yB - yA;
                     return mB - mA;
                 });
-
                 meses.forEach(mes => {
                     const rpt = reportes.find(r => r.mes === mes);
-                    const recl = reclutamiento.find(r => r.mes === mes);
-                    allBlocks.push({
-                        coachName: coach.coachName,
-                        coachEmail: coach.email,
-                        mes,
-                        rpt,
-                        recl
-                    });
+                    if (rpt) allBlocks.push({ coachName: coach.coachName, coachEmail: coach.email, mes, rpt });
                 });
             });
 
             if (!allBlocks.length) {
-                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay reportes de coaches con los filtros actuales.</div>';
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay reportes de ventas con los filtros actuales.</div>';
                 return;
             }
 
-            // Sort all blocks: newest first, then by coach name
             allBlocks.sort((a, b) => {
-                const pa = a.mes.split(' '); const pb = b.mes.split(' ');
-                const mA = MONTHS_ES.indexOf(pa[0]) + 1; const mB = MONTHS_ES.indexOf(pb[0]) + 1;
-                const yA = parseInt(pa[1]) || 0; const yB = parseInt(pb[1]) || 0;
+                const pa = a.mes.split(' '), pb = b.mes.split(' ');
+                const mA = MONTHS_ES.indexOf(pa[0])+1, mB = MONTHS_ES.indexOf(pb[0])+1;
+                const yA = parseInt(pa[1])||0, yB = parseInt(pb[1])||0;
                 if (yA !== yB) return yB - yA;
                 if (mA !== mB) return mB - mA;
-                return (a.coachName || '').localeCompare(b.coachName || '');
+                return (a.coachName||'').localeCompare(b.coachName||'');
             });
 
             container.innerHTML = allBlocks.map(blk => {
                 const rpt = blk.rpt;
-                const recl = blk.recl;
-
-                let reclutamientoHtml = '';
-                if (recl) {
-                    if (recl.q1 === 'si') {
-                        reclutamientoHtml = `
-                            <div><strong style="color:var(--gold);">Prospectos a cargo (Q2):</strong> ${escapeHtml(recl.q2 || '0')}</div>
-                            <div><strong style="color:var(--gold);">Nombres (Q3):</strong> ${escapeHtml(recl.q3 || '—')}</div>
-                            <div><strong style="color:var(--gold);">Compromiso de formalización (Q4):</strong> ${escapeHtml(recl.q4 || '—')}</div>
-                        `;
-                    } else {
-                        reclutamientoHtml = `<div style="color:var(--slate);">No tiene prospectos en entrenamiento actualmente.</div>`;
-                    }
-                } else {
-                    reclutamientoHtml = `<div style="color:var(--slate);">Sin datos de reclutamiento.</div>`;
-                }
-
-                const fechaStr = rpt && rpt.fecha ? new Date(rpt.fecha).toLocaleDateString('es-MX') : '';
-
+                const fechaStr = rpt.fecha ? new Date(rpt.fecha).toLocaleDateString('es-MX') : '';
                 return `
-                <div style="background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:20px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+                <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
                         <div>
-                            <div style="font-family:'Playfair Display', serif; font-size:20px; color:var(--gold); font-weight:700;">
-                                <i class="fa fa-user-tie"></i> ${escapeHtml(blk.coachName)}
-                            </div>
-                            <div style="font-size:11px; color:var(--slate);">${escapeHtml(blk.coachEmail)}</div>
+                            <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);font-weight:700;"><i class="fa fa-user-tie"></i> ${escapeHtml(blk.coachName)}</div>
+                            <div style="font-size:11px;color:var(--slate);">${escapeHtml(blk.coachEmail)}</div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-weight:700; color:var(--white); font-size:14px;">${escapeHtml(blk.mes)}</div>
-                            ${fechaStr ? `<div style="font-size:10px; color:var(--slate);">Enviado: ${fechaStr}</div>` : ''}
+                            <div style="font-weight:700;color:var(--white);font-size:14px;">${escapeHtml(blk.mes)}</div>
+                            ${fechaStr ? `<div style="font-size:10px;color:var(--slate);">Enviado: ${fechaStr}</div>` : ''}
                         </div>
                     </div>
-
-                    ${rpt ? `
-                    <div style="display:grid; gap:14px; font-size:13px; line-height:1.55;">
-                        <div style="padding:12px; background:rgba(59,130,246,0.08); border-left:3px solid var(--blue); border-radius:6px;">
-                            <div style="font-weight:700; color:var(--blue); margin-bottom:6px;"><i class="fa fa-chart-line"></i> Análisis general del mes</div>
-                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.analisis || '—')}</div>
+                    <div style="display:grid;gap:14px;font-size:13px;line-height:1.55;">
+                        <div style="padding:12px;background:rgba(59,130,246,0.08);border-left:3px solid var(--blue);border-radius:6px;">
+                            <div style="font-weight:700;color:var(--blue);margin-bottom:6px;"><i class="fa fa-chart-line"></i> Análisis general del mes</div>
+                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.analisis||'—')}</div>
                         </div>
-                        <div style="padding:12px; background:rgba(239,68,68,0.08); border-left:3px solid var(--red); border-radius:6px;">
-                            <div style="font-weight:700; color:var(--red); margin-bottom:6px;"><i class="fa fa-triangle-exclamation"></i> Sospecha de fraude en actividad</div>
-                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.agentes || '—')}</div>
+                        <div style="padding:12px;background:rgba(239,68,68,0.08);border-left:3px solid var(--red);border-radius:6px;">
+                            <div style="font-weight:700;color:var(--red);margin-bottom:6px;"><i class="fa fa-triangle-exclamation"></i> Sospecha de fraude en actividad</div>
+                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.agentes||'—')}</div>
                         </div>
-                        <div style="padding:12px; background:rgba(16,185,129,0.08); border-left:3px solid var(--green); border-radius:6px;">
-                            <div style="font-weight:700; color:var(--green); margin-bottom:6px;"><i class="fa fa-handshake"></i> Compromisos del coach</div>
-                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.compromisos || '—')}</div>
+                        <div style="padding:12px;background:rgba(16,185,129,0.08);border-left:3px solid var(--green);border-radius:6px;">
+                            <div style="font-weight:700;color:var(--green);margin-bottom:6px;"><i class="fa fa-handshake"></i> Compromisos del coach</div>
+                            <div style="white-space:pre-wrap;">${escapeHtml(rpt.compromisos||'—')}</div>
                         </div>
                         ${rpt.notas ? `
-                        <div style="padding:12px; background:rgba(148,163,184,0.08); border-left:3px solid var(--slate); border-radius:6px;">
-                            <div style="font-weight:700; color:var(--slate); margin-bottom:6px;"><i class="fa fa-note-sticky"></i> Notas adicionales</div>
+                        <div style="padding:12px;background:rgba(148,163,184,0.08);border-left:3px solid var(--slate);border-radius:6px;">
+                            <div style="font-weight:700;color:var(--slate);margin-bottom:6px;"><i class="fa fa-note-sticky"></i> Notas adicionales</div>
                             <div style="white-space:pre-wrap;">${escapeHtml(rpt.notas)}</div>
-                        </div>
-                        ` : ''}
+                        </div>` : ''}
                     </div>
-                    ` : `<div style="color:var(--slate); font-style:italic; padding:10px 0;">Este coach no ha enviado reporte de ventas para ${escapeHtml(blk.mes)}.</div>`}
-
-                    <div style="margin-top:14px; padding:12px; background:rgba(212,175,55,0.08); border-left:3px solid var(--gold); border-radius:6px; font-size:13px; line-height:1.55;">
-                        <div style="font-weight:700; color:var(--gold); margin-bottom:8px;"><i class="fa fa-user-plus"></i> Reclutamiento</div>
-                        ${reclutamientoHtml}
-                    </div>
-                </div>
-                `;
+                </div>`;
             }).join('');
+        }
+
+        function renderCoachReportes() {
+            renderVentasSection();
+            // If reclutamiento section is visible, refresh it too
+            if (document.getElementById('rpt-section-reclutamiento')?.style.display !== 'none') {
+                renderReclutamientoSection();
+            }
         }
 
         // ─── GESTIÓN DE EQUIPO ───────────────────────────────────────────────────────
@@ -3108,6 +3214,11 @@
         window.refreshChartAgents = refreshChartAgents;
         window.renderCoachReportes = renderCoachReportes;
         window.refreshCoachReporteMonthFilter = refreshCoachReporteMonthFilter;
+        window.switchReporteSub = switchReporteSub;
+        window.renderReclutamientoSection = renderReclutamientoSection;
+        window.renderVentasSection = renderVentasSection;
+        window.showReclDetail = showReclDetail;
+        window.closeReclDetail = closeReclDetail;
         window.renderGestion = renderGestion;
         window.renderGestionAll = renderGestionAll;
         window.startListeningPending = startListeningPending;
