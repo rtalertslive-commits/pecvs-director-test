@@ -1397,6 +1397,7 @@
                         email: promoterEmail,
                         promoterName: pdata.promoterName || promoterEmail,
                         promotorCode: pdata.promotorCode || '',
+                        companyCode: pdata.companyCode || '',
                         coaches: pdata.coaches || []
                     };
                     promoters.push(promoterEntry);
@@ -1438,6 +1439,7 @@
                         email: coachEmail,
                         coachName: cdata.coachName || coachEmail,
                         agentTeamCode: resolveAgentTeamCode(cdata),
+                        companyCode: cdata.companyCode || '',
                         coachNum: cdata.coachNum,
                         promotorTeamCode: cdata.promotorTeamCode || '',
                         reportes: cdata.reportes || [],
@@ -2670,13 +2672,12 @@
                 container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay solicitudes pendientes.</div>';
                 return;
             }
-            const roleLabels = { agent: '👤 Agente', coach: '🧑‍🏫 Coach', promoter: '📊 Promotor', director: '🏢 Director' };
             container.innerHTML = pendingUsers.map(u => `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.04); border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.08); flex-wrap:wrap; gap:10px;">
                     <div>
                         <div style="font-weight:600; font-size:13px;">${escapeHtml(u.name || u.email)}</div>
                         <div style="font-size:11px; color:var(--slate); margin-top:2px;">${escapeHtml(u.email)}</div>
-                        <div style="font-size:11px; margin-top:3px;">Rol: <span style="color:var(--gold); font-weight:700;">${roleLabels[u.requestedRole] || u.requestedRole || '—'}</span></div>
+                        <div style="font-size:12px; margin-top:4px;">Clave: <span style="font-size:16px; font-weight:800; color:var(--gold); letter-spacing:3px;">${escapeHtml(u.companyCode || '—')}</span></div>
                     </div>
                     <div style="display:flex; gap:8px;">
                         <button class="btn btn-green btn-sm" onclick="openApproveModal('${escapeHtml(u.email)}')">
@@ -2758,48 +2759,64 @@
             const pending = pendingUsers.find(u => u.email === email);
             if (!pending) return;
             currentApproval = pending;
-            const role = pending.requestedRole || 'agent';
 
-            let formHtml = `
-                <div style="background:rgba(255,255,255,0.04); border-radius:8px; padding:14px; font-size:13px; line-height:1.8;">
+            const coachOpts = state.coaches
+                .sort((a, b) => a.coachName.localeCompare(b.coachName))
+                .map(c => `<option value="${escapeHtml(c.email)}">${escapeHtml(c.coachName)} [${escapeHtml(c.companyCode || c.agentTeamCode || c.email)}]</option>`)
+                .join('');
+            const promOpts = state.promoters
+                .sort((a, b) => a.promoterName.localeCompare(b.promoterName))
+                .map(p => `<option value="${escapeHtml(p.email)}">${escapeHtml(p.promoterName)} [${escapeHtml(p.companyCode || p.promotorCode || p.email)}]</option>`)
+                .join('');
+
+            const formHtml = `
+                <div style="background:rgba(255,255,255,0.04); border-radius:8px; padding:14px; font-size:13px; line-height:1.9;">
                     <div><strong style="color:var(--gold);">Nombre:</strong> ${escapeHtml(pending.name || '—')}</div>
                     <div><strong style="color:var(--gold);">Email:</strong> ${escapeHtml(pending.email)}</div>
-                    <div><strong style="color:var(--gold);">Rol solicitado:</strong> ${escapeHtml(role)}</div>
-                </div>`;
+                    <div><strong style="color:var(--gold);">Clave:</strong> <span style="font-size:18px; font-weight:800; letter-spacing:4px;">${escapeHtml(pending.companyCode || '—')}</span></div>
+                </div>
 
-            if (role === 'agent') {
-                const opts = state.coaches.map(c =>
-                    `<option value="${escapeHtml(c.email)}">${escapeHtml(c.coachName)} — ${escapeHtml(c.agentTeamCode || c.email)}</option>`
-                ).join('');
-                formHtml += `
                 <div>
+                    <label class="field-label">Asignar como</label>
+                    <select id="approve-role-sel" onchange="updateApprovalFields()" style="font-weight:700;">
+                        <option value="">-- Seleccionar rol --</option>
+                        <option value="agent">👤 Agente</option>
+                        <option value="coach">🧑‍🏫 Coach</option>
+                        <option value="promoter">📊 Promotor</option>
+                    </select>
+                </div>
+
+                <div id="approve-field-agent" style="display:none;">
                     <label class="field-label">Asignar al equipo del Coach</label>
                     <select id="approve-coach-sel">
                         <option value="">-- Seleccionar coach --</option>
-                        ${opts}
+                        ${coachOpts}
                     </select>
-                </div>`;
-            } else if (role === 'coach') {
-                const opts = state.promoters.map(p =>
-                    `<option value="${escapeHtml(p.email)}">${escapeHtml(p.promoterName)} — ${escapeHtml(p.promotorCode || p.email)}</option>`
-                ).join('');
-                formHtml += `
-                <div>
+                </div>
+
+                <div id="approve-field-coach" style="display:none;">
                     <label class="field-label">Asignar al equipo del Promotor</label>
                     <select id="approve-promotor-sel">
                         <option value="">-- Seleccionar promotor --</option>
-                        ${opts}
+                        ${promOpts}
                     </select>
+                </div>
+
+                <div id="approve-field-promoter" style="display:none; background:rgba(212,175,55,0.1); border:1px solid rgba(212,175,55,0.3); border-radius:8px; padding:12px; font-size:12px; color:var(--gold-l); line-height:1.6;">
+                    <i class="fa fa-circle-info"></i> El promotor quedará vinculado a tu código de director <strong>(${escapeHtml(state.directorCode || '—')})</strong>.
+                    Su clave <strong>${escapeHtml(pending.companyCode || '—')}</strong> será su código de equipo para coaches.
                 </div>`;
-            } else if (role === 'promoter') {
-                formHtml += `
-                <div style="background:rgba(212,175,55,0.1); border:1px solid rgba(212,175,55,0.3); border-radius:8px; padding:12px; font-size:12px; color:var(--gold-l); line-height:1.6;">
-                    <i class="fa fa-circle-info"></i> El promotor quedará vinculado a tu código de director <strong>(${escapeHtml(state.directorCode || '—')})</strong> y recibirá un código de promotor único.
-                </div>`;
-            }
 
             document.getElementById('approve-modal-content').innerHTML = formHtml;
             document.getElementById('approve-modal').classList.add('open');
+        };
+
+        window.updateApprovalFields = function () {
+            const role = document.getElementById('approve-role-sel')?.value;
+            ['agent', 'coach', 'promoter'].forEach(r => {
+                const el = document.getElementById('approve-field-' + r);
+                if (el) el.style.display = (role === r) ? 'block' : 'none';
+            });
         };
 
         window.closeApproveModal = function () {
@@ -2814,17 +2831,24 @@
             btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Procesando...';
 
             try {
-                const { email, name, requestedRole: role } = currentApproval;
+                const { email, name, companyCode } = currentApproval;
+                const role = document.getElementById('approve-role-sel')?.value;
+
+                if (!role) { alert('Por favor selecciona un rol.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
+                if (!companyCode) { alert('Esta solicitud no tiene clave de agente. Recházala y pide al usuario que se registre de nuevo.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
 
                 if (role === 'agent') {
                     const coachEmail = document.getElementById('approve-coach-sel')?.value;
                     if (!coachEmail) { alert('Por favor selecciona un coach.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
                     const coach = state.coachesMap[coachEmail];
                     if (!coach) { alert('Coach no encontrado.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
+                    // Agent's teamCode = coach's companyCode (4-digit) — links agent to coach's team
+                    const coachTeamCode = coach.companyCode || coach.agentTeamCode;
                     await setDoc(doc(db, "users", email), {
                         agentName: name,
                         email: email,
-                        teamCode: coach.agentTeamCode,
+                        companyCode: companyCode,
+                        teamCode: coachTeamCode,
                         status: 'active',
                         type: 'agent',
                         approvedBy: user.email,
@@ -2836,12 +2860,15 @@
                     if (!promEmail) { alert('Por favor selecciona un promotor.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
                     const promoter = state.promotersMap[promEmail];
                     if (!promoter) { alert('Promotor no encontrado.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
-                    const agentTeamCode = 'TEAM-COACH-' + Date.now();
+                    // Coach's teamCode = their own companyCode — agents will use this to link to them
+                    // Coach's promotorTeamCode = promoter's companyCode — links coach to promoter's team
+                    const promTeamCode = promoter.companyCode || promoter.promotorCode;
                     await setDoc(doc(db, "coaches", email), {
                         coachName: name,
                         email: email,
-                        teamCode: agentTeamCode,
-                        promotorTeamCode: promoter.promotorCode,
+                        companyCode: companyCode,
+                        teamCode: companyCode,       // agents link to coach using this
+                        promotorTeamCode: promTeamCode,
                         status: 'active',
                         type: 'coach',
                         approvedBy: user.email,
@@ -2849,11 +2876,12 @@
                     }, { merge: true });
 
                 } else if (role === 'promoter') {
-                    const promotorCode = 'TEAM-PROMOTOR-' + Date.now();
+                    // Promoter's promotorCode = their own companyCode — coaches will use this to link to them
                     await setDoc(doc(db, "promoters", email), {
                         promoterName: name,
                         email: email,
-                        promotorCode: promotorCode,
+                        companyCode: companyCode,
+                        promotorCode: companyCode,   // coaches link to promoter using this
                         directorCode: state.directorCode,
                         status: 'active',
                         type: 'promoter',
@@ -2862,10 +2890,10 @@
                     }, { merge: true });
                 }
 
-                // Remove from pending_users
                 await deleteDoc(doc(db, "pending_users", email));
                 closeApproveModal();
-                alert(`✅ ${escapeHtml(name || email)} aprobado como ${role}.`);
+                const roleLabel = { agent: 'Agente', coach: 'Coach', promoter: 'Promotor' }[role];
+                alert(`✅ ${escapeHtml(name || email)} aprobado como ${roleLabel} (clave: ${companyCode}).`);
 
             } catch (err) {
                 alert('Error al aprobar: ' + err.message);
@@ -2930,6 +2958,7 @@
         window.refreshCoachReporteMonthFilter = refreshCoachReporteMonthFilter;
         window.renderGestion = renderGestion;
         window.startListeningPending = startListeningPending;
+        window.updateApprovalFields = updateApprovalFields;
         window.validateDay = validateDay;
         window.ratio = ratio;
         window.destroyChart = destroyChart;
