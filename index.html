@@ -1090,19 +1090,28 @@
             </div>
             <div class="card">
                 <p class="card-title"><i class="fa fa-users"></i> Gestionar Equipo Activo</p>
-                <p style="font-size:12px; color:var(--slate); margin-bottom:20px;">Aquí puedes expulsar miembros del equipo (sus datos se conservan pero pierden acceso).</p>
-                <div style="margin-bottom:20px;">
-                    <div class="section-label">Promotores</div>
-                    <div id="gestion-promoters-list"></div>
+                <p style="font-size:12px; color:var(--slate); margin-bottom:6px;">
+                    Edita el rol o código de asignación de cualquier miembro y pulsa <strong style="color:var(--gold);">Guardar</strong>.
+                    Al cambiar el rol, el miembro migra de colección automáticamente — sus dependientes quedan huérfanos hasta que los reasignes manualmente.
+                </p>
+                <div style="margin-bottom:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="gestion-search" placeholder="🔍 Buscar por nombre, email o clave..." oninput="renderGestionAll()" style="max-width:320px; padding:8px 12px; font-size:12px;">
+                    <select id="gestion-role-filter" onchange="renderGestionAll()" style="width:auto; min-width:130px; padding:8px; font-size:12px;">
+                        <option value="">Todos los roles</option>
+                        <option value="promoter">📊 Promotores</option>
+                        <option value="coach">🧑‍🏫 Coaches</option>
+                        <option value="agent">👤 Agentes</option>
+                    </select>
                 </div>
-                <div style="margin-bottom:20px;">
-                    <div class="section-label">Coaches</div>
-                    <div id="gestion-coaches-list"></div>
+                <!-- Column headers -->
+                <div style="display:grid; grid-template-columns:2fr 80px 1fr 1fr auto; gap:8px; padding:6px 14px; font-size:9px; color:var(--slate); font-weight:700; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border); margin-bottom:8px;">
+                    <div>Miembro</div>
+                    <div>Clave</div>
+                    <div>Rol</div>
+                    <div>Asignado a (código)</div>
+                    <div></div>
                 </div>
-                <div>
-                    <div class="section-label">Agentes</div>
-                    <div id="gestion-agents-list"></div>
-                </div>
+                <div id="gestion-all-list"></div>
             </div>
         </div>
 
@@ -1492,7 +1501,7 @@
                     snapshot.forEach((docSnap) => {
                         const agentData = docSnap.data();
                         if (agentData.agentName) {
-                            batchAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode, email: docSnap.id });
+                            batchAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode, email: docSnap.id, companyCode: agentData.companyCode || '' });
                             if (agentData.entries) {
                                 agentData.entries.forEach(e => {
                                     e.agent = agentData.agentName;
@@ -2660,9 +2669,7 @@
 
         function renderGestion() {
             renderPendingList();
-            renderGestionPromoters();
-            renderGestionCoaches();
-            renderGestionAgents();
+            renderGestionAll();
         }
 
         function renderPendingList() {
@@ -2691,69 +2698,207 @@
             `).join('');
         }
 
-        function renderGestionPromoters() {
-            const container = document.getElementById('gestion-promoters-list');
+        function renderGestionAll() {
+            const container = document.getElementById('gestion-all-list');
             if (!container) return;
-            if (!state.promoters.length) {
-                container.innerHTML = '<div style="color:var(--slate); font-size:12px; padding:8px 0;">Sin promotores activos.</div>';
+
+            const search = (document.getElementById('gestion-search')?.value || '').toLowerCase();
+            const roleFilter = document.getElementById('gestion-role-filter')?.value || '';
+
+            // Build unified list (active members only)
+            const all = [];
+
+            state.promoters.forEach(p => {
+                if (p.status === 'inactive') return;
+                all.push({
+                    role: 'promoter',
+                    name: p.promoterName || '',
+                    email: p.email,
+                    companyCode: p.companyCode || p.promotorCode || '',
+                    assignCode: p.directorCode || state.directorCode || ''
+                });
+            });
+
+            state.coaches.forEach(c => {
+                if (c.status === 'inactive') return;
+                all.push({
+                    role: 'coach',
+                    name: c.coachName || '',
+                    email: c.email,
+                    companyCode: c.companyCode || c.agentTeamCode || '',
+                    assignCode: c.promotorTeamCode || ''
+                });
+            });
+
+            const sortedAgents = [...state.agents].sort((a, b) => a.name.localeCompare(b.name));
+            sortedAgents.forEach(a => {
+                if (a.status === 'inactive') return;
+                all.push({
+                    role: 'agent',
+                    name: a.name || '',
+                    email: a.email || '',
+                    companyCode: a.companyCode || '',
+                    assignCode: a.teamCode || ''
+                });
+            });
+
+            // Apply filters
+            let filtered = all;
+            if (roleFilter) filtered = filtered.filter(m => m.role === roleFilter);
+            if (search) filtered = filtered.filter(m =>
+                m.name.toLowerCase().includes(search) ||
+                m.email.toLowerCase().includes(search) ||
+                m.companyCode.toLowerCase().includes(search)
+            );
+
+            if (!filtered.length) {
+                container.innerHTML = '<div class="empty-state" style="padding:20px 0;"><i class="fa fa-users"></i> No hay miembros que coincidan.</div>';
                 return;
             }
-            container.innerHTML = state.promoters.map(p => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
+
+            const assignLabelFor = { promoter: 'Cód. Director', coach: 'Cód. Promotor', agent: 'Cód. Coach' };
+            const roleBadgeColor = { promoter: 'var(--gold)', coach: 'var(--teal)', agent: 'var(--blue)' };
+
+            container.innerHTML = filtered.map(m => {
+                const safeEmail = escapeHtml(m.email);
+                const eid = m.email.replace(/[@.+]/g, '_');
+                return `
+                <div style="display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
                     <div>
-                        <span style="font-weight:500; font-size:13px;">${escapeHtml(p.promoterName)}</span>
-                        <span style="font-size:10px; color:var(--slate); margin-left:10px;">${escapeHtml(p.email)}</span>
-                        <span style="font-size:10px; color:var(--teal); margin-left:8px;">${escapeHtml(p.promotorCode || '')}</span>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                            <input id="name-inp-${eid}" value="${escapeHtml(m.name)}" placeholder="Nombre" style="font-weight:600; font-size:13px; width:190px; padding:5px 8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:var(--white);">
+                            <span style="font-size:11px; color:var(--slate);">${safeEmail}</span>
+                            <span style="font-size:11px; display:flex; align-items:center; gap:4px;">
+                                🔑 <input id="code-inp-${eid}" value="${escapeHtml(m.companyCode)}" placeholder="0000" maxlength="4" style="width:52px; font-weight:800; color:var(--gold); font-size:13px; letter-spacing:3px; padding:4px 6px; text-align:center; background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.25); border-radius:6px;">
+                            </span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <select id="role-sel-${eid}" onchange="updateAssignLabel('${safeEmail}')" style="font-size:12px; padding:4px 8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:var(--white); font-weight:600;">
+                                <option value="promoter" ${m.role === 'promoter' ? 'selected' : ''} style="background:#1e293b;">📊 Promotor</option>
+                                <option value="coach" ${m.role === 'coach' ? 'selected' : ''} style="background:#1e293b;">🧑‍🏫 Coach</option>
+                                <option value="agent" ${m.role === 'agent' ? 'selected' : ''} style="background:#1e293b;">👤 Agente</option>
+                            </select>
+                            <span id="assign-lbl-${eid}" style="font-size:11px; color:var(--slate); white-space:nowrap;">${escapeHtml(assignLabelFor[m.role])}:</span>
+                            <input id="assign-inp-${eid}" value="${escapeHtml(m.assignCode)}" placeholder="clave-4-digitos" style="width:130px; font-size:12px; padding:4px 8px; color:var(--teal); background:rgba(6,182,212,0.06); border:1px solid rgba(6,182,212,0.2); border-radius:6px;">
+                        </div>
                     </div>
-                    <button class="btn btn-red btn-sm" onclick="expelPromoter('${escapeHtml(p.email)}')">
+                    <button class="btn btn-green btn-sm" onclick="saveMemberChanges('${safeEmail}','${m.role}')">
+                        <i class="fa fa-save"></i> Guardar
+                    </button>
+                    <button class="btn btn-red btn-sm" onclick="expelMember('${safeEmail}','${m.role}')">
                         <i class="fa fa-user-minus"></i> Expulsar
                     </button>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
-        function renderGestionCoaches() {
-            const container = document.getElementById('gestion-coaches-list');
-            if (!container) return;
-            if (!state.coaches.length) {
-                container.innerHTML = '<div style="color:var(--slate); font-size:12px; padding:8px 0;">Sin coaches activos.</div>';
-                return;
-            }
-            container.innerHTML = state.coaches.map(c => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
-                    <div>
-                        <span style="font-weight:500; font-size:13px;">${escapeHtml(c.coachName)}</span>
-                        <span style="font-size:10px; color:var(--slate); margin-left:10px;">${escapeHtml(c.email)}</span>
-                        <span style="font-size:10px; color:var(--teal); margin-left:8px;">${escapeHtml(c.agentTeamCode || '')}</span>
-                    </div>
-                    <button class="btn btn-red btn-sm" onclick="expelCoach('${escapeHtml(c.email)}')">
-                        <i class="fa fa-user-minus"></i> Expulsar
-                    </button>
-                </div>
-            `).join('');
-        }
+        window.updateAssignLabel = function (email) {
+            const eid = email.replace(/[@.+]/g, '_');
+            const role = document.getElementById('role-sel-' + eid)?.value;
+            const lblEl = document.getElementById('assign-lbl-' + eid);
+            const inpEl = document.getElementById('assign-inp-' + eid);
+            if (!lblEl || !inpEl) return;
+            const labels = { promoter: 'Cód. Director', coach: 'Cód. Promotor', agent: 'Cód. Coach' };
+            lblEl.textContent = (labels[role] || 'Asignado a') + ':';
+            // Pre-fill sensible default when role changes
+            if (role === 'promoter') { inpEl.value = state.directorCode || ''; inpEl.style.color = 'var(--gold)'; }
+            else if (role === 'coach') { inpEl.value = ''; inpEl.style.color = 'var(--teal)'; }
+            else if (role === 'agent') { inpEl.value = ''; inpEl.style.color = 'var(--blue)'; }
+        };
 
-        function renderGestionAgents() {
-            const container = document.getElementById('gestion-agents-list');
-            if (!container) return;
-            if (!state.agents.length) {
-                container.innerHTML = '<div style="color:var(--slate); font-size:12px; padding:8px 0;">Sin agentes activos.</div>';
-                return;
+        window.saveMemberChanges = async function (email, originalRole) {
+            const eid = email.replace(/[@.+]/g, '_');
+            const newRole    = document.getElementById('role-sel-'  + eid)?.value;
+            const newName    = (document.getElementById('name-inp-' + eid)?.value || '').trim();
+            const newCode    = (document.getElementById('code-inp-' + eid)?.value || '').trim();
+            const newAssign  = (document.getElementById('assign-inp-'+ eid)?.value || '').trim();
+
+            if (!newName) { alert('El nombre no puede estar vacío.'); return; }
+            if (newCode && !/^\d{4}$/.test(newCode)) { alert('La clave debe ser exactamente 4 dígitos numéricos.'); return; }
+
+            try {
+                if (newRole === originalRole) {
+                    // ── Same role: update fields in place ────────────────────────────────
+                    const colName = { promoter: 'promoters', coach: 'coaches', agent: 'users' }[newRole];
+                    const updates = {};
+                    if (newRole === 'promoter') {
+                        updates.promoterName  = newName;
+                        if (newCode)   { updates.companyCode = newCode; updates.promotorCode = newCode; }
+                        if (newAssign)   updates.directorCode = newAssign;
+                    } else if (newRole === 'coach') {
+                        updates.coachName = newName;
+                        if (newCode)   { updates.companyCode = newCode; updates.teamCode = newCode; }
+                        if (newAssign)   updates.promotorTeamCode = newAssign;
+                    } else {
+                        updates.agentName = newName;
+                        if (newCode)   updates.companyCode = newCode;
+                        if (newAssign)   updates.teamCode = newAssign;
+                    }
+                    await setDoc(doc(db, colName, email), updates, { merge: true });
+                    alert(`✅ Cambios guardados para ${newName}.`);
+
+                } else {
+                    // ── Role changed: migrate ─────────────────────────────────────────
+                    const roleLabels = { promoter: 'Promotor', coach: 'Coach', agent: 'Agente' };
+                    if (!confirm(`¿Cambiar rol de "${newName}" de ${roleLabels[originalRole]} → ${roleLabels[newRole]}?\n\nSu registro anterior quedará inactivo. Los miembros que le estaban asignados quedan huérfanos — deberás reasignarlos manualmente.`)) return;
+
+                    const colOld = { promoter: 'promoters', coach: 'coaches', agent: 'users' }[originalRole];
+                    const colNew = { promoter: 'promoters', coach: 'coaches', agent: 'users' }[newRole];
+
+                    // Grab old doc for reference
+                    const oldSnap = await getDoc(doc(db, colOld, email));
+                    const oldData = oldSnap.exists() ? oldSnap.data() : {};
+
+                    const finalCode = newCode || oldData.companyCode || '';
+
+                    const newDocData = {
+                        email,
+                        status: 'active',
+                        type: newRole,
+                        companyCode: finalCode,
+                        migratedFrom: originalRole,
+                        migratedAt: new Date().toISOString()
+                    };
+
+                    if (newRole === 'promoter') {
+                        newDocData.promoterName  = newName;
+                        newDocData.promotorCode  = finalCode;
+                        newDocData.directorCode  = newAssign || state.directorCode || '';
+                    } else if (newRole === 'coach') {
+                        newDocData.coachName         = newName;
+                        newDocData.teamCode          = finalCode;   // agents link via this
+                        newDocData.promotorTeamCode  = newAssign || '';
+                    } else {
+                        newDocData.agentName = newName;
+                        newDocData.teamCode  = newAssign || '';     // links to coach's code
+                    }
+
+                    // Write new role doc, deactivate old
+                    await setDoc(doc(db, colNew, email), newDocData, { merge: true });
+                    await setDoc(doc(db, colOld, email), { status: 'inactive' }, { merge: true });
+
+                    alert(`✅ ${newName} migrado a ${roleLabels[newRole]}.\nMiembros anteriores quedan huérfanos — reasígnalos desde esta tabla.`);
+                }
+            } catch (err) {
+                alert('Error al guardar: ' + err.message);
             }
-            const sorted = [...state.agents].sort((a, b) => a.name.localeCompare(b.name));
-            container.innerHTML = sorted.map(a => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
-                    <div>
-                        <span style="font-weight:500; font-size:13px;">${escapeHtml(a.name)}</span>
-                        <span style="font-size:10px; color:var(--slate); margin-left:10px;">${escapeHtml(a.email || '')}</span>
-                        <span style="font-size:10px; color:var(--teal); margin-left:8px;">${escapeHtml(a.teamCode || '')}</span>
-                    </div>
-                    <button class="btn btn-red btn-sm" onclick="expelAgent('${escapeHtml(a.email || '')}')">
-                        <i class="fa fa-user-minus"></i> Expulsar
-                    </button>
-                </div>
-            `).join('');
-        }
+        };
+
+        window.expelMember = async function (email, role) {
+            const member = role === 'promoter' ? state.promotersMap[email]
+                         : role === 'coach'    ? state.coachesMap[email]
+                         : state.agents.find(a => a.email === email);
+            const name = member
+                ? (member.promoterName || member.coachName || member.name || email)
+                : email;
+            const roleLabel = { promoter: 'promotor', coach: 'coach', agent: 'agente' }[role] || role;
+            if (!confirm(`¿Expulsar al ${roleLabel} "${name}"?\n\nSu historial de datos se conservará pero perderá acceso al sistema.`)) return;
+            try {
+                const colName = { promoter: 'promoters', coach: 'coaches', agent: 'users' }[role];
+                await setDoc(doc(db, colName, email), { status: 'inactive' }, { merge: true });
+                alert(`✅ ${name} ha sido expulsado. Sus datos se conservan.`);
+            } catch (err) { alert('Error: ' + err.message); }
+        };
 
         window.openApproveModal = function (email) {
             const pending = pendingUsers.find(u => u.email === email);
@@ -2957,8 +3102,12 @@
         window.renderCoachReportes = renderCoachReportes;
         window.refreshCoachReporteMonthFilter = refreshCoachReporteMonthFilter;
         window.renderGestion = renderGestion;
+        window.renderGestionAll = renderGestionAll;
         window.startListeningPending = startListeningPending;
         window.updateApprovalFields = updateApprovalFields;
+        window.saveMemberChanges = saveMemberChanges;
+        window.updateAssignLabel = updateAssignLabel;
+        window.expelMember = expelMember;
         window.validateDay = validateDay;
         window.ratio = ratio;
         window.destroyChart = destroyChart;
