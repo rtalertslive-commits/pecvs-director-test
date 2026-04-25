@@ -819,6 +819,7 @@
             <button class="tab-btn" onclick="switchTab('charts',this)"><i class="fa fa-chart-area"></i>
                 Tendencias</button>
             <button class="tab-btn" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
+            <button class="tab-btn" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
             <button class="tab-btn" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
         </div>
 
@@ -1117,6 +1118,65 @@
             </div>
         </div>
 
+        <!-- ═══════════════════ TAB: REPORTES DE PROMOTORES ═══════════════════ -->
+        <div id="tab-reporte-promotores" class="tab-panel">
+            <!-- Sub-tab switcher -->
+            <div style="display:flex;gap:8px;margin-bottom:20px;">
+                <button id="prpt-sub-btn-recl" onclick="switchPromoterReporteSub('recl')" style="padding:8px 18px;border-radius:8px;border:none;background:var(--gold);color:#000;font-weight:700;font-size:13px;cursor:pointer;">👥 Reclutamiento</button>
+                <button id="prpt-sub-btn-venta" onclick="switchPromoterReporteSub('venta')" style="padding:8px 18px;border-radius:8px;border:none;background:rgba(255,255,255,0.08);color:var(--white);font-weight:600;font-size:13px;cursor:pointer;">🎓 Venta de Carrera de Coach</button>
+            </div>
+
+            <!-- RECLUTAMIENTO SECTION -->
+            <div id="prpt-section-recl">
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-people-group"></i> Reclutamiento de Promotores</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:15px;">¿Tienen prospectos en entrenamiento? <span style="color:var(--green);font-weight:600;">Verde = Sí</span> · <span style="color:var(--red);font-weight:600;">Rojo = No</span> · Gris = Mes pendiente</p>
+                    <div class="charts-controls" style="margin-bottom:20px;">
+                        <div>
+                            <label class="field-label">Promotor</label>
+                            <select id="prpt-recl-promotor-filter" onchange="renderPromoterReclSection()">
+                                <option value="">Todos los promotores</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Año</label>
+                            <select id="prpt-recl-year-filter" onchange="renderPromoterReclSection()">
+                                <option value="">Todos los años</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="promoter-recl-grid" style="display:flex;flex-direction:column;gap:16px;">
+                        <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VENTA DE CARRERA SECTION -->
+            <div id="prpt-section-venta" style="display:none;">
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-user-graduate"></i> Venta de Carrera de Coach</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:15px;">¿Tienen agentes en mente para coach? <span style="color:var(--green);font-weight:600;">Verde = Sí</span> · <span style="color:var(--red);font-weight:600;">Rojo = No</span> · Gris = Mes pendiente</p>
+                    <div class="charts-controls" style="margin-bottom:20px;">
+                        <div>
+                            <label class="field-label">Promotor</label>
+                            <select id="prpt-venta-promotor-filter" onchange="renderPromoterVentaSection()">
+                                <option value="">Todos los promotores</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Año</label>
+                            <select id="prpt-venta-year-filter" onchange="renderPromoterVentaSection()">
+                                <option value="">Todos los años</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="promoter-venta-grid" style="display:flex;flex-direction:column;gap:16px;">
+                        <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ═══════════════════ TAB: GESTIÓN DE EQUIPO ═══════════════════ -->
         <div id="tab-gestion" class="tab-panel">
             <div class="card" style="margin-bottom:20px;">
@@ -1154,6 +1214,17 @@
         </div>
 
     </div><!-- end .app -->
+
+    <!-- PROMOTER REPORT DETAIL MODAL -->
+    <div class="modal-overlay" id="prpt-detail-modal">
+        <div class="modal-box" style="max-width:480px;">
+            <button class="modal-close" onclick="document.getElementById('prpt-detail-modal').classList.remove('open')">&times;</button>
+            <h2 style="font-family:'Playfair Display',serif;color:var(--green);margin-top:0;font-size:20px;" id="prpt-detail-title"></h2>
+            <div id="prpt-detail-header" style="font-size:12px;color:var(--slate);margin-bottom:16px;"></div>
+            <div id="prpt-detail-content" style="display:flex;flex-direction:column;gap:12px;font-size:14px;line-height:1.6;"></div>
+            <button class="btn btn-sm" style="margin-top:20px;width:100%;" onclick="document.getElementById('prpt-detail-modal').classList.remove('open')">Cerrar</button>
+        </div>
+    </div>
 
     <!-- REGISTER OVERLAY (Director self-registers) -->
     <div id="register-overlay" style="display:none; position:fixed; inset:0; background:radial-gradient(circle at top right,#1e293b,#0f172a); z-index:10001; align-items:center; justify-content:center; flex-direction:column; padding:20px;">
@@ -1458,7 +1529,9 @@
                         promoterName: pdata.promoterName || promoterEmail,
                         promotorCode: pdata.promotorCode || '',
                         companyCode: pdata.companyCode || '',
-                        coaches: pdata.coaches || []
+                        coaches: pdata.coaches || [],
+                        reclutamiento: pdata.reclutamiento || [],
+                        ventaCarrera: pdata.ventaCarrera || []
                     };
                     promoters.push(promoterEntry);
                     promotersMap[promoterEmail] = promoterEntry;
@@ -1725,6 +1798,7 @@
             if (name === 'kpis') renderKPIs();
             if (name === 'leaderboard') renderLeaderboard();
             if (name === 'reporte') renderCoachReportes();
+            if (name === 'reporte-promotores') { refreshPromoterReclFilters(); renderPromoterReclSection(); }
             if (name === 'gestion') renderGestion();
         }
 
@@ -3262,6 +3336,265 @@
             } catch (err) { alert('Error: ' + err.message); }
         };
 
+        // ─── PROMOTER REPORTS (DIRECTOR VIEW) ───────────────────────────────────────
+
+        window.switchPromoterReporteSub = function(sub) {
+            document.getElementById('prpt-section-recl').style.display = sub==='recl' ? '' : 'none';
+            document.getElementById('prpt-section-venta').style.display = sub==='venta' ? '' : 'none';
+            const btnR = document.getElementById('prpt-sub-btn-recl');
+            const btnV = document.getElementById('prpt-sub-btn-venta');
+            if (btnR) { btnR.style.background = sub==='recl' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'; btnR.style.color = sub==='recl' ? '#000' : 'var(--white)'; }
+            if (btnV) { btnV.style.background = sub==='venta' ? 'var(--teal)' : 'rgba(255,255,255,0.08)'; btnV.style.color = sub==='venta' ? '#000' : 'var(--white)'; }
+            if (sub==='recl') { refreshPromoterReclFilters(); renderPromoterReclSection(); }
+            else { refreshPromoterVentaFilters(); renderPromoterVentaSection(); }
+        };
+
+        function refreshPromoterReclFilters() {
+            const yearSel = document.getElementById('prpt-recl-year-filter');
+            if (yearSel) {
+                const years = new Set();
+                state.promoters.forEach(p => (p.reclutamiento||[]).forEach(r => { if (r.mes) { const y=r.mes.split(' ')[1]; if(y) years.add(y); } }));
+                const sorted = [...years].sort().reverse();
+                const cur = yearSel.value;
+                yearSel.innerHTML = '<option value="">Todos los años</option>' + sorted.map(y=>`<option value="${y}" ${y===cur?'selected':''}>${y}</option>`).join('');
+                if (!cur && sorted.length) yearSel.value = sorted[0];
+            }
+            const promSel = document.getElementById('prpt-recl-promotor-filter');
+            if (promSel) {
+                const cur = promSel.value;
+                promSel.innerHTML = '<option value="">Todos los promotores</option>' +
+                    state.promoters.slice().sort((a,b)=>(a.promoterName||'').localeCompare(b.promoterName||''))
+                    .map(p=>`<option value="${escapeHtml(p.email)}" ${p.email===cur?'selected':''}>${escapeHtml(p.promoterName)}</option>`).join('');
+            }
+        }
+
+        function refreshPromoterVentaFilters() {
+            const yearSel = document.getElementById('prpt-venta-year-filter');
+            if (yearSel) {
+                const years = new Set();
+                state.promoters.forEach(p => (p.ventaCarrera||[]).forEach(r => { if (r.mes) { const y=r.mes.split(' ')[1]; if(y) years.add(y); } }));
+                const sorted = [...years].sort().reverse();
+                const cur = yearSel.value;
+                yearSel.innerHTML = '<option value="">Todos los años</option>' + sorted.map(y=>`<option value="${y}" ${y===cur?'selected':''}>${y}</option>`).join('');
+                if (!cur && sorted.length) yearSel.value = sorted[0];
+            }
+            const promSel = document.getElementById('prpt-venta-promotor-filter');
+            if (promSel) {
+                const cur = promSel.value;
+                promSel.innerHTML = '<option value="">Todos los promotores</option>' +
+                    state.promoters.slice().sort((a,b)=>(a.promoterName||'').localeCompare(b.promoterName||''))
+                    .map(p=>`<option value="${escapeHtml(p.email)}" ${p.email===cur?'selected':''}>${escapeHtml(p.promoterName)}</option>`).join('');
+            }
+        }
+
+        function makePromoterCalendar(promoter, dataArray, detailType) {
+            // dataArray = promoter.reclutamiento OR promoter.ventaCarrera
+            const dataMap = {};
+            (dataArray||[]).forEach(r => { if (r.mes) dataMap[r.mes] = r; });
+
+            const allYears = [...new Set(Object.keys(dataMap).map(m=>m.split(' ')[1]).filter(Boolean))].sort().reverse();
+            const MESES_ABREV = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+            if (!allYears.length) return '<div style="color:var(--slate);font-size:12px;padding:8px 0;">Sin reportes aún.</div>';
+
+            return allYears.map(year => {
+                const mesesFull = MONTHS_ES.map(m => `${m} ${year}`);
+                const siCount = mesesFull.filter(m => dataMap[m]?.q1==='si').length;
+                const noCount = mesesFull.filter(m => dataMap[m]?.q1==='no').length;
+                const pending = 12 - siCount - noCount;
+
+                const boxes = mesesFull.map((mesFull,i) => {
+                    const entry = dataMap[mesFull];
+                    let bg='rgba(255,255,255,0.06)', icon='·', color='rgba(255,255,255,0.15)', border='rgba(255,255,255,0.08)', cursor='default', clickable=false;
+                    if (entry) {
+                        if (entry.q1==='si') { bg='rgba(16,185,129,0.25)'; icon='✓'; color='var(--green)'; border='var(--green)'; clickable=true; cursor='pointer'; }
+                        else if (entry.q1==='no') { bg='rgba(239,68,68,0.25)'; icon='✗'; color='var(--red)'; border='var(--red)'; }
+                    }
+                    const clickAttr = clickable ? `onclick="showPromoterDetail('${escapeHtml(promoter.promoterName)}','${mesFull}','${detailType}','${encodeURIComponent(JSON.stringify(entry))}')" title="Ver detalles"` : '';
+                    return `<div ${clickAttr} style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;background:${bg};border:1px solid ${border};border-radius:8px;cursor:${cursor};min-height:62px;" ${clickable?'onmouseover="this.style.opacity=\'0.8\'"onmouseout="this.style.opacity=\'1\'"':''}>
+                        <div style="font-size:10px;font-weight:700;color:var(--slate);">${MESES_ABREV[i]}</div>
+                        <div style="font-size:18px;font-weight:800;color:${color};">${icon}</div>
+                    </div>`;
+                }).join('');
+
+                return `
+                <div style="margin-bottom:12px;">
+                    ${allYears.length>1?`<div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px;">${year}</div>`:''}
+                    <div style="display:flex;gap:10px;font-size:12px;margin-bottom:8px;">
+                        <span style="color:var(--green);font-weight:700;"><i class="fa fa-circle-check"></i> ${siCount} Sí</span>
+                        <span style="color:var(--red);font-weight:700;"><i class="fa fa-circle-xmark"></i> ${noCount} No</span>
+                        ${pending>0?`<span style="color:var(--slate);">${pending} pendientes</span>`:''}
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;">${boxes}</div>
+                </div>`;
+            }).join('');
+        }
+
+        window.showPromoterDetail = function(promoterName, mes, detailType, entryJson) {
+            const entry = JSON.parse(decodeURIComponent(entryJson));
+            const titleEl = document.getElementById('prpt-detail-title');
+            const headerEl = document.getElementById('prpt-detail-header');
+            const contentEl = document.getElementById('prpt-detail-content');
+            if (titleEl) titleEl.innerHTML = detailType==='recl' ? '<i class="fa fa-people-group"></i> Reclutamiento' : '<i class="fa fa-user-graduate"></i> Venta de Carrera de Coach';
+            if (headerEl) headerEl.innerHTML = `<strong style="color:var(--white);">${escapeHtml(promoterName)}</strong> · ${escapeHtml(mes)}`;
+            if (contentEl) {
+                if (detailType === 'recl') {
+                    contentEl.innerHTML = `
+                    <div style="padding:12px;background:rgba(16,185,129,0.09);border-left:3px solid var(--green);border-radius:6px;">
+                        <div style="font-weight:700;color:var(--green);margin-bottom:4px;"><i class="fa fa-circle-check"></i> ¿Tiene prospectos en entrenamiento?</div>
+                        <div>Sí</div>
+                    </div>
+                    <div style="padding:12px;background:rgba(255,255,255,0.04);border-left:3px solid var(--gold);border-radius:6px;">
+                        <div style="font-weight:700;color:var(--gold);margin-bottom:4px;"><i class="fa fa-users"></i> Cantidad de prospectos</div>
+                        <div>${escapeHtml(entry.q2||'—')}</div>
+                    </div>
+                    <div style="padding:12px;background:rgba(255,255,255,0.04);border-left:3px solid var(--blue);border-radius:6px;">
+                        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;"><i class="fa fa-id-card"></i> Nombres</div>
+                        <div style="white-space:pre-wrap;">${escapeHtml(entry.q3||'—')}</div>
+                    </div>
+                    <div style="padding:12px;background:rgba(255,255,255,0.04);border-left:3px solid var(--teal);border-radius:6px;">
+                        <div style="font-weight:700;color:var(--teal);margin-bottom:4px;"><i class="fa fa-handshake"></i> Compromiso de formalización</div>
+                        <div style="white-space:pre-wrap;">${escapeHtml(entry.q4||'—')}</div>
+                    </div>`;
+                } else {
+                    contentEl.innerHTML = `
+                    <div style="padding:12px;background:rgba(16,185,129,0.09);border-left:3px solid var(--green);border-radius:6px;">
+                        <div style="font-weight:700;color:var(--green);margin-bottom:4px;"><i class="fa fa-circle-check"></i> ¿Tiene agente en mente para coach?</div>
+                        <div>Sí</div>
+                    </div>
+                    <div style="padding:12px;background:rgba(255,255,255,0.04);border-left:3px solid var(--blue);border-radius:6px;">
+                        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;"><i class="fa fa-user"></i> Nombre del agente</div>
+                        <div>${escapeHtml(entry.q2||'—')}</div>
+                    </div>
+                    <div style="padding:12px;background:rgba(255,255,255,0.04);border-left:3px solid var(--teal);border-radius:6px;">
+                        <div style="font-weight:700;color:var(--teal);margin-bottom:4px;"><i class="fa fa-calendar-check"></i> ¿Para cuándo lo formaliza?</div>
+                        <div style="white-space:pre-wrap;">${escapeHtml(entry.q3||'—')}</div>
+                    </div>`;
+                }
+            }
+            document.getElementById('prpt-detail-modal').classList.add('open');
+        };
+
+        function renderPromoterCalendarSection(containerId, filterPromotorId, filterYearId, dataField, detailType) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const promF = document.getElementById(filterPromotorId)?.value || '';
+            const yearF = document.getElementById(filterYearId)?.value || '';
+
+            let promotersToShow = state.promoters.slice().sort((a,b)=>(a.promoterName||'').localeCompare(b.promoterName||''));
+            if (promF) promotersToShow = promotersToShow.filter(p => p.email === promF);
+
+            if (!promotersToShow.length) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay promotores.</div>';
+                return;
+            }
+
+            const html = promotersToShow.map(promoter => {
+                const dataArray = (promoter[dataField]||[]).filter(r => !yearF || r.mes?.endsWith(' '+yearF));
+                const calHtml = makePromoterCalendar(promoter, dataArray.length ? dataArray : (promoter[dataField]||[]).filter(r => !yearF || r.mes?.endsWith(' '+yearF)), detailType);
+                // If year filter, re-filter
+                const filteredData = yearF ? (promoter[dataField]||[]).filter(r => r.mes?.endsWith(' '+yearF)) : (promoter[dataField]||[]);
+                const calendarHtml = makePromoterCalendarFiltered(promoter, filteredData, yearF, detailType);
+                return `
+                <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
+                    <div style="margin-bottom:14px;">
+                        <div style="font-weight:700;font-size:15px;color:var(--white);"><i class="fa fa-user-tie" style="color:var(--gold);margin-right:6px;"></i>${escapeHtml(promoter.promoterName)}</div>
+                        <div style="font-size:11px;color:var(--slate);">${escapeHtml(promoter.email)}</div>
+                    </div>
+                    ${calendarHtml}
+                </div>`;
+            }).join('');
+
+            container.innerHTML = html || '<div class="empty-state"><i class="fa fa-inbox"></i>No hay datos con los filtros actuales.</div>';
+        }
+
+        function makePromoterCalendarFiltered(promoter, dataArray, yearF, detailType) {
+            const dataMap = {};
+            (dataArray||[]).forEach(r => { if (r.mes) dataMap[r.mes] = r; });
+
+            const allDataMap = {};
+            ((promoter[detailType==='recl'?'reclutamiento':'ventaCarrera'])||[]).forEach(r => { if (r.mes) allDataMap[r.mes] = r; });
+
+            const allYears = [...new Set(Object.keys(allDataMap).map(m=>m.split(' ')[1]).filter(Boolean))].sort().reverse();
+            const yearsToShow = yearF ? (allYears.includes(yearF)?[yearF]:[]) : allYears;
+            const MESES_ABREV = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+            if (!yearsToShow.length) return '<div style="color:var(--slate);font-size:12px;padding:8px 0;">Sin reportes aún.</div>';
+
+            return yearsToShow.map(year => {
+                const mesesFull = MONTHS_ES.map(m => `${m} ${year}`);
+                const siCount = mesesFull.filter(m => allDataMap[m]?.q1==='si').length;
+                const noCount = mesesFull.filter(m => allDataMap[m]?.q1==='no').length;
+                const pending = 12 - siCount - noCount;
+
+                const boxes = mesesFull.map((mesFull,i) => {
+                    const entry = allDataMap[mesFull];
+                    let bg='rgba(255,255,255,0.06)', icon='·', color='rgba(255,255,255,0.15)', border='rgba(255,255,255,0.08)', cursor='default', clickable=false;
+                    if (entry) {
+                        if (entry.q1==='si') { bg='rgba(16,185,129,0.25)'; icon='✓'; color='var(--green)'; border='var(--green)'; clickable=true; cursor='pointer'; }
+                        else if (entry.q1==='no') { bg='rgba(239,68,68,0.25)'; icon='✗'; color='var(--red)'; border='var(--red)'; }
+                    }
+                    const clickAttr = clickable ? `onclick="showPromoterDetail('${escapeHtml(promoter.promoterName)}','${mesFull}','${detailType}','${encodeURIComponent(JSON.stringify(entry))}')" title="Ver detalles"` : '';
+                    return `<div ${clickAttr} style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;background:${bg};border:1px solid ${border};border-radius:8px;cursor:${cursor};min-height:62px;" ${clickable?'onmouseover="this.style.opacity=\'0.8\'"onmouseout="this.style.opacity=\'1\'"':''}>
+                        <div style="font-size:10px;font-weight:700;color:var(--slate);">${MESES_ABREV[i]}</div>
+                        <div style="font-size:18px;font-weight:800;color:${color};">${icon}</div>
+                    </div>`;
+                }).join('');
+
+                return `
+                <div style="margin-bottom:${yearsToShow.length>1?'18px':'0'};">
+                    ${yearsToShow.length>1?`<div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px;">${year}</div>`:''}
+                    <div style="display:flex;gap:10px;font-size:12px;margin-bottom:8px;">
+                        <span style="color:var(--green);font-weight:700;"><i class="fa fa-circle-check"></i> ${siCount} Sí</span>
+                        <span style="color:var(--red);font-weight:700;"><i class="fa fa-circle-xmark"></i> ${noCount} No</span>
+                        ${pending>0?`<span style="color:var(--slate);">${pending} pendientes</span>`:''}
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;">${boxes}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderPromoterReclSection() {
+            const container = document.getElementById('promoter-recl-grid');
+            if (!container) return;
+            const promF = document.getElementById('prpt-recl-promotor-filter')?.value || '';
+            const yearF = document.getElementById('prpt-recl-year-filter')?.value || '';
+            let promotersToShow = state.promoters.slice().sort((a,b)=>(a.promoterName||'').localeCompare(b.promoterName||''));
+            if (promF) promotersToShow = promotersToShow.filter(p => p.email === promF);
+            if (!promotersToShow.length) { container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay promotores.</div>'; return; }
+            const html = promotersToShow.map(p => `
+                <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
+                    <div style="margin-bottom:14px;">
+                        <div style="font-weight:700;font-size:15px;color:var(--white);"><i class="fa fa-user-tie" style="color:var(--gold);margin-right:6px;"></i>${escapeHtml(p.promoterName)}</div>
+                        <div style="font-size:11px;color:var(--slate);">${escapeHtml(p.email)}</div>
+                    </div>
+                    ${makePromoterCalendarFiltered(p, p.reclutamiento||[], yearF, 'recl')}
+                </div>`).join('');
+            container.innerHTML = html || '<div class="empty-state"><i class="fa fa-inbox"></i>No hay datos de reclutamiento.</div>';
+        }
+
+        function renderPromoterVentaSection() {
+            const container = document.getElementById('promoter-venta-grid');
+            if (!container) return;
+            const promF = document.getElementById('prpt-venta-promotor-filter')?.value || '';
+            const yearF = document.getElementById('prpt-venta-year-filter')?.value || '';
+            let promotersToShow = state.promoters.slice().sort((a,b)=>(a.promoterName||'').localeCompare(b.promoterName||''));
+            if (promF) promotersToShow = promotersToShow.filter(p => p.email === promF);
+            if (!promotersToShow.length) { container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay promotores.</div>'; return; }
+            const html = promotersToShow.map(p => `
+                <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
+                    <div style="margin-bottom:14px;">
+                        <div style="font-weight:700;font-size:15px;color:var(--white);"><i class="fa fa-user-tie" style="color:var(--gold);margin-right:6px;"></i>${escapeHtml(p.promoterName)}</div>
+                        <div style="font-size:11px;color:var(--slate);">${escapeHtml(p.email)}</div>
+                    </div>
+                    ${makePromoterCalendarFiltered(p, p.ventaCarrera||[], yearF, 'venta')}
+                </div>`).join('');
+            container.innerHTML = html || '<div class="empty-state"><i class="fa fa-inbox"></i>No hay datos de venta de carrera.</div>';
+        }
+
+        window.renderPromoterReclSection = renderPromoterReclSection;
+        window.renderPromoterVentaSection = renderPromoterVentaSection;
+
         // ─── BOOT ─────────────────────────────────────────────────────────────────────
         window.refreshAll = refreshAll;
         window.switchTab = switchTab;
@@ -3282,6 +3615,10 @@
         window.renderVentasSection = renderVentasSection;
         window.showReclDetail = showReclDetail;
         window.closeReclDetail = closeReclDetail;
+        window.switchPromoterReporteSub = switchPromoterReporteSub;
+        window.showPromoterDetail = showPromoterDetail;
+        window.renderPromoterReclSection = renderPromoterReclSection;
+        window.renderPromoterVentaSection = renderPromoterVentaSection;
         window.renderGestion = renderGestion;
         window.renderGestionAll = renderGestionAll;
         window.startListeningPending = startListeningPending;
