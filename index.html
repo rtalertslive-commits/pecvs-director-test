@@ -1088,8 +1088,28 @@
             <!-- RECLUTAMIENTO SECTION -->
             <div id="rpt-section-reclutamiento" style="display:none;">
                 <div class="card">
-                    <p class="card-title"><i class="fa fa-user-plus"></i> Reclutamiento 2026</p>
-                    <p style="font-size:12px;color:var(--slate);margin-bottom:20px;">Seguimiento mensual de reclutamiento por coach. <span style="color:var(--green);font-weight:600;">Verde = Sí</span> · <span style="color:var(--red);font-weight:600;">Rojo = No</span> · Gris = Mes pendiente</p>
+                    <p class="card-title"><i class="fa fa-user-plus"></i> Reclutamiento</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:15px;">Seguimiento mensual de reclutamiento por coach. <span style="color:var(--green);font-weight:600;">Verde = Sí</span> · <span style="color:var(--red);font-weight:600;">Rojo = No</span> · Gris = Mes pendiente</p>
+                    <div class="charts-controls" style="margin-bottom:20px;">
+                        <div>
+                            <label class="field-label">Equipo Promotor</label>
+                            <select id="recl-promotor-filter" onchange="refreshReclCoachFilter(); renderReclutamientoSection()">
+                                <option value="">Todos los promotores</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Equipo Coach</label>
+                            <select id="recl-coach-filter" onchange="renderReclutamientoSection()">
+                                <option value="">Todos los coaches</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Año</label>
+                            <select id="recl-year-filter" onchange="renderReclutamientoSection()">
+                                <option value="">Todos los años</option>
+                            </select>
+                        </div>
+                    </div>
                     <div id="reclutamiento-grid" style="display:flex;flex-direction:column;gap:16px;">
                         <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
                     </div>
@@ -2533,7 +2553,6 @@
         }
 
         const MESES_ABREV = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-        const MESES_FULL_2026 = ['Enero 2026','Febrero 2026','Marzo 2026','Abril 2026','Mayo 2026','Junio 2026','Julio 2026','Agosto 2026','Septiembre 2026','Octubre 2026','Noviembre 2026','Diciembre 2026'];
 
         window.switchReporteSub = function(sub) {
             document.getElementById('rpt-section-ventas').style.display = sub === 'ventas' ? '' : 'none';
@@ -2542,7 +2561,7 @@
             const btnR = document.getElementById('rpt-sub-btn-reclutamiento');
             if (btnV) { btnV.style.background = sub === 'ventas' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'; btnV.style.color = sub === 'ventas' ? '#000' : 'var(--white)'; }
             if (btnR) { btnR.style.background = sub === 'reclutamiento' ? 'var(--green)' : 'rgba(255,255,255,0.08)'; btnR.style.color = sub === 'reclutamiento' ? '#000' : 'var(--white)'; }
-            if (sub === 'reclutamiento') renderReclutamientoSection();
+            if (sub === 'reclutamiento') { refreshReclFilters(); renderReclutamientoSection(); }
         };
 
         window.closeReclDetail = function() {
@@ -2573,79 +2592,122 @@
             document.getElementById('recl-detail-modal').classList.add('open');
         };
 
+        function refreshReclFilters() {
+            // Year filter — built from actual data
+            const yearSel = document.getElementById('recl-year-filter');
+            if (yearSel) {
+                const years = new Set();
+                state.coaches.forEach(c => (c.reclutamiento||[]).forEach(r => {
+                    if (r.mes) { const y = r.mes.split(' ')[1]; if (y) years.add(y); }
+                }));
+                const sorted = [...years].sort().reverse();
+                const cur = yearSel.value;
+                yearSel.innerHTML = '<option value="">Todos los años</option>' +
+                    sorted.map(y => `<option value="${y}" ${y===cur?'selected':''}>${y}</option>`).join('');
+                if (!cur && sorted.length) yearSel.value = sorted[0];
+            }
+            // Promotor filter
+            const promSel = document.getElementById('recl-promotor-filter');
+            if (promSel) {
+                const cur = promSel.value;
+                promSel.innerHTML = '<option value="">Todos los promotores</option>' +
+                    state.promoters.slice().sort((a,b)=>(a.promoterName||'').localeCompare(b.promoterName||''))
+                    .map(p => `<option value="${escapeHtml(p.email)}" ${p.email===cur?'selected':''}>${escapeHtml(p.promoterName)}</option>`).join('');
+            }
+            refreshReclCoachFilter();
+        }
+
+        window.refreshReclCoachFilter = function() {
+            const promF = document.getElementById('recl-promotor-filter')?.value || '';
+            const coachSel = document.getElementById('recl-coach-filter');
+            if (!coachSel) return;
+            let coaches = state.coaches.slice().sort((a,b)=>(a.coachName||'').localeCompare(b.coachName||''));
+            if (promF) {
+                const promoter = state.promotersMap[promF];
+                if (promoter) coaches = coaches.filter(c =>
+                    c.promotorTeamCode === promoter.promotorCode || c.promotorTeamCode === promoter.companyCode
+                );
+            }
+            const cur = coachSel.value;
+            coachSel.innerHTML = '<option value="">Todos los coaches</option>' +
+                coaches.map(c => `<option value="${escapeHtml(c.email)}" ${c.email===cur?'selected':''}>${escapeHtml(c.coachName)}</option>`).join('');
+        };
+
+        function makeMonthBoxes(coach, reclMap, mesesFull) {
+            return mesesFull.map((mesFull, i) => {
+                const recl = reclMap[mesFull];
+                const abrev = MESES_ABREV[i];
+                let bg='rgba(255,255,255,0.06)', icon='·', color='rgba(255,255,255,0.15)', border='rgba(255,255,255,0.08)', cursor='default', clickable=false;
+                if (recl) {
+                    if (recl.q1==='si') { bg='rgba(16,185,129,0.25)'; icon='✓'; color='var(--green)'; border='var(--green)'; clickable=true; cursor='pointer'; }
+                    else if (recl.q1==='no') { bg='rgba(239,68,68,0.25)'; icon='✗'; color='var(--red)'; border='var(--red)'; }
+                }
+                const clickAttr = clickable ? `onclick="showReclDetail('${escapeHtml(coach.coachName)}','${mesFull}','${encodeURIComponent(JSON.stringify(recl))}')" title="Ver detalles"` : '';
+                return `<div ${clickAttr} style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;background:${bg};border:1px solid ${border};border-radius:8px;cursor:${cursor};min-height:62px;" ${clickable?'onmouseover="this.style.opacity=\'0.8\'"onmouseout="this.style.opacity=\'1\'"':''}>
+                    <div style="font-size:10px;font-weight:700;color:var(--slate);">${abrev}</div>
+                    <div style="font-size:18px;font-weight:800;color:${color};">${icon}</div>
+                </div>`;
+            }).join('');
+        }
+
         function renderReclutamientoSection() {
             const container = document.getElementById('reclutamiento-grid');
             if (!container) return;
 
-            const coachF = document.getElementById('rpt-coach-filter')?.value || '';
-            const coachesToShow = coachF
-                ? state.coaches.filter(c => c.email === coachF)
-                : state.coaches.slice().sort((a, b) => (a.coachName||'').localeCompare(b.coachName||''));
+            const promF  = document.getElementById('recl-promotor-filter')?.value || '';
+            const coachF = document.getElementById('recl-coach-filter')?.value  || '';
+            const yearF  = document.getElementById('recl-year-filter')?.value   || '';
+
+            let coachesToShow = state.coaches.slice().sort((a,b)=>(a.coachName||'').localeCompare(b.coachName||''));
+            if (promF) {
+                const promoter = state.promotersMap[promF];
+                if (promoter) coachesToShow = coachesToShow.filter(c =>
+                    c.promotorTeamCode === promoter.promotorCode || c.promotorTeamCode === promoter.companyCode
+                );
+            }
+            if (coachF) coachesToShow = coachesToShow.filter(c => c.email === coachF);
 
             if (!coachesToShow.length) {
-                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay coaches en tu equipo todavía.</div>';
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay coaches con los filtros actuales.</div>';
                 return;
             }
 
-            container.innerHTML = coachesToShow.map(coach => {
+            const html = coachesToShow.map(coach => {
                 const reclMap = {};
-                (coach.reclutamiento || []).forEach(r => { if (r.mes) reclMap[r.mes] = r; });
+                (coach.reclutamiento||[]).forEach(r => { if (r.mes) reclMap[r.mes] = r; });
 
-                const boxes = MESES_FULL_2026.map((mesFull, i) => {
-                    const recl = reclMap[mesFull];
-                    const abrev = MESES_ABREV[i];
-                    let bg = 'rgba(255,255,255,0.06)';
-                    let icon = '';
-                    let clickable = false;
-                    let cursor = 'default';
+                const allYears = [...new Set(Object.keys(reclMap).map(m => m.split(' ')[1]).filter(Boolean))].sort().reverse();
+                const yearsToShow = yearF ? (allYears.includes(yearF) ? [yearF] : []) : allYears;
+                if (!yearsToShow.length) return '';
 
-                    if (recl) {
-                        if (recl.q1 === 'si') {
-                            bg = 'rgba(16,185,129,0.25)';
-                            icon = '✓';
-                            clickable = true;
-                            cursor = 'pointer';
-                        } else if (recl.q1 === 'no') {
-                            bg = 'rgba(239,68,68,0.25)';
-                            icon = '✗';
-                        }
-                    }
-
-                    const borderColor = recl
-                        ? (recl.q1 === 'si' ? 'var(--green)' : 'var(--red)')
-                        : 'rgba(255,255,255,0.08)';
-
-                    const clickAttr = clickable
-                        ? `onclick="showReclDetail('${escapeHtml(coach.coachName)}','${mesFull}','${encodeURIComponent(JSON.stringify(recl))}')" title="Ver detalles"`
-                        : '';
-
-                    return `<div ${clickAttr} style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;background:${bg};border:1px solid ${borderColor};border-radius:8px;cursor:${cursor};min-height:62px;transition:opacity .15s;" ${clickable ? 'onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'"' : ''}>
-                        <div style="font-size:10px;font-weight:700;color:var(--slate);letter-spacing:0.5px;">${abrev}</div>
-                        <div style="font-size:18px;font-weight:800;color:${recl ? (recl.q1==='si' ? 'var(--green)' : 'var(--red)') : 'rgba(255,255,255,0.15)'};">${icon || '·'}</div>
+                const yearBlocks = yearsToShow.map(year => {
+                    const mesesFull = MONTHS_ES.map(m => `${m} ${year}`);
+                    const siCount = mesesFull.filter(m => reclMap[m]?.q1==='si').length;
+                    const noCount = mesesFull.filter(m => reclMap[m]?.q1==='no').length;
+                    const pending = 12 - siCount - noCount;
+                    return `
+                    <div style="margin-bottom:${yearsToShow.length>1?'18px':'0'};">
+                        ${yearsToShow.length>1?`<div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px;letter-spacing:1px;">${year}</div>`:''}
+                        <div style="display:flex;gap:10px;font-size:12px;margin-bottom:8px;">
+                            <span style="color:var(--green);font-weight:700;"><i class="fa fa-circle-check"></i> ${siCount} Sí</span>
+                            <span style="color:var(--red);font-weight:700;"><i class="fa fa-circle-xmark"></i> ${noCount} No</span>
+                            ${pending>0?`<span style="color:var(--slate);">${pending} pendientes</span>`:''}
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;">${makeMonthBoxes(coach,reclMap,mesesFull)}</div>
                     </div>`;
                 }).join('');
 
-                const siCount = MESES_FULL_2026.filter(m => reclMap[m]?.q1 === 'si').length;
-                const noCount = MESES_FULL_2026.filter(m => reclMap[m]?.q1 === 'no').length;
-
                 return `
                 <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-                        <div>
-                            <div style="font-weight:700;font-size:15px;color:var(--white);"><i class="fa fa-user-tie" style="color:var(--gold);margin-right:6px;"></i>${escapeHtml(coach.coachName)}</div>
-                            <div style="font-size:11px;color:var(--slate);">${escapeHtml(coach.email)}</div>
-                        </div>
-                        <div style="display:flex;gap:10px;font-size:12px;">
-                            <span style="color:var(--green);font-weight:700;"><i class="fa fa-circle-check"></i> ${siCount} Sí</span>
-                            <span style="color:var(--red);font-weight:700;"><i class="fa fa-circle-xmark"></i> ${noCount} No</span>
-                            <span style="color:var(--slate);">${12-siCount-noCount} pendientes</span>
-                        </div>
+                    <div style="margin-bottom:14px;">
+                        <div style="font-weight:700;font-size:15px;color:var(--white);"><i class="fa fa-user-tie" style="color:var(--gold);margin-right:6px;"></i>${escapeHtml(coach.coachName)}</div>
+                        <div style="font-size:11px;color:var(--slate);">${escapeHtml(coach.email)}</div>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;">
-                        ${boxes}
-                    </div>
+                    ${yearBlocks}
                 </div>`;
-            }).join('');
+            }).filter(Boolean).join('');
+
+            container.innerHTML = html || '<div class="empty-state"><i class="fa fa-inbox"></i>No hay datos de reclutamiento con los filtros actuales.</div>';
         }
 
         function renderVentasSection() {
@@ -3216,6 +3278,7 @@
         window.refreshCoachReporteMonthFilter = refreshCoachReporteMonthFilter;
         window.switchReporteSub = switchReporteSub;
         window.renderReclutamientoSection = renderReclutamientoSection;
+        window.refreshReclFilters = refreshReclFilters;
         window.renderVentasSection = renderVentasSection;
         window.showReclDetail = showReclDetail;
         window.closeReclDetail = closeReclDetail;
