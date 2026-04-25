@@ -819,6 +819,7 @@
             <button class="tab-btn" onclick="switchTab('charts',this)"><i class="fa fa-chart-area"></i>
                 Tendencias</button>
             <button class="tab-btn" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
+            <button class="tab-btn" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
         </div>
 
         <!-- ═══════════════════════════════ TAB: LEADERBOARD ═══════════════════════════════ -->
@@ -1078,6 +1079,92 @@
             </div>
         </div>
 
+        <!-- ═══════════════════ TAB: GESTIÓN DE EQUIPO ═══════════════════ -->
+        <div id="tab-gestion" class="tab-panel">
+            <div class="card" style="margin-bottom:20px;">
+                <p class="card-title"><i class="fa fa-clock"></i> Solicitudes Pendientes de Aprobación</p>
+                <p style="font-size:12px; color:var(--slate); margin-bottom:16px;">Usuarios que solicitaron acceso y esperan tu aprobación para unirse al equipo.</p>
+                <div id="pending-list">
+                    <div class="empty-state"><i class="fa fa-inbox"></i>No hay solicitudes pendientes.</div>
+                </div>
+            </div>
+            <div class="card">
+                <p class="card-title"><i class="fa fa-users"></i> Gestionar Equipo Activo</p>
+                <p style="font-size:12px; color:var(--slate); margin-bottom:20px;">Aquí puedes expulsar miembros del equipo (sus datos se conservan pero pierden acceso).</p>
+                <div style="margin-bottom:20px;">
+                    <div class="section-label">Promotores</div>
+                    <div id="gestion-promoters-list"></div>
+                </div>
+                <div style="margin-bottom:20px;">
+                    <div class="section-label">Coaches</div>
+                    <div id="gestion-coaches-list"></div>
+                </div>
+                <div>
+                    <div class="section-label">Agentes</div>
+                    <div id="gestion-agents-list"></div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end .app -->
+
+    <!-- REGISTER OVERLAY (Director self-registers) -->
+    <div id="register-overlay" style="display:none; position:fixed; inset:0; background:radial-gradient(circle at top right,#1e293b,#0f172a); z-index:10001; align-items:center; justify-content:center; flex-direction:column; padding:20px;">
+        <div class="login-card" style="max-width:440px;">
+            <div style="font-size:40px; margin-bottom:16px;">🏢</div>
+            <h1 style="font-family:'Playfair Display',serif; color:var(--gold); margin-bottom:8px;">Crear Cuenta de Director</h1>
+            <p style="color:var(--slate); font-size:13px; margin-bottom:24px;">Esta cuenta no está registrada como Director. Crea tu cuenta para comenzar.</p>
+            <div style="text-align:left; display:flex; flex-direction:column; gap:14px; margin-bottom:20px;">
+                <div>
+                    <label style="font-size:11px; color:var(--slate); font-weight:700; display:block; margin-bottom:5px;">TU NOMBRE COMPLETO</label>
+                    <input type="text" id="reg-dir-name" placeholder="Ej. Franco Director" style="width:100%;">
+                </div>
+                <div>
+                    <label style="font-size:11px; color:var(--slate); font-weight:700; display:block; margin-bottom:5px;">TU CÓDIGO DE DIRECTOR</label>
+                    <input type="text" id="reg-dir-code" placeholder="Ej. TEAM-DIRECTOR" style="width:100%; text-transform:uppercase;">
+                    <p style="font-size:10px; color:var(--slate); margin:5px 0 0;">Este código lo compartirás con tus promotores para que se vinculen a ti.</p>
+                </div>
+            </div>
+            <button id="reg-dir-btn" onclick="submitDirectorRegistration()" style="width:100%; padding:13px; border-radius:10px; background:var(--gold); color:var(--bg); border:none; font-size:14px; font-weight:700; cursor:pointer;">
+                <i class="fa fa-crown"></i> Crear mi cuenta de Director
+            </button>
+            <button onclick="signOut(auth).then(()=>location.reload())" style="width:100%; margin-top:10px; padding:10px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
+        </div>
+    </div>
+
+    <!-- PENDING OVERLAY -->
+    <div id="pending-overlay" style="display:none; position:fixed; inset:0; background:radial-gradient(circle at top right,#1e293b,#0f172a); z-index:10001; align-items:center; justify-content:center; flex-direction:column; padding:20px;">
+        <div class="login-card" style="max-width:400px;">
+            <div style="font-size:50px; margin-bottom:16px;">⏳</div>
+            <h1 style="color:var(--orange); font-family:'Playfair Display',serif; margin-bottom:8px;">Solicitud Pendiente</h1>
+            <p style="color:var(--slate); font-size:13px; margin-bottom:20px;">Tu solicitud está pendiente de aprobación. Por favor intenta más tarde.</p>
+            <button onclick="signOut(auth).then(()=>location.reload())" style="width:100%; padding:12px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
+        </div>
+    </div>
+
+    <!-- REVOKED OVERLAY -->
+    <div id="revoked-overlay" style="display:none; position:fixed; inset:0; background:radial-gradient(circle at top right,#1e293b,#0f172a); z-index:10001; align-items:center; justify-content:center; flex-direction:column; padding:20px;">
+        <div class="login-card" style="max-width:400px;">
+            <div style="font-size:50px; margin-bottom:16px;">🚫</div>
+            <h1 style="color:var(--red); font-family:'Playfair Display',serif; margin-bottom:8px;">Acceso Revocado</h1>
+            <p style="color:var(--slate); font-size:13px; margin-bottom:20px;">Tu acceso al sistema ha sido revocado. Contacta al administrador si crees que es un error.</p>
+            <button onclick="signOut(auth).then(()=>location.reload())" style="width:100%; padding:12px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
+        </div>
+    </div>
+
+    <!-- APPROVE MODAL -->
+    <div class="modal-overlay" id="approve-modal">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeApproveModal()">&times;</button>
+            <h2><i class="fa fa-user-check"></i> Aprobar Solicitud</h2>
+            <div id="approve-modal-content" style="display:flex; flex-direction:column; gap:16px; margin-bottom:20px;"></div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-green" id="approve-confirm-btn" onclick="confirmApproval()">
+                    <i class="fa fa-check"></i> Aprobar y Asignar
+                </button>
+                <button class="btn btn-sm" onclick="closeApproveModal()">Cancelar</button>
+            </div>
+        </div>
     </div>
 
     <!-- CONFIG MODAL -->
@@ -1121,7 +1208,7 @@
         // --- IMPORT FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // Initialize
         const app = initializeApp(firebaseConfig);
@@ -1164,14 +1251,73 @@
         onAuthStateChanged(auth, async (u) => {
             if (u) {
                 user = u;
-                document.getElementById('login-overlay').classList.add('hidden');
-                await loadDirectorData();
-                init();
+                const status = await checkDirectorStatus();
+                if (status === 'active') {
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    await loadDirectorData();
+                    startListeningPending();
+                    init();
+                } else if (status === 'inactive') {
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    document.getElementById('revoked-overlay').style.display = 'flex';
+                } else if (status === 'pending') {
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    document.getElementById('pending-overlay').style.display = 'flex';
+                } else {
+                    // New director — can self-register (no approval needed)
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    document.getElementById('register-overlay').style.display = 'flex';
+                    if (u.displayName) document.getElementById('reg-dir-name').value = u.displayName;
+                }
             } else {
                 user = null;
                 document.getElementById('login-overlay').classList.remove('hidden');
+                ['register-overlay', 'pending-overlay', 'revoked-overlay'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
             }
         });
+
+        async function checkDirectorStatus() {
+            if (!user) return 'unknown';
+            const docSnap = await getDoc(doc(db, "directors", user.email));
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.status === 'inactive') return 'inactive';
+                return 'active';
+            }
+            const pendingSnap = await getDoc(doc(db, "pending_users", user.email));
+            if (pendingSnap.exists()) return 'pending';
+            return 'new';
+        }
+
+        window.submitDirectorRegistration = async function () {
+            const name = document.getElementById('reg-dir-name').value.trim();
+            const code = document.getElementById('reg-dir-code').value.trim().toUpperCase();
+            if (!name || !code) { alert('Por favor completa tu nombre y código de director.'); return; }
+            const btn = document.getElementById('reg-dir-btn');
+            btn.disabled = true;
+            btn.textContent = 'Registrando...';
+            try {
+                await setDoc(doc(db, "directors", user.email), {
+                    directorName: name,
+                    directorCode: code,
+                    email: user.email,
+                    status: 'active',
+                    type: 'director',
+                    createdAt: new Date().toISOString()
+                });
+                document.getElementById('register-overlay').style.display = 'none';
+                await loadDirectorData();
+                startListeningPending();
+                init();
+            } catch (err) {
+                alert('Error al registrar: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = 'Crear mi cuenta de Director';
+            }
+        };
 
         // ─── SERVICE WORKER ──────────────────────────────────────────────────────────
         if ('serviceWorker' in navigator) {
@@ -1344,7 +1490,7 @@
                     snapshot.forEach((docSnap) => {
                         const agentData = docSnap.data();
                         if (agentData.agentName) {
-                            batchAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode });
+                            batchAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode, email: docSnap.id });
                             if (agentData.entries) {
                                 agentData.entries.forEach(e => {
                                     e.agent = agentData.agentName;
@@ -1498,6 +1644,7 @@
             renderKPIs();
             refreshMonthFilters();
             renderCoachReportes();
+            if (document.getElementById('tab-gestion')?.classList.contains('active')) renderGestion();
         }
 
         // ─── TABS ─────────────────────────────────────────────────────────────────────
@@ -1510,6 +1657,7 @@
             if (name === 'kpis') renderKPIs();
             if (name === 'leaderboard') renderLeaderboard();
             if (name === 'reporte') renderCoachReportes();
+            if (name === 'gestion') renderGestion();
         }
 
         // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -2482,6 +2630,290 @@
             }).join('');
         }
 
+        // ─── GESTIÓN DE EQUIPO ───────────────────────────────────────────────────────
+        let pendingUsers = [];
+        let currentApproval = null;
+
+        function startListeningPending() {
+            const pendQ = collection(db, "pending_users");
+            const unsubPending = onSnapshot(pendQ, (snapshot) => {
+                pendingUsers = [];
+                snapshot.forEach(docSnap => {
+                    pendingUsers.push({ email: docSnap.id, ...docSnap.data() });
+                });
+                // Update badge
+                const badge = document.getElementById('pending-badge');
+                if (badge) {
+                    if (pendingUsers.length > 0) {
+                        badge.textContent = pendingUsers.length;
+                        badge.style.display = 'inline';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+                if (document.getElementById('tab-gestion')?.classList.contains('active')) renderGestion();
+            });
+            unsubListeners.push(unsubPending);
+        }
+
+        function renderGestion() {
+            renderPendingList();
+            renderGestionPromoters();
+            renderGestionCoaches();
+            renderGestionAgents();
+        }
+
+        function renderPendingList() {
+            const container = document.getElementById('pending-list');
+            if (!container) return;
+            if (!pendingUsers.length) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i>No hay solicitudes pendientes.</div>';
+                return;
+            }
+            const roleLabels = { agent: '👤 Agente', coach: '🧑‍🏫 Coach', promoter: '📊 Promotor', director: '🏢 Director' };
+            container.innerHTML = pendingUsers.map(u => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.04); border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.08); flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <div style="font-weight:600; font-size:13px;">${escapeHtml(u.name || u.email)}</div>
+                        <div style="font-size:11px; color:var(--slate); margin-top:2px;">${escapeHtml(u.email)}</div>
+                        <div style="font-size:11px; margin-top:3px;">Rol: <span style="color:var(--gold); font-weight:700;">${roleLabels[u.requestedRole] || u.requestedRole || '—'}</span></div>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-green btn-sm" onclick="openApproveModal('${escapeHtml(u.email)}')">
+                            <i class="fa fa-check"></i> Aprobar
+                        </button>
+                        <button class="btn btn-red btn-sm" onclick="rejectUser('${escapeHtml(u.email)}')">
+                            <i class="fa fa-times"></i> Rechazar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGestionPromoters() {
+            const container = document.getElementById('gestion-promoters-list');
+            if (!container) return;
+            if (!state.promoters.length) {
+                container.innerHTML = '<div style="color:var(--slate); font-size:12px; padding:8px 0;">Sin promotores activos.</div>';
+                return;
+            }
+            container.innerHTML = state.promoters.map(p => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
+                    <div>
+                        <span style="font-weight:500; font-size:13px;">${escapeHtml(p.promoterName)}</span>
+                        <span style="font-size:10px; color:var(--slate); margin-left:10px;">${escapeHtml(p.email)}</span>
+                        <span style="font-size:10px; color:var(--teal); margin-left:8px;">${escapeHtml(p.promotorCode || '')}</span>
+                    </div>
+                    <button class="btn btn-red btn-sm" onclick="expelPromoter('${escapeHtml(p.email)}')">
+                        <i class="fa fa-user-minus"></i> Expulsar
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function renderGestionCoaches() {
+            const container = document.getElementById('gestion-coaches-list');
+            if (!container) return;
+            if (!state.coaches.length) {
+                container.innerHTML = '<div style="color:var(--slate); font-size:12px; padding:8px 0;">Sin coaches activos.</div>';
+                return;
+            }
+            container.innerHTML = state.coaches.map(c => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
+                    <div>
+                        <span style="font-weight:500; font-size:13px;">${escapeHtml(c.coachName)}</span>
+                        <span style="font-size:10px; color:var(--slate); margin-left:10px;">${escapeHtml(c.email)}</span>
+                        <span style="font-size:10px; color:var(--teal); margin-left:8px;">${escapeHtml(c.agentTeamCode || '')}</span>
+                    </div>
+                    <button class="btn btn-red btn-sm" onclick="expelCoach('${escapeHtml(c.email)}')">
+                        <i class="fa fa-user-minus"></i> Expulsar
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function renderGestionAgents() {
+            const container = document.getElementById('gestion-agents-list');
+            if (!container) return;
+            if (!state.agents.length) {
+                container.innerHTML = '<div style="color:var(--slate); font-size:12px; padding:8px 0;">Sin agentes activos.</div>';
+                return;
+            }
+            const sorted = [...state.agents].sort((a, b) => a.name.localeCompare(b.name));
+            container.innerHTML = sorted.map(a => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
+                    <div>
+                        <span style="font-weight:500; font-size:13px;">${escapeHtml(a.name)}</span>
+                        <span style="font-size:10px; color:var(--slate); margin-left:10px;">${escapeHtml(a.email || '')}</span>
+                        <span style="font-size:10px; color:var(--teal); margin-left:8px;">${escapeHtml(a.teamCode || '')}</span>
+                    </div>
+                    <button class="btn btn-red btn-sm" onclick="expelAgent('${escapeHtml(a.email || '')}')">
+                        <i class="fa fa-user-minus"></i> Expulsar
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        window.openApproveModal = function (email) {
+            const pending = pendingUsers.find(u => u.email === email);
+            if (!pending) return;
+            currentApproval = pending;
+            const role = pending.requestedRole || 'agent';
+
+            let formHtml = `
+                <div style="background:rgba(255,255,255,0.04); border-radius:8px; padding:14px; font-size:13px; line-height:1.8;">
+                    <div><strong style="color:var(--gold);">Nombre:</strong> ${escapeHtml(pending.name || '—')}</div>
+                    <div><strong style="color:var(--gold);">Email:</strong> ${escapeHtml(pending.email)}</div>
+                    <div><strong style="color:var(--gold);">Rol solicitado:</strong> ${escapeHtml(role)}</div>
+                </div>`;
+
+            if (role === 'agent') {
+                const opts = state.coaches.map(c =>
+                    `<option value="${escapeHtml(c.email)}">${escapeHtml(c.coachName)} — ${escapeHtml(c.agentTeamCode || c.email)}</option>`
+                ).join('');
+                formHtml += `
+                <div>
+                    <label class="field-label">Asignar al equipo del Coach</label>
+                    <select id="approve-coach-sel">
+                        <option value="">-- Seleccionar coach --</option>
+                        ${opts}
+                    </select>
+                </div>`;
+            } else if (role === 'coach') {
+                const opts = state.promoters.map(p =>
+                    `<option value="${escapeHtml(p.email)}">${escapeHtml(p.promoterName)} — ${escapeHtml(p.promotorCode || p.email)}</option>`
+                ).join('');
+                formHtml += `
+                <div>
+                    <label class="field-label">Asignar al equipo del Promotor</label>
+                    <select id="approve-promotor-sel">
+                        <option value="">-- Seleccionar promotor --</option>
+                        ${opts}
+                    </select>
+                </div>`;
+            } else if (role === 'promoter') {
+                formHtml += `
+                <div style="background:rgba(212,175,55,0.1); border:1px solid rgba(212,175,55,0.3); border-radius:8px; padding:12px; font-size:12px; color:var(--gold-l); line-height:1.6;">
+                    <i class="fa fa-circle-info"></i> El promotor quedará vinculado a tu código de director <strong>(${escapeHtml(state.directorCode || '—')})</strong> y recibirá un código de promotor único.
+                </div>`;
+            }
+
+            document.getElementById('approve-modal-content').innerHTML = formHtml;
+            document.getElementById('approve-modal').classList.add('open');
+        };
+
+        window.closeApproveModal = function () {
+            document.getElementById('approve-modal').classList.remove('open');
+            currentApproval = null;
+        };
+
+        window.confirmApproval = async function () {
+            if (!currentApproval) return;
+            const btn = document.getElementById('approve-confirm-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Procesando...';
+
+            try {
+                const { email, name, requestedRole: role } = currentApproval;
+
+                if (role === 'agent') {
+                    const coachEmail = document.getElementById('approve-coach-sel')?.value;
+                    if (!coachEmail) { alert('Por favor selecciona un coach.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
+                    const coach = state.coachesMap[coachEmail];
+                    if (!coach) { alert('Coach no encontrado.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
+                    await setDoc(doc(db, "users", email), {
+                        agentName: name,
+                        email: email,
+                        teamCode: coach.agentTeamCode,
+                        status: 'active',
+                        type: 'agent',
+                        approvedBy: user.email,
+                        approvedAt: new Date().toISOString()
+                    }, { merge: true });
+
+                } else if (role === 'coach') {
+                    const promEmail = document.getElementById('approve-promotor-sel')?.value;
+                    if (!promEmail) { alert('Por favor selecciona un promotor.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
+                    const promoter = state.promotersMap[promEmail];
+                    if (!promoter) { alert('Promotor no encontrado.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
+                    const agentTeamCode = 'TEAM-COACH-' + Date.now();
+                    await setDoc(doc(db, "coaches", email), {
+                        coachName: name,
+                        email: email,
+                        teamCode: agentTeamCode,
+                        promotorTeamCode: promoter.promotorCode,
+                        status: 'active',
+                        type: 'coach',
+                        approvedBy: user.email,
+                        approvedAt: new Date().toISOString()
+                    }, { merge: true });
+
+                } else if (role === 'promoter') {
+                    const promotorCode = 'TEAM-PROMOTOR-' + Date.now();
+                    await setDoc(doc(db, "promoters", email), {
+                        promoterName: name,
+                        email: email,
+                        promotorCode: promotorCode,
+                        directorCode: state.directorCode,
+                        status: 'active',
+                        type: 'promoter',
+                        approvedBy: user.email,
+                        approvedAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+
+                // Remove from pending_users
+                await deleteDoc(doc(db, "pending_users", email));
+                closeApproveModal();
+                alert(`✅ ${escapeHtml(name || email)} aprobado como ${role}.`);
+
+            } catch (err) {
+                alert('Error al aprobar: ' + err.message);
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar';
+        };
+
+        window.rejectUser = async function (email) {
+            const pending = pendingUsers.find(u => u.email === email);
+            const name = pending ? (pending.name || email) : email;
+            if (!confirm(`¿Rechazar la solicitud de ${name}? Esta acción no se puede deshacer.`)) return;
+            try {
+                await deleteDoc(doc(db, "pending_users", email));
+            } catch (err) { alert('Error: ' + err.message); }
+        };
+
+        window.expelAgent = async function (agentEmail) {
+            if (!agentEmail) return;
+            const agent = state.agents.find(a => a.email === agentEmail);
+            const name = agent ? agent.name : agentEmail;
+            if (!confirm(`¿Expulsar al agente "${name}"?\n\nSu historial de datos se conservará pero perderá acceso al sistema.`)) return;
+            try {
+                await setDoc(doc(db, "users", agentEmail), { status: 'inactive' }, { merge: true });
+                alert(`✅ ${name} ha sido expulsado. Sus datos se conservan.`);
+            } catch (err) { alert('Error: ' + err.message); }
+        };
+
+        window.expelCoach = async function (coachEmail) {
+            const coach = state.coachesMap[coachEmail];
+            const name = coach ? coach.coachName : coachEmail;
+            if (!confirm(`¿Expulsar al coach "${name}"?\n\nSus agentes quedarán sin coach. Sus datos se conservan.`)) return;
+            try {
+                await setDoc(doc(db, "coaches", coachEmail), { status: 'inactive' }, { merge: true });
+                alert(`✅ ${name} ha sido expulsado. Sus datos se conservan.`);
+            } catch (err) { alert('Error: ' + err.message); }
+        };
+
+        window.expelPromoter = async function (promEmail) {
+            const promoter = state.promotersMap[promEmail];
+            const name = promoter ? promoter.promoterName : promEmail;
+            if (!confirm(`¿Expulsar al promotor "${name}"?\n\nSus coaches quedarán sin promotor. Sus datos se conservan.`)) return;
+            try {
+                await setDoc(doc(db, "promoters", promEmail), { status: 'inactive' }, { merge: true });
+                alert(`✅ ${name} ha sido expulsado. Sus datos se conservan.`);
+            } catch (err) { alert('Error: ' + err.message); }
+        };
+
         // ─── BOOT ─────────────────────────────────────────────────────────────────────
         window.refreshAll = refreshAll;
         window.switchTab = switchTab;
@@ -2496,6 +2928,8 @@
         window.refreshChartAgents = refreshChartAgents;
         window.renderCoachReportes = renderCoachReportes;
         window.refreshCoachReporteMonthFilter = refreshCoachReporteMonthFilter;
+        window.renderGestion = renderGestion;
+        window.startListeningPending = startListeningPending;
         window.validateDay = validateDay;
         window.ratio = ratio;
         window.destroyChart = destroyChart;
