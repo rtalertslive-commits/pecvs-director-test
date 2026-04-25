@@ -1437,62 +1437,38 @@
         }
 
         function startListeningCoaches() {
-            // Query all coaches whose promotorTeamCode is in our promotorCodes list.
-            // promotorCodes now contains BOTH new 4-digit codes AND legacy TEAM-PROMOTOR-X codes.
             if (!state.promotorCodes || state.promotorCodes.length === 0) {
-                console.log('No promotorCodes, clearing coaches');
                 state.coaches = [];
                 state.coachesMap = {};
                 startListeningAgents();
                 return;
             }
 
-            console.log('Loading coaches for promotorCodes:', state.promotorCodes);
-
-            // Firestore IN limit = 30. Batch if needed (with 4 promoters + legacy codes ≈ 12 max, but just in case).
-            const BATCH_SIZE = 29;
-            const allCodes = [...state.promotorCodes];
-            const batches = [];
-            for (let i = 0; i < allCodes.length; i += BATCH_SIZE) {
-                batches.push(allCodes.slice(i, i + BATCH_SIZE));
-            }
-
-            state._coachBatches = {};
-            let batchesFired = 0;
-
-            function mergeCoachBatches() {
-                const merged = {};
-                Object.values(state._coachBatches).forEach(batch => {
-                    batch.forEach(entry => { merged[entry.email] = entry; });
+            const coachQ = query(collection(db, "coaches"), where("promotorTeamCode", "in", state.promotorCodes));
+            const unsubCoaches = onSnapshot(coachQ, (snapshot) => {
+                const coaches = [];
+                const coachesMap = {};
+                snapshot.forEach((docSnap) => {
+                    const cdata = docSnap.data();
+                    if (cdata.status === 'inactive') return;
+                    const entry = {
+                        email: docSnap.id,
+                        coachName: cdata.coachName || docSnap.id,
+                        agentTeamCode: resolveAgentTeamCode(cdata),
+                        companyCode: cdata.companyCode || '',
+                        coachNum: cdata.coachNum,
+                        promotorTeamCode: cdata.promotorTeamCode || '',
+                        reportes: cdata.reportes || [],
+                        reclutamiento: cdata.reclutamiento || []
+                    };
+                    coaches.push(entry);
+                    coachesMap[docSnap.id] = entry;
                 });
-                state.coaches = Object.values(merged);
-                state.coachesMap = Object.fromEntries(state.coaches.map(c => [c.email, c]));
+                state.coaches = coaches;
+                state.coachesMap = coachesMap;
                 startListeningAgents();
-            }
-
-            batches.forEach((batchCodes, bIdx) => {
-                const coachQ = query(collection(db, "coaches"), where("promotorTeamCode", "in", batchCodes));
-                const unsubCoaches = onSnapshot(coachQ, (snapshot) => {
-                    const batchCoaches = [];
-                    snapshot.forEach((docSnap) => {
-                        const cdata = docSnap.data();
-                        if (cdata.status === 'inactive') return;
-                        batchCoaches.push({
-                            email: docSnap.id,
-                            coachName: cdata.coachName || docSnap.id,
-                            agentTeamCode: resolveAgentTeamCode(cdata),
-                            companyCode: cdata.companyCode || '',
-                            coachNum: cdata.coachNum,
-                            promotorTeamCode: cdata.promotorTeamCode || '',
-                            reportes: cdata.reportes || [],
-                            reclutamiento: cdata.reclutamiento || []
-                        });
-                    });
-                    state._coachBatches[bIdx] = batchCoaches;
-                    mergeCoachBatches();
-                });
-                unsubListeners.push(unsubCoaches);
             });
+            unsubListeners.push(unsubCoaches);
         }
 
         function startListeningAgents() {
