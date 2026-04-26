@@ -819,6 +819,7 @@
             <button class="tab-btn" onclick="switchTab('charts',this)"><i class="fa fa-chart-area"></i>
                 Tendencias</button>
             <button class="tab-btn" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
+            <button class="tab-btn" onclick="switchTab('bitacora',this)"><i class="fa fa-book-open"></i> Bitácora</button>
             <button class="tab-btn" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
             <button class="tab-btn" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
         </div>
@@ -1118,6 +1119,88 @@
             </div>
         </div>
 
+        <!-- ═══════════════════ TAB: BITÁCORA ═══════════════════ -->
+        <div id="tab-bitacora" class="tab-panel">
+            <div class="card">
+                <p class="card-title"><i class="fa fa-book-open"></i> Bitácora de Agentes <span style="font-size:12px;font-weight:400;color:var(--slate);">(solo lectura)</span></p>
+                <div class="info-box">
+                    <strong>Embudo PECVS$:</strong> P ≥ E ≥ C ≥ V &nbsp;|&nbsp;
+                    P=Contactos · E=Entrevistas · C=Cotizaciones · V=Cierres · S=Solicitudes · $=Prima Neta
+                </div>
+                <div class="bitacora-header">
+                    <div>
+                        <label class="field-label">Coach</label>
+                        <select id="bit-coach-filter" onchange="refreshBitAgentSelect()">
+                            <option value="">— Todos los coaches —</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Agente</label>
+                        <select id="bit-agent" onchange="autoLoadBit()">
+                            <option value="">— Selecciona agente —</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Mes</label>
+                        <select id="bit-month" onchange="updateBitCalendar()">
+                            <option value="1">Enero</option><option value="2">Febrero</option>
+                            <option value="3">Marzo</option><option value="4" selected>Abril</option>
+                            <option value="5">Mayo</option><option value="6">Junio</option>
+                            <option value="7">Julio</option><option value="8">Agosto</option>
+                            <option value="9">Septiembre</option><option value="10">Octubre</option>
+                            <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Año</label>
+                        <input type="number" id="bit-year" value="2026" min="2020" max="2040" onchange="updateBitCalendar()" style="width:100px;">
+                    </div>
+                    <div>
+                        <label class="field-label">Semana</label>
+                        <select id="bit-semana" onchange="autoLoadBit()"></select>
+                    </div>
+                </div>
+                <div id="bit-week-info" style="font-size:11px;color:var(--teal);margin-bottom:10px;"></div>
+                <table class="week-table">
+                    <thead>
+                        <tr>
+                            <th>Día</th>
+                            <th>P — Contactos</th><th>E — Entrevistas</th><th>C — Cotizaciones</th>
+                            <th>V — Cierres</th><th>S — Solicitudes</th><th>$ — Prima Neta</th><th>Semáforo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bit-week-body"></tbody>
+                    <tfoot>
+                        <tr>
+                            <td class="day-label">TOTAL SEM</td>
+                            <td class="total-cell" id="bit-tt-P">0</td>
+                            <td class="total-cell" id="bit-tt-E">0</td>
+                            <td class="total-cell" id="bit-tt-C">0</td>
+                            <td class="total-cell" id="bit-tt-V">0</td>
+                            <td class="total-cell" id="bit-tt-S">0</td>
+                            <td class="total-cell" id="bit-tt-$">$0</td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="day-label">TOTAL MES</td>
+                            <td class="total-cell" id="bit-ttm-P">0</td>
+                            <td class="total-cell" id="bit-ttm-E">0</td>
+                            <td class="total-cell" id="bit-ttm-C">0</td>
+                            <td class="total-cell" id="bit-ttm-V">0</td>
+                            <td class="total-cell" id="bit-ttm-S">0</td>
+                            <td class="total-cell" id="bit-ttm-$">$0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div class="save-row" style="justify-content:flex-end;">
+                    <button class="btn btn-sm" onclick="renderBitHistory();document.getElementById('modal-bit-log').classList.add('open')">
+                        <i class="fa fa-list"></i> Ver log (todos los registros)
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- ═══════════════════ TAB: REPORTES DE PROMOTORES ═══════════════════ -->
         <div id="tab-reporte-promotores" class="tab-panel">
             <!-- Sub-tab switcher -->
@@ -1326,6 +1409,17 @@
                 </div>
                 <button class="btn btn-green" onclick="saveConfig()"><i class="fa fa-floppy-disk"></i>Guardar
                     configuración</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BITÁCORA LOG MODAL -->
+    <div class="modal-overlay" id="modal-bit-log">
+        <div class="modal-box" style="max-width:600px;">
+            <button class="modal-close" onclick="document.getElementById('modal-bit-log').classList.remove('open')">&times;</button>
+            <h2><i class="fa fa-clock-rotate-left"></i> Log de Transacciones (Bitácora)</h2>
+            <div id="bit-history-grid" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;">
+                <div class="empty-state"><i class="fa fa-inbox"></i> No hay entradas.</div>
             </div>
         </div>
     </div>
@@ -1788,6 +1882,177 @@
         // ─── INIT ─────────────────────────────────────────────────────────────────────
         window.init = function () {
             refreshAll();
+            initBitacora();
+        }
+
+        // ─── BITÁCORA VIEW (solo lectura) ─────────────────────────────────────────────
+        let bitCurrentWeeks = [];
+
+        function getBitAgentList() { return state.agents.map(a => a.name); }
+        function getBitAgentCoach(name) {
+            // Try agentCoachMap first (populated by startListeningAgentsForCoaches path)
+            if (state.agentCoachMap && state.agentCoachMap[name]) return state.agentCoachMap[name];
+            // Fallback: match via teamCode
+            const agent = state.agents.find(a => a.name === name);
+            if (!agent) return null;
+            const coach = state.coaches.find(c => c.agentTeamCode === agent.teamCode);
+            return coach ? coach.email : null;
+        }
+
+        function refreshBitCoachFilter() {
+            const sel = document.getElementById('bit-coach-filter');
+            if (!sel) return;
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">— Todos los coaches —</option>' +
+                state.coaches.map(c => `<option value="${c.email}">${c.coachName || c.email}</option>`).join('');
+            if (prev) sel.value = prev;
+            refreshBitAgentSelect();
+        }
+
+        window.refreshBitAgentSelect = function () {
+            const coachF = document.getElementById('bit-coach-filter').value;
+            const sel = document.getElementById('bit-agent');
+            const prev = sel.value;
+            const agentNames = getBitAgentList();
+            const agents = coachF
+                ? agentNames.filter(a => getBitAgentCoach(a) === coachF)
+                : agentNames;
+            sel.innerHTML = '<option value="">— Selecciona agente —</option>' +
+                agents.map(a => `<option value="${a}">${a}</option>`).join('');
+            sel.value = agents.includes(prev) ? prev : '';
+            autoLoadBit();
+        };
+
+        window.updateBitCalendar = function () {
+            const month = parseInt(document.getElementById('bit-month').value);
+            const year = parseInt(document.getElementById('bit-year').value);
+            if (!month || !year) return;
+            bitCurrentWeeks = getMonthCalendar(year, month);
+            const sel = document.getElementById('bit-semana');
+            const prev = sel.value;
+            sel.innerHTML = bitCurrentWeeks.map((w, i) => {
+                const f = w[0], l = w[w.length - 1];
+                return `<option value="${i + 1}">Sem ${i + 1} &mdash; ${f.dayName.slice(0, 3)} ${f.date} al ${l.dayName.slice(0, 3)} ${l.date}</option>`;
+            }).join('');
+            sel.value = (prev && parseInt(prev) <= bitCurrentWeeks.length) ? prev : '1';
+            autoLoadBit();
+        };
+
+        window.autoLoadBit = function () {
+            const agent = document.getElementById('bit-agent').value;
+            const semana = document.getElementById('bit-semana').value;
+            const month = parseInt(document.getElementById('bit-month').value);
+            const year = parseInt(document.getElementById('bit-year').value);
+            if (!month || !year) return;
+            const mes = MONTHS_ES[month - 1] + ' ' + year;
+            const semIdx = parseInt(semana) - 1;
+            const weekDays = bitCurrentWeeks[semIdx] || [];
+            buildBitWeekTable(weekDays, agent, mes, semana);
+            const info = document.getElementById('bit-week-info');
+            if (weekDays.length && agent) {
+                info.textContent = `📅 ${mes} · Semana ${semana} de ${bitCurrentWeeks.length} · Días: ${weekDays.map(d => d.dayName + ' ' + d.date).join(', ')}`;
+            } else { info.textContent = ''; }
+            updateBitMonthTotals(agent, mes);
+        };
+
+        function buildBitWeekTable(weekDays, agent, mes, semana) {
+            const tbody = document.getElementById('bit-week-body');
+            if (!weekDays.length || !agent) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--slate);padding:20px;">${agent ? '' : 'Selecciona un agente para ver su bitácora.'}</td></tr>`;
+                resetBitTotals(); return;
+            }
+            const entry = state.entries.find(e => e.agent === agent && e.mes === mes && e.semana == semana);
+            const diasMap = {};
+            if (entry) entry.dias.forEach(d => { diasMap[d.dia] = d; });
+            let semP = 0, semE = 0, semC = 0, semV = 0, semS = 0, semPrima = 0;
+            tbody.innerHTML = weekDays.map(({ dayName, date }) => {
+                const d = diasMap[dayName] || { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
+                const P = d.P || 0, E = d.E || 0, C = d.C || 0, V = d.V || 0, S = d.S || 0, pr = parseFloat(d.prima) || 0;
+                semP += P; semE += E; semC += C; semV += V; semS += S; semPrima += pr;
+                const funnel = P >= E && E >= C && C >= V ? (P > 0 ? '🟢' : '⚪') : '🔴';
+                return `<tr>
+                  <td class="day-label">${dayName} <span style="font-size:10px;color:var(--slate);">${date}</span></td>
+                  <td style="text-align:center;">${P}</td><td style="text-align:center;">${E}</td>
+                  <td style="text-align:center;">${C}</td><td style="text-align:center;">${V}</td>
+                  <td style="text-align:center;">${S}</td>
+                  <td style="text-align:center;">$${pr.toFixed(0)}</td>
+                  <td style="text-align:center;font-size:16px;">${funnel}</td>
+                </tr>`;
+            }).join('');
+            document.getElementById('bit-tt-P').textContent = semP;
+            document.getElementById('bit-tt-E').textContent = semE;
+            document.getElementById('bit-tt-C').textContent = semC;
+            document.getElementById('bit-tt-V').textContent = semV;
+            document.getElementById('bit-tt-S').textContent = semS;
+            document.getElementById('bit-tt-$').textContent = '$' + semPrima.toFixed(0);
+        }
+
+        function updateBitMonthTotals(agent, mes) {
+            if (!agent) { resetBitMonthTotals(); return; }
+            const monthEntries = state.entries.filter(e => e.agent === agent && e.mes === mes);
+            let mP = 0, mE = 0, mC = 0, mV = 0, mS = 0, mPrima = 0;
+            monthEntries.forEach(e => {
+                if (e.totales) { mP += e.totales.P || 0; mE += e.totales.E || 0; mC += e.totales.C || 0; mV += e.totales.V || 0; mS += e.totales.S || 0; mPrima += parseFloat(e.totales.prima) || 0; }
+            });
+            document.getElementById('bit-ttm-P').textContent = mP;
+            document.getElementById('bit-ttm-E').textContent = mE;
+            document.getElementById('bit-ttm-C').textContent = mC;
+            document.getElementById('bit-ttm-V').textContent = mV;
+            document.getElementById('bit-ttm-S').textContent = mS;
+            document.getElementById('bit-ttm-$').textContent = '$' + mPrima.toFixed(0);
+        }
+
+        function resetBitTotals() {
+            ['P', 'E', 'C', 'V', 'S'].forEach(c => { document.getElementById(`bit-tt-${c}`).textContent = '0'; });
+            document.getElementById('bit-tt-$').textContent = '$0';
+            resetBitMonthTotals();
+        }
+
+        function resetBitMonthTotals() {
+            ['P', 'E', 'C', 'V', 'S'].forEach(c => { document.getElementById(`bit-ttm-${c}`).textContent = '0'; });
+            document.getElementById('bit-ttm-$').textContent = '$0';
+        }
+
+        window.renderBitHistory = function () {
+            const grid = document.getElementById('bit-history-grid');
+            const coachF = document.getElementById('bit-coach-filter').value;
+            const agentF = document.getElementById('bit-agent').value;
+            let filtered = state.entries;
+            if (coachF) filtered = filtered.filter(e => getBitAgentCoach(e.agent) === coachF);
+            if (agentF) filtered = filtered.filter(e => e.agent === agentF);
+            if (!filtered.length) {
+                grid.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i> No hay entradas.</div>';
+                return;
+            }
+            grid.innerHTML = filtered.map(e => {
+                const origIdx = state.entries.indexOf(e);
+                return `<div class="history-chip" onclick="loadBitEntry(${origIdx})">
+                  <span style="font-weight:700;color:var(--gold)">${e.agent}</span>
+                  <span style="color:var(--slate)">${e.mes} · Sem ${e.semana}</span>
+                  <span style="color:var(--teal);font-size:11px;">P:${e.totales?.P||0} E:${e.totales?.E||0} V:${e.totales?.V||0}</span>
+                </div>`;
+            }).join('');
+        };
+
+        window.loadBitEntry = function (i) {
+            const e = state.entries[i];
+            if (!e) return;
+            document.getElementById('bit-agent').value = e.agent;
+            const parts = e.mes.split(' ');
+            const mIdx = MONTHS_ES.indexOf(parts[0]);
+            if (mIdx >= 0) {
+                document.getElementById('bit-month').value = mIdx + 1;
+                document.getElementById('bit-year').value = parseInt(parts[1]) || new Date().getFullYear();
+                updateBitCalendar();
+            }
+            document.getElementById('bit-semana').value = e.semana;
+            autoLoadBit();
+            document.getElementById('modal-bit-log').classList.remove('open');
+        };
+
+        function initBitacora() {
+            updateBitCalendar();
+            refreshBitCoachFilter();
         }
 
         window.saveState = async function () {
@@ -1805,6 +2070,7 @@
             refreshMonthFilters();
             renderCoachReportes();
             if (document.getElementById('tab-gestion')?.classList.contains('active')) renderGestion();
+            refreshBitCoachFilter();
         }
 
         // ─── TABS ─────────────────────────────────────────────────────────────────────
