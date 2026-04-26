@@ -812,6 +812,7 @@
 
         <!-- TAB NAV -->
         <div class="tab-nav">
+            <button class="tab-btn" onclick="switchTab('bitacora',this)"><i class="fa fa-book-open"></i> Bitácora</button>
             <button class="tab-btn active" onclick="switchTab('leaderboard',this)"><i class="fa fa-table"></i> Leaderboard /
                 Ratios</button>
             <button class="tab-btn" onclick="switchTab('kpis',this)"><i class="fa fa-chart-column"></i>
@@ -819,7 +820,6 @@
             <button class="tab-btn" onclick="switchTab('charts',this)"><i class="fa fa-chart-area"></i>
                 Tendencias</button>
             <button class="tab-btn" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
-            <button class="tab-btn" onclick="switchTab('bitacora',this)"><i class="fa fa-book-open"></i> Bitácora</button>
             <button class="tab-btn" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
             <button class="tab-btn" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
         </div>
@@ -1122,7 +1122,7 @@
         <!-- ═══════════════════ TAB: BITÁCORA ═══════════════════ -->
         <div id="tab-bitacora" class="tab-panel">
             <div class="card">
-                <p class="card-title"><i class="fa fa-book-open"></i> Bitácora de Agentes <span style="font-size:12px;font-weight:400;color:var(--slate);">(solo lectura)</span></p>
+                <p class="card-title"><i class="fa fa-book-open"></i> Bitácora de Agentes <span style="font-size:12px;font-weight:400;color:var(--slate);">(solo lectura, para efectos de supervisión)</span></p>
                 <div class="info-box">
                     <strong>Embudo PECVS$:</strong> P ≥ E ≥ C ≥ V &nbsp;|&nbsp;
                     P=Contactos · E=Entrevistas · C=Cotizaciones · V=Cierres · S=Solicitudes · $=Prima Neta
