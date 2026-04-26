@@ -1234,12 +1234,17 @@
             <p style="color:var(--slate); font-size:13px; margin-bottom:24px;">Esta cuenta no está registrada como Director. Crea tu cuenta para comenzar.</p>
             <div style="text-align:left; display:flex; flex-direction:column; gap:14px; margin-bottom:20px;">
                 <div>
+                    <label style="font-size:11px; color:var(--slate); font-weight:700; display:block; margin-bottom:5px;">CONTRASEÑA DE ACCESO</label>
+                    <input type="password" id="reg-dir-pass" placeholder="Contraseña requerida" style="width:100%;">
+                    <p style="font-size:10px; color:var(--red); margin:5px 0 0; display:none;" id="reg-pass-err">Contraseña incorrecta.</p>
+                </div>
+                <div>
                     <label style="font-size:11px; color:var(--slate); font-weight:700; display:block; margin-bottom:5px;">TU NOMBRE COMPLETO</label>
                     <input type="text" id="reg-dir-name" placeholder="Ej. Franco Director" style="width:100%;">
                 </div>
                 <div>
                     <label style="font-size:11px; color:var(--slate); font-weight:700; display:block; margin-bottom:5px;">TU CÓDIGO DE DIRECTOR</label>
-                    <input type="text" id="reg-dir-code" placeholder="Ej. TEAM-DIRECTOR" style="width:100%; text-transform:uppercase;">
+                    <input type="text" id="reg-dir-code" placeholder="Ej. 1000" style="width:100%; text-transform:uppercase;">
                     <p style="font-size:10px; color:var(--slate); margin:5px 0 0;">Este código lo compartirás con tus promotores para que se vinculen a ti.</p>
                 </div>
             </div>
@@ -1427,7 +1432,17 @@
             return 'new';
         }
 
+        const DIR_ACCESS_PASS = 'promessadireccion';
+
         window.submitDirectorRegistration = async function () {
+            const pass = document.getElementById('reg-dir-pass').value;
+            const errEl = document.getElementById('reg-pass-err');
+            if (pass !== DIR_ACCESS_PASS) {
+                errEl.style.display = 'block';
+                document.getElementById('reg-dir-pass').focus();
+                return;
+            }
+            errEl.style.display = 'none';
             const name = document.getElementById('reg-dir-name').value.trim();
             const code = document.getElementById('reg-dir-code').value.trim().toUpperCase();
             if (!name || !code) { alert('Por favor completa tu nombre y código de director.'); return; }
