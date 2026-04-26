@@ -1246,7 +1246,7 @@
             <button id="reg-dir-btn" onclick="submitDirectorRegistration()" style="width:100%; padding:13px; border-radius:10px; background:var(--gold); color:var(--bg); border:none; font-size:14px; font-weight:700; cursor:pointer;">
                 <i class="fa fa-crown"></i> Crear mi cuenta de Director
             </button>
-            <button onclick="signOut(auth).then(()=>location.reload())" style="width:100%; margin-top:10px; padding:10px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
+            <button onclick="doSignOut()" style="width:100%; margin-top:10px; padding:10px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
         </div>
     </div>
 
@@ -1256,7 +1256,7 @@
             <div style="font-size:50px; margin-bottom:16px;">⏳</div>
             <h1 style="color:var(--orange); font-family:'Playfair Display',serif; margin-bottom:8px;">Solicitud Pendiente</h1>
             <p style="color:var(--slate); font-size:13px; margin-bottom:20px;">Tu solicitud está pendiente de aprobación. Por favor intenta más tarde.</p>
-            <button onclick="signOut(auth).then(()=>location.reload())" style="width:100%; padding:12px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
+            <button onclick="doSignOut()" style="width:100%; padding:12px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
         </div>
     </div>
 
@@ -1266,7 +1266,7 @@
             <div style="font-size:50px; margin-bottom:16px;">🚫</div>
             <h1 style="color:var(--red); font-family:'Playfair Display',serif; margin-bottom:8px;">Acceso Revocado</h1>
             <p style="color:var(--slate); font-size:13px; margin-bottom:20px;">Tu acceso al sistema ha sido revocado. Contacta al administrador si crees que es un error.</p>
-            <button onclick="signOut(auth).then(()=>location.reload())" style="width:100%; padding:12px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
+            <button onclick="doSignOut()" style="width:100%; padding:12px; border-radius:10px; background:none; border:1px solid rgba(255,255,255,0.15); color:var(--slate); font-size:13px; cursor:pointer;">Salir</button>
         </div>
     </div>
 
@@ -1377,6 +1377,10 @@
 
         window.logout = function () {
             if (confirm("¿Cerrar sesión?")) signOut(auth);
+        };
+
+        window.doSignOut = function () {
+            signOut(auth).then(() => location.reload());
         };
 
         onAuthStateChanged(auth, async (u) => {
