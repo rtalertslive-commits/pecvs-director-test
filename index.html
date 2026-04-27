@@ -2183,7 +2183,7 @@
             if (name === 'reporte') renderCoachReportes();
             if (name === 'reporte-promotores') { refreshPromoterReclFilters(); renderPromoterReclSection(); }
             if (name === 'gestion') renderGestion();
-            if (name === 'tienda') initTienda();
+            if (name === 'tienda') window.initTienda();
         }
 
         // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -4230,14 +4230,7 @@
         window.validateDay = validateDay;
         window.ratio = ratio;
         window.destroyChart = destroyChart;
-        window.switchTiendaSub = switchTiendaSub;
-        window.switchCatRole = switchCatRole;
-        window.savePuntosConfig = savePuntosConfig;
-        window.addCatalogItem = addCatalogItem;
-        window.toggleCatalogItem = toggleCatalogItem;
-        window.deleteCatalogItem = deleteCatalogItem;
-        window.resolverSolicitud = resolverSolicitud;
-        window.initTienda = initTienda;
+        // tienda functions already assigned to window.* at definition (no re-assignment needed)
         window.chartOpts = chartOpts;
     </script>
 </body>
