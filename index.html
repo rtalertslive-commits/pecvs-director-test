@@ -1412,21 +1412,8 @@
                     configuración</button>
             </div>
         </div>
-    </div>
-
-    <!-- BITÁCORA LOG MODAL -->
-    <div class="modal-overlay" id="modal-bit-log">
-        <div class="modal-box" style="max-width:600px;">
-            <button class="modal-close" onclick="document.getElementById('modal-bit-log').classList.remove('open')">&times;</button>
-            <h2><i class="fa fa-clock-rotate-left"></i> Log de Transacciones (Bitácora)</h2>
-            <div id="bit-history-grid" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;">
-                <div class="empty-state"><i class="fa fa-inbox"></i> No hay entradas.</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ═══════════════════ TAB: TIENDA ═══════════════════ -->
-    <div id="tab-tienda" class="tab-panel">
+        <!-- ═══════════════════ TAB: TIENDA ═══════════════════ -->
+        <div id="tab-tienda" class="tab-panel">
 
         <!-- Sub-nav -->
         <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
@@ -1521,6 +1508,18 @@
             </div>
         </div>
 
+        </div><!-- /tab-tienda -->
+    </div><!-- /app -->
+
+    <!-- BITÁCORA LOG MODAL -->
+    <div class="modal-overlay" id="modal-bit-log">
+        <div class="modal-box" style="max-width:600px;">
+            <button class="modal-close" onclick="document.getElementById('modal-bit-log').classList.remove('open')">&times;</button>
+            <h2><i class="fa fa-clock-rotate-left"></i> Log de Transacciones (Bitácora)</h2>
+            <div id="bit-history-grid" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;">
+                <div class="empty-state"><i class="fa fa-inbox"></i> No hay entradas.</div>
+            </div>
+        </div>
     </div>
 
     <script type="module">
