@@ -1297,6 +1297,104 @@
             </div>
         </div>
 
+        <!-- ═══════════════════ TAB: TIENDA ═══════════════════ -->
+        <div id="tab-tienda" class="tab-panel">
+
+            <!-- Sub-nav -->
+            <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+                <button id="tsub-btn-puntos"   onclick="switchTiendaSub('puntos')"    class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:700;">⚙️ Puntos</button>
+                <button id="tsub-btn-catalogo" onclick="switchTiendaSub('catalogo')"  class="btn btn-sm">🏪 Catálogos</button>
+                <button id="tsub-btn-solicitudes" onclick="switchTiendaSub('solicitudes')" class="btn btn-sm">📋 Solicitudes <span id="sol-count-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:3px;">0</span></button>
+            </div>
+
+            <!-- ── PUNTOS ── -->
+            <div id="tsub-puntos">
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-star"></i> Puntos por Actividad</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:18px;">Define cuántos karma points gana cada rol al reportar.</p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;">
+                        <div>
+                            <label class="field-label">Agente — por día reportado</label>
+                            <input type="number" id="pts-agent" min="0" class="form-input" value="10">
+                        </div>
+                        <div>
+                            <label class="field-label">Coach — por reporte mensual</label>
+                            <input type="number" id="pts-coach" min="0" class="form-input" value="500">
+                        </div>
+                        <div>
+                            <label class="field-label">Promotor — por reporte mensual</label>
+                            <input type="number" id="pts-promotor" min="0" class="form-input" value="1000">
+                        </div>
+                    </div>
+                    <button class="btn btn-green" onclick="savePuntosConfig()"><i class="fa fa-floppy-disk"></i> Guardar configuración</button>
+                    <span id="pts-msg" style="display:none;font-size:12px;color:var(--green);margin-left:10px;"><i class="fa fa-check"></i> Guardado</span>
+                </div>
+            </div>
+
+            <!-- ── CATÁLOGOS ── -->
+            <div id="tsub-catalogo" style="display:none;">
+                <!-- Role sub-tabs -->
+                <div style="display:flex;gap:6px;margin-bottom:16px;">
+                    <button id="cat-btn-agente"   onclick="switchCatRole('agente')"   class="btn btn-sm" style="background:var(--blue);color:#fff;">👤 Agentes</button>
+                    <button id="cat-btn-coach"    onclick="switchCatRole('coach')"    class="btn btn-sm">🧑‍🏫 Coaches</button>
+                    <button id="cat-btn-promotor" onclick="switchCatRole('promotor')" class="btn btn-sm">📊 Promotores</button>
+                </div>
+
+                <!-- Add item form -->
+                <div class="card" style="margin-bottom:16px;">
+                    <p class="card-title"><i class="fa fa-plus"></i> Nuevo Item — <span id="cat-role-label">Agentes</span></p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <label class="field-label">Nombre</label>
+                            <input type="text" id="new-item-nombre" class="form-input" placeholder="Ej: Día libre">
+                        </div>
+                        <div>
+                            <label class="field-label">Emoji</label>
+                            <input type="text" id="new-item-emoji" class="form-input" placeholder="🎁" maxlength="4" style="width:80px;">
+                        </div>
+                        <div style="grid-column:1/-1;">
+                            <label class="field-label">Descripción</label>
+                            <input type="text" id="new-item-desc" class="form-input" placeholder="Descripción del item">
+                        </div>
+                        <div>
+                            <label class="field-label">Costo (karma)</label>
+                            <input type="number" id="new-item-costo" min="1" class="form-input" value="100">
+                        </div>
+                        <div>
+                            <label class="field-label">Stock (-1 = ilimitado)</label>
+                            <input type="number" id="new-item-stock" class="form-input" value="-1">
+                        </div>
+                    </div>
+                    <button class="btn btn-green" onclick="addCatalogItem()"><i class="fa fa-plus"></i> Agregar item</button>
+                </div>
+
+                <!-- Items list -->
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-list"></i> Items del catálogo</p>
+                    <div id="catalog-items-list" style="display:flex;flex-direction:column;gap:10px;">
+                        <div class="empty-state"><i class="fa fa-inbox"></i> Sin items aún.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── SOLICITUDES ── -->
+            <div id="tsub-solicitudes" style="display:none;">
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-inbox"></i> Solicitudes de Canje Pendientes</p>
+                    <div id="solicitudes-list" style="display:flex;flex-direction:column;gap:12px;">
+                        <div class="empty-state"><i class="fa fa-check-circle"></i> Sin solicitudes pendientes.</div>
+                    </div>
+                </div>
+                <div class="card" style="margin-top:16px;">
+                    <p class="card-title"><i class="fa fa-clock-rotate-left"></i> Historial de Solicitudes</p>
+                    <div id="solicitudes-history" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;">
+                        <div class="empty-state"><i class="fa fa-inbox"></i> Sin historial.</div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /tab-tienda -->
+
     </div><!-- end .app -->
 
     <!-- PROMOTER REPORT DETAIL MODAL -->
@@ -1412,104 +1510,7 @@
                     configuración</button>
             </div>
         </div>
-        <!-- ═══════════════════ TAB: TIENDA ═══════════════════ -->
-        <div id="tab-tienda" class="tab-panel">
-
-        <!-- Sub-nav -->
-        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-            <button id="tsub-btn-puntos"   onclick="switchTiendaSub('puntos')"    class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:700;">⚙️ Puntos</button>
-            <button id="tsub-btn-catalogo" onclick="switchTiendaSub('catalogo')"  class="btn btn-sm">🏪 Catálogos</button>
-            <button id="tsub-btn-solicitudes" onclick="switchTiendaSub('solicitudes')" class="btn btn-sm">📋 Solicitudes <span id="sol-count-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:3px;">0</span></button>
-        </div>
-
-        <!-- ── PUNTOS ── -->
-        <div id="tsub-puntos">
-            <div class="card">
-                <p class="card-title"><i class="fa fa-star"></i> Puntos por Actividad</p>
-                <p style="font-size:12px;color:var(--slate);margin-bottom:18px;">Define cuántos karma points gana cada rol al reportar.</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;">
-                    <div>
-                        <label class="field-label">Agente — por día reportado</label>
-                        <input type="number" id="pts-agent" min="0" class="form-input" value="10">
-                    </div>
-                    <div>
-                        <label class="field-label">Coach — por reporte mensual</label>
-                        <input type="number" id="pts-coach" min="0" class="form-input" value="500">
-                    </div>
-                    <div>
-                        <label class="field-label">Promotor — por reporte mensual</label>
-                        <input type="number" id="pts-promotor" min="0" class="form-input" value="1000">
-                    </div>
-                </div>
-                <button class="btn btn-green" onclick="savePuntosConfig()"><i class="fa fa-floppy-disk"></i> Guardar configuración</button>
-                <span id="pts-msg" style="display:none;font-size:12px;color:var(--green);margin-left:10px;"><i class="fa fa-check"></i> Guardado</span>
-            </div>
-        </div>
-
-        <!-- ── CATÁLOGOS ── -->
-        <div id="tsub-catalogo" style="display:none;">
-            <!-- Role sub-tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;">
-                <button id="cat-btn-agente"   onclick="switchCatRole('agente')"   class="btn btn-sm" style="background:var(--blue);color:#fff;">👤 Agentes</button>
-                <button id="cat-btn-coach"    onclick="switchCatRole('coach')"    class="btn btn-sm">🧑‍🏫 Coaches</button>
-                <button id="cat-btn-promotor" onclick="switchCatRole('promotor')" class="btn btn-sm">📊 Promotores</button>
-            </div>
-
-            <!-- Add item form -->
-            <div class="card" style="margin-bottom:16px;">
-                <p class="card-title"><i class="fa fa-plus"></i> Nuevo Item — <span id="cat-role-label">Agentes</span></p>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-                    <div>
-                        <label class="field-label">Nombre</label>
-                        <input type="text" id="new-item-nombre" class="form-input" placeholder="Ej: Día libre">
-                    </div>
-                    <div>
-                        <label class="field-label">Emoji</label>
-                        <input type="text" id="new-item-emoji" class="form-input" placeholder="🎁" maxlength="4" style="width:80px;">
-                    </div>
-                    <div style="grid-column:1/-1;">
-                        <label class="field-label">Descripción</label>
-                        <input type="text" id="new-item-desc" class="form-input" placeholder="Descripción del item">
-                    </div>
-                    <div>
-                        <label class="field-label">Costo (karma)</label>
-                        <input type="number" id="new-item-costo" min="1" class="form-input" value="100">
-                    </div>
-                    <div>
-                        <label class="field-label">Stock (-1 = ilimitado)</label>
-                        <input type="number" id="new-item-stock" class="form-input" value="-1">
-                    </div>
-                </div>
-                <button class="btn btn-green" onclick="addCatalogItem()"><i class="fa fa-plus"></i> Agregar item</button>
-            </div>
-
-            <!-- Items list -->
-            <div class="card">
-                <p class="card-title"><i class="fa fa-list"></i> Items del catálogo</p>
-                <div id="catalog-items-list" style="display:flex;flex-direction:column;gap:10px;">
-                    <div class="empty-state"><i class="fa fa-inbox"></i> Sin items aún.</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── SOLICITUDES ── -->
-        <div id="tsub-solicitudes" style="display:none;">
-            <div class="card">
-                <p class="card-title"><i class="fa fa-inbox"></i> Solicitudes de Canje Pendientes</p>
-                <div id="solicitudes-list" style="display:flex;flex-direction:column;gap:12px;">
-                    <div class="empty-state"><i class="fa fa-check-circle"></i> Sin solicitudes pendientes.</div>
-                </div>
-            </div>
-            <div class="card" style="margin-top:16px;">
-                <p class="card-title"><i class="fa fa-clock-rotate-left"></i> Historial de Solicitudes</p>
-                <div id="solicitudes-history" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;">
-                    <div class="empty-state"><i class="fa fa-inbox"></i> Sin historial.</div>
-                </div>
-            </div>
-        </div>
-
-        </div><!-- /tab-tienda -->
-    </div><!-- /app -->
+    </div><!-- /config-modal -->
 
     <!-- BITÁCORA LOG MODAL -->
     <div class="modal-overlay" id="modal-bit-log">
