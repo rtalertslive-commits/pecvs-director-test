@@ -1311,7 +1311,7 @@
             <div id="tsub-puntos">
                 <div class="card">
                     <p class="card-title"><i class="fa fa-star"></i> Puntos por Actividad</p>
-                    <p style="font-size:12px;color:var(--slate);margin-bottom:18px;">Define cuántos karma points gana cada rol al reportar.</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:18px;">Define cuántos tacos 🌮 gana cada rol al reportar.</p>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;">
                         <div>
                             <label class="field-label">Agente — por día reportado</label>
@@ -1357,7 +1357,7 @@
                             <input type="text" id="new-item-desc" class="form-input" placeholder="Descripción del item">
                         </div>
                         <div>
-                            <label class="field-label">Costo (karma)</label>
+                            <label class="field-label">Costo (tacos 🌮)</label>
                             <input type="number" id="new-item-costo" min="1" class="form-input" value="100">
                         </div>
                         <div>
@@ -4061,7 +4061,7 @@
                         <div style="font-weight:700;font-size:14px;">${item.nombre}</div>
                         <div style="font-size:12px;color:var(--slate);">${item.descripcion || ''}</div>
                         <div style="font-size:12px;margin-top:2px;">
-                            <span style="color:var(--gold);font-weight:700;">⭐ ${item.costo} karma</span>
+                            <span style="color:var(--gold);font-weight:700;">🌮 ${item.costo} tacos</span>
                             &nbsp;·&nbsp;
                             <span style="color:var(--slate);">Stock: ${item.stock < 0 ? '∞' : item.stock}</span>
                             &nbsp;·&nbsp;
@@ -4134,7 +4134,7 @@
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
                             <div>
                                 <div style="font-weight:700;">${r.emoji||'🎁'} ${r.itemNombre}</div>
-                                <div style="font-size:12px;color:var(--slate);">${r.nombreSolicitante || r.emailSolicitante} &nbsp;·&nbsp; ${r.rol} &nbsp;·&nbsp; <span style="color:var(--gold);">⭐ ${r.costo} karma</span></div>
+                                <div style="font-size:12px;color:var(--slate);">${r.nombreSolicitante || r.emailSolicitante} &nbsp;·&nbsp; ${r.rol} &nbsp;·&nbsp; <span style="color:var(--gold);">🌮 ${r.costo} tacos</span></div>
                                 <div style="font-size:11px;color:var(--slate);margin-top:2px;">${new Date(r.fechaSolicitud).toLocaleString('es-MX')}</div>
                             </div>
                             <div style="display:flex;gap:6px;">
@@ -4147,7 +4147,7 @@
                 histContainer.innerHTML = resolved.length ? resolved.map(r => `
                     <div style="padding:10px 14px;background:var(--panel2);border-radius:8px;border-left:3px solid ${r.status==='approved'?'var(--green)':'var(--red)'};">
                         <div style="font-size:13px;font-weight:600;">${r.emoji||'🎁'} ${r.itemNombre} &nbsp;<span style="color:${r.status==='approved'?'var(--green)':'var(--red)'};font-size:11px;">${r.status==='approved'?'✓ Aprobado':'✗ Rechazado'}</span></div>
-                        <div style="font-size:11px;color:var(--slate);">${r.nombreSolicitante||r.emailSolicitante} &nbsp;·&nbsp; ⭐ ${r.costo} karma &nbsp;·&nbsp; ${new Date(r.fechaResolucion||r.fechaSolicitud).toLocaleDateString('es-MX')}</div>
+                        <div style="font-size:11px;color:var(--slate);">${r.nombreSolicitante||r.emailSolicitante} &nbsp;·&nbsp; 🌮 ${r.costo} tacos &nbsp;·&nbsp; ${new Date(r.fechaResolucion||r.fechaSolicitud).toLocaleDateString('es-MX')}</div>
                     </div>`).join('') : '<div class="empty-state"><i class="fa fa-inbox"></i> Sin historial.</div>';
 
             } catch(e) { console.error('Error cargando solicitudes:', e); }
@@ -4169,7 +4169,7 @@
                     if (userSnap.exists()) {
                         const udata = userSnap.data();
                         const currentKarma = udata.karma || 0;
-                        if (currentKarma < req.costo) { alert(`El usuario solo tiene ${currentKarma} karma, necesita ${req.costo}.`); return; }
+                        if (currentKarma < req.costo) { alert(`El usuario solo tiene ${currentKarma} tacos, necesita ${req.costo}.`); return; }
                         const newKarma = currentKarma - req.costo;
                         const karmaLog = [...(udata.karmaLog || []), { type: 'redemption', points: -req.costo, item: req.itemNombre, fecha: new Date().toISOString() }];
                         await updateDoc(userRef, { karma: newKarma, karmaLog });
