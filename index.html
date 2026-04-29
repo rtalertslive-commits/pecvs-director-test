@@ -1194,11 +1194,6 @@
                         </tr>
                     </tfoot>
                 </table>
-                <div class="save-row" style="justify-content:flex-end;">
-                    <button class="btn btn-sm" onclick="renderBitHistory();document.getElementById('modal-bit-log').classList.add('open')">
-                        <i class="fa fa-list"></i> Ver log (todos los registros)
-                    </button>
-                </div>
             </div>
         </div>
 
@@ -1522,16 +1517,6 @@
         </div>
     </div><!-- /config-modal -->
 
-    <!-- BITÁCORA LOG MODAL -->
-    <div class="modal-overlay" id="modal-bit-log">
-        <div class="modal-box" style="max-width:600px;">
-            <button class="modal-close" onclick="document.getElementById('modal-bit-log').classList.remove('open')">&times;</button>
-            <h2><i class="fa fa-clock-rotate-left"></i> Log de Transacciones (Bitácora)</h2>
-            <div id="bit-history-grid" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;">
-                <div class="empty-state"><i class="fa fa-inbox"></i> No hay entradas.</div>
-            </div>
-        </div>
-    </div>
 
     <script type="module">
         // --- FIREBASE CONFIG ---
@@ -2252,6 +2237,7 @@
 
         window.renderBitHistory = function () {
             const grid = document.getElementById('bit-history-grid');
+            if (!grid) return; // modal de log eliminado, no hay grid que poblar
             const coachF = document.getElementById('bit-coach-filter').value;
             const agentF = document.getElementById('bit-agent').value;
             let filtered = state.entries;
@@ -2284,7 +2270,8 @@
             }
             document.getElementById('bit-semana').value = e.semana;
             autoLoadBit();
-            document.getElementById('modal-bit-log').classList.remove('open');
+            const m = document.getElementById('modal-bit-log');
+            if (m) m.classList.remove('open'); // modal eliminado, defensivo
         };
 
         function initBitacora() {
