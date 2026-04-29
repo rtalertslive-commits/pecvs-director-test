@@ -2570,7 +2570,8 @@
         }
 
         // ─── LEADERBOARD ──────────────────────────────────────────────────────────────
-        function ratio(a, b) { return b > 0 ? (a / b).toFixed(2) : '—'; }
+        function ratio(a, b) { return b > 0 ? (a / b).toFixed(2) : '—'; } // mantenido para primas ($/V, $/S)
+        function ratioPct(a, b) { return b > 0 ? ((a / b) * 100).toFixed(1) + '%' : '—'; } // % para conversiones
 
         let showRedData = false;
         function toggleRed() {
@@ -2709,12 +2710,12 @@
                     <td class="rank-num">${i + 1}</td>
                     <td class="agent-name-cell">${ag}</td>
                     <td style="border-left:2px solid #475569">${d.P}</td><td>${d.E}</td><td>${d.C}</td><td>${d.V}</td><td>${d.S}</td>
-                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratio(d.E, d.P)}</td>
-                    <td class="ratio-cell">${ratio(d.C, d.E)}</td>
-                    <td class="ratio-cell">${ratio(d.V, d.C)}</td>
-                    <td class="ratio-cell">${ratio(d.S, d.V)}</td>
-                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratio(d.V, d.P)}</td>
-                    <td class="ratio-cell">${ratio(d.S, d.P)}</td>
+                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratioPct(d.E, d.P)}</td>
+                    <td class="ratio-cell">${ratioPct(d.C, d.E)}</td>
+                    <td class="ratio-cell">${ratioPct(d.V, d.C)}</td>
+                    <td class="ratio-cell">${ratioPct(d.S, d.V)}</td>
+                    <td class="ratio-cell" style="border-left:2px solid #475569">${ratioPct(d.V, d.P)}</td>
+                    <td class="ratio-cell">${ratioPct(d.S, d.P)}</td>
                     <td style="font-weight:700;color:var(--green);border-left:2px solid #475569">$${primaFmt}</td>
                     <td class="ratio-cell">${ratio(d.prima, d.V)}</td>
                     <td class="ratio-cell">${ratio(d.prima, d.S)}</td>
@@ -2741,9 +2742,9 @@
             tfoot.innerHTML = `<tr>
                 <td></td><td style="text-align:left;font-weight:800;">EQUIPO TOTAL</td>
                 <td style="border-left:2px solid #475569">${tot.P}</td><td>${tot.E}</td><td>${tot.C}</td><td>${tot.V}</td><td>${tot.S}</td>
-                <td style="border-left:2px solid #475569">${ratio(tot.E, tot.P)}</td><td>${ratio(tot.C, tot.E)}</td>
-                <td>${ratio(tot.V, tot.C)}</td><td>${ratio(tot.S, tot.V)}</td>
-                <td style="border-left:2px solid #475569">${ratio(tot.V, tot.P)}</td><td>${ratio(tot.S, tot.P)}</td>
+                <td style="border-left:2px solid #475569">${ratioPct(tot.E, tot.P)}</td><td>${ratioPct(tot.C, tot.E)}</td>
+                <td>${ratioPct(tot.V, tot.C)}</td><td>${ratioPct(tot.S, tot.V)}</td>
+                <td style="border-left:2px solid #475569">${ratioPct(tot.V, tot.P)}</td><td>${ratioPct(tot.S, tot.P)}</td>
                 <td style="font-weight:800;color:var(--gold);border-left:2px solid #475569">$${totPrima}</td>
                 <td>${ratio(tot.prima, tot.V)}</td><td>${ratio(tot.prima, tot.S)}</td>
                 ${showRedData ? `
