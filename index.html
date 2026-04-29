@@ -1429,6 +1429,11 @@
                     <input type="text" id="reg-dir-code" placeholder="Ej. 1000" style="width:100%; text-transform:uppercase;">
                     <p style="font-size:10px; color:var(--slate); margin:5px 0 0;">Este código lo compartirás con tus promotores para que se vinculen a ti.</p>
                 </div>
+                <div>
+                    <label style="font-size:11px; color:var(--slate); font-weight:700; display:block; margin-bottom:5px;">TU REGIÓN / ESTADO</label>
+                    <input type="text" id="reg-dir-region" placeholder="Ej. Tamaulipas" style="width:100%;">
+                    <p style="font-size:10px; color:var(--slate); margin:5px 0 0;">Esto identifica tu zona. Los vendedores la verán al registrarse para elegir su director.</p>
+                </div>
             </div>
             <button id="reg-dir-btn" onclick="submitDirectorRegistration()" style="width:100%; padding:13px; border-radius:10px; background:var(--gold); color:var(--bg); border:none; font-size:14px; font-weight:700; cursor:pointer;">
                 <i class="fa fa-crown"></i> Crear mi cuenta de Director
@@ -1501,6 +1506,11 @@
                     <p style="font-size:10px; color:var(--slate); margin-top:5px;">Los promotores ingresan este código en su webapp para vincularse a ti.</p>
                 </div>
                 <div>
+                    <label class="field-label">Tu Región / Estado</label>
+                    <input type="text" id="inp-region" placeholder="Ej. Tamaulipas">
+                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">Identifica tu zona. Aparece en el dropdown que ven los vendedores al registrarse.</p>
+                </div>
+                <div>
                     <p class="section-label">Promotores en tu Equipo</p>
                     <div class="agent-list" id="agent-list"></div>
                     <p style="font-size:10px; color:var(--slate); margin-top:5px;">Los coaches que ingresen tu código
@@ -1556,6 +1566,7 @@
         let state = {
             directorName: '',
             directorCode: '',   // code director shares with promoters (TEAM-DIRECTOR)
+            regionName: '',     // human-readable region name (e.g. "Tamaulipas")
             promoters: [],      // [{email, promoterName, promotorCode}]
             promotersMap: {},   // {email -> promoter data}
             promotorCodes: [],  // [TEAM-PROMOTOR-1, TEAM-PROMOTOR-2, ...]
@@ -1625,7 +1636,99 @@
             return 'new';
         }
 
-        const DIR_ACCESS_PASS = 'promessadireccion';
+        const DIR_ACCESS_PASS = 'Agaricusblazei89.-';
+
+        // ─── BACKFILL UNICO PARA MIGRAR A MULTI-TENANT ───────────────────────────────
+        // Correr una sola vez en consola: runBackfill()
+        // Asume que el director actual ya tiene directorCode y regionName configurados
+        window.runBackfill = async function() {
+            if (!state.directorCode) { console.error('❌ Configura tu directorCode primero'); return; }
+            if (!state.regionName)   { console.error('❌ Configura tu regionName primero (Configuración → Tu Región)'); return; }
+            const dc = state.directorCode;
+            const region = state.regionName;
+            console.log(`🔧 Backfill iniciado para ${dc} (${region})...`);
+
+            // 1. Copiar tiendas viejas (store/agentCatalog) a las nuevas (store/{dc}_agentCatalog)
+            for (const role of ['agentCatalog', 'coachCatalog', 'promotorCatalog']) {
+                try {
+                    const oldSnap = await getDoc(doc(db, 'store', role));
+                    if (oldSnap.exists()) {
+                        const newId = `${dc}_${role}`;
+                        const newSnap = await getDoc(doc(db, 'store', newId));
+                        if (!newSnap.exists()) {
+                            await setDoc(doc(db, 'store', newId), oldSnap.data());
+                            console.log(`✅ Tienda copiada: store/${role} → store/${newId}`);
+                        } else {
+                            console.log(`⏭️  Ya existe store/${newId}, no se sobrescribe`);
+                        }
+                    }
+                } catch(e) { console.warn(`No se pudo copiar ${role}:`, e.message); }
+            }
+
+            // 2. Backfill directorCode + regionName en agentes (users) sin directorCode
+            //    Heredando del coach del agente
+            try {
+                const agentsSnap = await getDocs(collection(db, 'users'));
+                let updated = 0, skipped = 0;
+                for (const aDoc of agentsSnap.docs) {
+                    const a = aDoc.data();
+                    if (a.directorCode) { skipped++; continue; }
+                    // Buscar al coach del agente por su teamCode
+                    if (!a.teamCode) {
+                        // Sin teamCode: asumirlo del director actual directamente
+                        await setDoc(aDoc.ref, { directorCode: dc, regionName: region }, { merge: true });
+                        updated++;
+                        continue;
+                    }
+                    // Buscar el coach con companyCode == a.teamCode
+                    const coachQ = await getDocs(query(collection(db, 'coaches'), where('companyCode', '==', a.teamCode)));
+                    if (!coachQ.empty) {
+                        const coachData = coachQ.docs[0].data();
+                        await setDoc(aDoc.ref, {
+                            directorCode: coachData.directorCode || dc,
+                            regionName: coachData.regionName || region
+                        }, { merge: true });
+                        updated++;
+                    } else {
+                        // Coach no encontrado: asignar al director actual
+                        await setDoc(aDoc.ref, { directorCode: dc, regionName: region }, { merge: true });
+                        updated++;
+                    }
+                }
+                console.log(`✅ Agentes: ${updated} actualizados, ${skipped} ya tenían directorCode`);
+            } catch(e) { console.warn('Error backfill agentes:', e.message); }
+
+            // 3. Backfill regionName en coaches/promoters que ya tienen directorCode
+            for (const col of ['coaches', 'promoters']) {
+                try {
+                    const snap = await getDocs(collection(db, col));
+                    let updated = 0;
+                    for (const d of snap.docs) {
+                        const data = d.data();
+                        if (!data.regionName && data.directorCode === dc) {
+                            await setDoc(d.ref, { regionName: region }, { merge: true });
+                            updated++;
+                        }
+                    }
+                    console.log(`✅ ${col}: ${updated} con regionName añadido`);
+                } catch(e) { console.warn(`Error backfill ${col}:`, e.message); }
+            }
+
+            // 4. Backfill directorCode en redemptionRequests sin él
+            try {
+                const reqSnap = await getDocs(collection(db, 'redemptionRequests'));
+                let updated = 0, skipped = 0;
+                for (const r of reqSnap.docs) {
+                    const data = r.data();
+                    if (data.directorCode) { skipped++; continue; }
+                    await setDoc(r.ref, { directorCode: dc, regionName: region }, { merge: true });
+                    updated++;
+                }
+                console.log(`✅ Solicitudes: ${updated} actualizadas, ${skipped} ya tenían directorCode`);
+            } catch(e) { console.warn('Error backfill solicitudes:', e.message); }
+
+            console.log(`🎉 Backfill completado. Refresca la página.`);
+        };
 
         window.submitDirectorRegistration = async function () {
             const pass = document.getElementById('reg-dir-pass').value;
@@ -1638,7 +1741,8 @@
             errEl.style.display = 'none';
             const name = document.getElementById('reg-dir-name').value.trim();
             const code = document.getElementById('reg-dir-code').value.trim().toUpperCase();
-            if (!name || !code) { alert('Por favor completa tu nombre y código de director.'); return; }
+            const region = document.getElementById('reg-dir-region').value.trim();
+            if (!name || !code || !region) { alert('Por favor completa nombre, código y región.'); return; }
             const btn = document.getElementById('reg-dir-btn');
             btn.disabled = true;
             btn.textContent = 'Registrando...';
@@ -1646,6 +1750,7 @@
                 await setDoc(doc(db, "directors", user.email), {
                     directorName: name,
                     directorCode: code,
+                    regionName: region,
                     email: user.email,
                     status: 'active',
                     type: 'director',
@@ -1688,9 +1793,10 @@
                 const data = docSnap.data();
                 state.directorName = data.directorName || user.displayName || '';
                 state.directorCode = data.directorCode || '';
+                state.regionName   = data.regionName || '';
                 // Store the embedded promoters array as fallback (from hierarchy loader)
                 state.embeddedPromoters = Array.isArray(data.promoters) ? data.promoters : [];
-                document.getElementById('team-display').textContent = 'Mi código: ' + (state.directorCode || 'Sin Código');
+                document.getElementById('team-display').textContent = 'Mi código: ' + (state.directorCode || 'Sin Código') + (state.regionName ? ' · ' + state.regionName : '');
                 startListeningPromotores();
             } else {
                 // First time director
@@ -1704,7 +1810,8 @@
             try {
                 await setDoc(doc(db, "directors", user.email), {
                     directorName: state.directorName,
-                    directorCode: state.directorCode
+                    directorCode: state.directorCode,
+                    regionName: state.regionName || ''
                 }, { merge: true });
                 document.getElementById('team-display').textContent = 'Mi código: ' + (state.directorCode || 'Sin Código');
             } catch (err) { console.error("Error saving director:", err); }
@@ -2191,8 +2298,10 @@
         window.openConfig = function () {
             const inpDirector = document.getElementById('inp-director');
             const inpTeamCode = document.getElementById('inp-teamcode');
+            const inpRegion   = document.getElementById('inp-region');
             if (inpDirector) inpDirector.value = state.directorName || '';
             if (inpTeamCode) inpTeamCode.value = state.directorCode || '';
+            if (inpRegion)   inpRegion.value   = state.regionName   || '';
             renderPromotorList();
             document.getElementById('config-modal').classList.add('open');
         }
@@ -2223,6 +2332,7 @@
 
                 state.directorName = document.getElementById('inp-director').value.trim();
                 state.directorCode = document.getElementById('inp-teamcode').value.trim();
+                state.regionName   = document.getElementById('inp-region').value.trim();
 
                 await saveDirectorData();
                 startListeningPromotores();
@@ -3282,8 +3392,14 @@
             const pendQ = collection(db, "pending_users");
             const unsubPending = onSnapshot(pendQ, (snapshot) => {
                 pendingUsers = [];
+                const myRegion = (state.regionName || '').toLowerCase();
                 snapshot.forEach(docSnap => {
-                    pendingUsers.push({ email: docSnap.id, ...docSnap.data() });
+                    const data = docSnap.data();
+                    // Filtrar por mi región (multi-tenant)
+                    // Si la solicitud no tiene región (legacy) o coincide con la mía, la mostramos
+                    const userRegion = (data.region || '').toLowerCase();
+                    if (myRegion && userRegion && userRegion !== myRegion) return;
+                    pendingUsers.push({ email: docSnap.id, ...data });
                 });
                 // Update badge
                 const badge = document.getElementById('pending-badge');
@@ -3627,6 +3743,8 @@
                         email: email,
                         companyCode: companyCode,
                         teamCode: coachTeamCode,
+                        directorCode: state.directorCode || '',   // multi-tenant
+                        regionName: state.regionName || '',
                         status: 'active',
                         type: 'agent',
                         approvedBy: user.email,
@@ -3648,6 +3766,7 @@
                         teamCode: companyCode,       // agents link to coach using this
                         promotorTeamCode: promTeamCode,
                         directorCode: state.directorCode,   // stored for future direct queries
+                        regionName: state.regionName || '',
                         status: 'active',
                         type: 'coach',
                         approvedBy: user.email,
@@ -3662,6 +3781,7 @@
                         companyCode: companyCode,
                         promotorCode: companyCode,   // coaches link to promoter using this
                         directorCode: state.directorCode,
+                        regionName: state.regionName || '',
                         status: 'active',
                         type: 'promoter',
                         approvedBy: user.email,
@@ -4036,17 +4156,22 @@
         }
 
         // Catalog CRUD
-        const CATALOG_DOC = { agente: 'agentCatalog', coach: 'coachCatalog', promotor: 'promotorCatalog' };
+        const CATALOG_BASE = { agente: 'agentCatalog', coach: 'coachCatalog', promotor: 'promotorCatalog' };
+        // Multi-tenant: cada director tiene su propio catálogo prefijado por su directorCode
+        function catalogDocId(role) {
+            const dc = state.directorCode || '';
+            return dc ? `${dc}_${CATALOG_BASE[role]}` : CATALOG_BASE[role];
+        }
 
         async function loadCatalog(role) {
             try {
-                const snap = await getDoc(doc(db, 'store', CATALOG_DOC[role]));
+                const snap = await getDoc(doc(db, 'store', catalogDocId(role)));
                 catalogData[role] = snap.exists() ? (snap.data().items || []) : [];
             } catch(e) { catalogData[role] = []; }
         }
 
         async function saveCatalog(role) {
-            await setDoc(doc(db, 'store', CATALOG_DOC[role]), { items: catalogData[role] }, { merge: false });
+            await setDoc(doc(db, 'store', catalogDocId(role)), { items: catalogData[role] }, { merge: false });
         }
 
         function renderCatalogItems() {
@@ -4119,7 +4244,10 @@
             const histContainer = document.getElementById('solicitudes-history');
             try {
                 const snap = await getDocs(collection(db, 'redemptionRequests'));
-                const all = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+                // Filtrar por mi directorCode (multi-tenant)
+                const myDC = state.directorCode || '';
+                const all = snap.docs.map(d => ({ _id: d.id, ...d.data() }))
+                    .filter(r => !myDC || (r.directorCode || '') === myDC);
                 const pending  = all.filter(r => r.status === 'pending').sort((a,b) => (b.fechaSolicitud||'').localeCompare(a.fechaSolicitud||''));
                 const resolved = all.filter(r => r.status !== 'pending').sort((a,b) => (b.fechaResolucion||'').localeCompare(a.fechaResolucion||''));
 
