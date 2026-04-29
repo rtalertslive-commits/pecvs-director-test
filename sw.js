@@ -1,4 +1,4 @@
-const CACHE_NAME = 'director-hub-v1';
+const CACHE_NAME = 'director-hub-v2.0.0';
 const ASSETS = []; // We won't pre-cache anything to force network logic
 
 self.addEventListener('install', (event) => {
