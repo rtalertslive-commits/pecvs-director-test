@@ -3029,7 +3029,7 @@
             destroyChart('kpiEfectividad');
             charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
                 type: 'bar',
-                data: { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.C }] },
+                data: { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.P }] },
                 options: chartOptsPct()
             });
 
