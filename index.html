@@ -2717,8 +2717,8 @@
                     <td class="ratio-cell" style="border-left:2px solid #475569">${ratioPct(d.V, d.P)}</td>
                     <td class="ratio-cell">${ratioPct(d.S, d.P)}</td>
                     <td style="font-weight:700;color:var(--green);border-left:2px solid #475569">$${primaFmt}</td>
-                    <td class="ratio-cell">${ratio(d.prima, d.V)}</td>
-                    <td class="ratio-cell">${ratio(d.prima, d.S)}</td>
+                    <td class="ratio-cell">${d.V > 0 ? '$' + ratio(d.prima, d.V) : '—'}</td>
+                    <td class="ratio-cell">${d.S > 0 ? '$' + ratio(d.prima, d.S) : '—'}</td>
                     ${showRedData ? `
                     <td style="border-left:2px solid var(--red);color:var(--red);opacity:0.8">${d.redS}</td>
                     <td style="color:var(--red);opacity:0.8">$${redPrimaFmt}</td>
@@ -2746,7 +2746,7 @@
                 <td>${ratioPct(tot.V, tot.C)}</td><td>${ratioPct(tot.S, tot.V)}</td>
                 <td style="border-left:2px solid #475569">${ratioPct(tot.V, tot.P)}</td><td>${ratioPct(tot.S, tot.P)}</td>
                 <td style="font-weight:800;color:var(--gold);border-left:2px solid #475569">$${totPrima}</td>
-                <td>${ratio(tot.prima, tot.V)}</td><td>${ratio(tot.prima, tot.S)}</td>
+                <td>${tot.V > 0 ? '$' + ratio(tot.prima, tot.V) : '—'}</td><td>${tot.S > 0 ? '$' + ratio(tot.prima, tot.S) : '—'}</td>
                 ${showRedData ? `
                 <td style="border-left:2px solid var(--red);color:var(--red)">${tot.redS}</td>
                 <td style="color:var(--red)">$${totRedPrima}</td>
@@ -2873,7 +2873,8 @@
             });
 
             // Helper: compute ratio series per label
-            function ratioSeries(numCol, denCol, color, lbl) {
+            // asPct = true → multiplica por 100 para porcentaje
+            function ratioSeries(numCol, denCol, color, lbl, asPct = false) {
                 return {
                     label: lbl,
                     data: labelSet.map(lk => {
@@ -2881,39 +2882,41 @@
                         const seg = entries.filter(e => e.mes === m && e.semana == s);
                         const num = seg.reduce((sum, e) => sum + (numCol === 'prima' ? e.totales.prima : e.totales[numCol]), 0);
                         const den = seg.reduce((sum, e) => sum + (denCol === 'prima' ? e.totales.prima : e.totales[denCol]), 0);
-                        return den > 0 ? parseFloat((num / den).toFixed(3)) : null;
+                        if (den === 0) return null;
+                        const v = num / den;
+                        return asPct ? parseFloat((v * 100).toFixed(1)) : parseFloat(v.toFixed(2));
                     }),
                     borderColor: color, backgroundColor: color + '22', tension: .4, fill: false, pointRadius: 4
                 };
             }
 
-            // Embudo ratios: P/E, E/C, C/V
+            // Embudo ratios: P→E, E→C, C→V (porcentajes)
             destroyChart('ratios');
             const ctxR = document.getElementById('chartRatios').getContext('2d');
             charts['ratios'] = new Chart(ctxR, {
                 type: 'line',
                 data: {
                     labels, datasets: [
-                        ratioSeries('E', 'P', '#06b6d4', '% Eficiencia: Conversión de P ➔ E'),
-                        ratioSeries('C', 'E', '#a855f7', '% Eficiencia: Conversión de E ➔ C'),
-                        ratioSeries('V', 'C', '#10b981', '% Eficiencia: Conversión de C ➔ V')
+                        ratioSeries('E', 'P', '#06b6d4', 'Eficiencia P → E', true),
+                        ratioSeries('C', 'E', '#a855f7', 'Eficiencia E → C', true),
+                        ratioSeries('V', 'C', '#10b981', 'Eficiencia C → V', true)
                     ]
                 },
-                options: chartOpts('Unidades')
+                options: chartOptsPct()
             });
 
-            // Efectividad: P/V, P/S
+            // Efectividad: P→V, P→S (porcentajes)
             destroyChart('efectividad');
             const ctxEf = document.getElementById('chartEfectividad').getContext('2d');
             charts['efectividad'] = new Chart(ctxEf, {
                 type: 'line',
                 data: {
                     labels, datasets: [
-                        ratioSeries('V', 'P', '#f59e0b', '% Eficiencia: Conversión P ➔ V (Cierre)'),
-                        ratioSeries('S', 'P', '#ef4444', '% Eficiencia: Conversión P ➔ S (Solicitud)')
+                        ratioSeries('V', 'P', '#3b82f6', 'Eficiencia P → V (Cierre)', true),
+                        ratioSeries('S', 'P', '#ef4444', 'Eficiencia P → S (Solicitud)', true)
                     ]
                 },
-                options: chartOpts('Tasa (0\u20131)')
+                options: chartOptsPct()
             });
 
             // Prima promedio: $/V, $/S
@@ -2927,7 +2930,7 @@
                         ratioSeries('prima', 'S', '#10b981', '$/S — Prima por solicitud')
                     ]
                 },
-                options: chartOpts('$ MXN')
+                options: chartOptsDollar()
             });
         }
 
@@ -3091,6 +3094,26 @@
                     options: chartOptsPct()
                 });
             });
+        }
+
+        // chartOpts especial para gráficas con montos en pesos $
+        function chartOptsDollar() {
+            return {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: (v) => '$' + v.toLocaleString('es-MX') },
+                        title: { display: true, text: 'Prima ($)', color: '#94a3b8', font: { size: 10 } },
+                        beginAtZero: true
+                    }
+                }
+            };
         }
 
         // chartOpts especial para gráficas de % (formatea ticks y tooltip con sufijo %)
