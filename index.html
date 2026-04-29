@@ -3393,12 +3393,18 @@
             const unsubPending = onSnapshot(pendQ, (snapshot) => {
                 pendingUsers = [];
                 const myRegion = (state.regionName || '').toLowerCase();
+                if (!myRegion) {
+                    // Sin región no mostramos nada (evita data leak entre directores)
+                    const badge = document.getElementById('pending-badge');
+                    if (badge) badge.style.display = 'none';
+                    if (document.getElementById('tab-gestion')?.classList.contains('active')) renderGestion();
+                    return;
+                }
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
-                    // Filtrar por mi región (multi-tenant)
-                    // Si la solicitud no tiene región (legacy) o coincide con la mía, la mostramos
+                    // Filtrar estrictamente: la solicitud DEBE coincidir con mi región
                     const userRegion = (data.region || '').toLowerCase();
-                    if (myRegion && userRegion && userRegion !== myRegion) return;
+                    if (userRegion !== myRegion) return;
                     pendingUsers.push({ email: docSnap.id, ...data });
                 });
                 // Update badge
@@ -4158,20 +4164,25 @@
         // Catalog CRUD
         const CATALOG_BASE = { agente: 'agentCatalog', coach: 'coachCatalog', promotor: 'promotorCatalog' };
         // Multi-tenant: cada director tiene su propio catálogo prefijado por su directorCode
+        // Si no hay directorCode, NO se hace fallback a la tienda global (eso causaba data leak)
         function catalogDocId(role) {
             const dc = state.directorCode || '';
-            return dc ? `${dc}_${CATALOG_BASE[role]}` : CATALOG_BASE[role];
+            return dc ? `${dc}_${CATALOG_BASE[role]}` : null;
         }
 
         async function loadCatalog(role) {
+            const id = catalogDocId(role);
+            if (!id) { catalogData[role] = []; return; }   // sin directorCode: tienda vacía
             try {
-                const snap = await getDoc(doc(db, 'store', catalogDocId(role)));
+                const snap = await getDoc(doc(db, 'store', id));
                 catalogData[role] = snap.exists() ? (snap.data().items || []) : [];
             } catch(e) { catalogData[role] = []; }
         }
 
         async function saveCatalog(role) {
-            await setDoc(doc(db, 'store', catalogDocId(role)), { items: catalogData[role] }, { merge: false });
+            const id = catalogDocId(role);
+            if (!id) { alert('Configura tu Código de Director y Región antes de guardar items.'); return; }
+            await setDoc(doc(db, 'store', id), { items: catalogData[role] }, { merge: false });
         }
 
         function renderCatalogItems() {
@@ -4243,11 +4254,17 @@
             const container = document.getElementById('solicitudes-list');
             const histContainer = document.getElementById('solicitudes-history');
             try {
-                const snap = await getDocs(collection(db, 'redemptionRequests'));
-                // Filtrar por mi directorCode (multi-tenant)
                 const myDC = state.directorCode || '';
+                if (!myDC) {
+                    // Sin directorCode no mostramos nada (evita data leak)
+                    container.innerHTML = '<div class="empty-state"><i class="fa fa-circle-info"></i> Configura tu Código de Director primero.</div>';
+                    histContainer.innerHTML = '';
+                    return;
+                }
+                const snap = await getDocs(collection(db, 'redemptionRequests'));
+                // Filtrar estrictamente por mi directorCode (multi-tenant)
                 const all = snap.docs.map(d => ({ _id: d.id, ...d.data() }))
-                    .filter(r => !myDC || (r.directorCode || '') === myDC);
+                    .filter(r => (r.directorCode || '') === myDC);
                 const pending  = all.filter(r => r.status === 'pending').sort((a,b) => (b.fechaSolicitud||'').localeCompare(a.fechaSolicitud||''));
                 const resolved = all.filter(r => r.status !== 'pending').sort((a,b) => (b.fechaResolucion||'').localeCompare(a.fechaResolucion||''));
 
