@@ -2596,10 +2596,7 @@
         function refreshLeaderboardWeeks() {
             const mesFilter = document.getElementById('lb-mes-filter');
             const semFilter = document.getElementById('lb-sem-filter');
-            if (!mesFilter || !semFilter) {
-                console.log('[refreshLeaderboardWeeks] Filters not found');
-                return;
-            }
+            if (!mesFilter || !semFilter) return;
             const selectedMes = mesFilter.value || '';
             const prevSem = semFilter.value;
 
@@ -2616,13 +2613,10 @@
                     const year = parseInt(yearStr);
                     const monthIndex = MONTHS_ES.indexOf(mesName);
 
-                    console.log('[refreshLeaderboardWeeks] selectedMes:', selectedMes, '| mesName:', mesName, '| year:', year, '| monthIndex:', monthIndex);
-
                     if (monthIndex !== -1 && !isNaN(year)) {
                         const month = monthIndex + 1;
                         const weeks = getMonthCalendar(year, month);
                         numWeeks = weeks.length;
-                        console.log('[refreshLeaderboardWeeks] ' + mesName + ' ' + year + ' tiene ' + numWeeks + ' semanas');
                     }
                 }
             }
@@ -3691,6 +3685,7 @@
                 <div style="background:rgba(255,255,255,0.04); border-radius:8px; padding:14px; font-size:13px; line-height:1.9;">
                     <div><strong style="color:var(--gold);">Nombre:</strong> ${escapeHtml(pending.name || '—')}</div>
                     <div><strong style="color:var(--gold);">Email:</strong> ${escapeHtml(pending.email)}</div>
+                    <div><strong style="color:var(--gold);">Región:</strong> ${escapeHtml(pending.region || '—')}</div>
                     <div><strong style="color:var(--gold);">Clave:</strong> <span style="font-size:18px; font-weight:800; letter-spacing:4px;">${escapeHtml(pending.companyCode || '—')}</span></div>
                 </div>
 
