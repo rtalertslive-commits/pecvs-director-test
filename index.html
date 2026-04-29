@@ -947,22 +947,43 @@
                     </div>
                 </div>
                 <div class="charts-grid">
-                    <div class="chart-card full">
-                        <h3><i class="fa fa-dollar-sign"></i> Prima Neta por Agente</h3>
-                        <div class="chart-wrap"><canvas id="kpiPrima"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3><i class="fa fa-bars-progress"></i> Cierres (V) vs Contactos (P)</h3>
-                        <div class="chart-wrap"><canvas id="kpiVolumen"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3><i class="fa fa-bullseye"></i> % Eficiencia: Conversión de P ➔ V (Cierre)</h3>
-                        <div class="chart-wrap"><canvas id="kpiEfectividad"></canvas></div>
-                    </div>
+                    <!-- 1. Volumen PECVS Completo (full width) -->
                     <div class="chart-card full">
                         <h3><i class="fa fa-arrows-to-circle"></i> Volumen PECVS Completo por Agente</h3>
                         <div class="chart-wrap"><canvas id="kpiVolumeFull"></canvas></div>
                     </div>
+                    <!-- 2. Cierres V vs P -->
+                    <div class="chart-card">
+                        <h3><i class="fa fa-bars-progress"></i> Cierres (V) vs Contactos (P)</h3>
+                        <div class="chart-wrap"><canvas id="kpiVolumen"></canvas></div>
+                    </div>
+                    <!-- 3-7. Eficiencia (P → V primero, luego embudo en orden) -->
+                    <div class="chart-card">
+                        <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ V (Cierre)</h3>
+                        <div class="chart-wrap"><canvas id="kpiEfectividad"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ E</h3>
+                        <div class="chart-wrap"><canvas id="kpiRatioEP"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión E ➔ C</h3>
+                        <div class="chart-wrap"><canvas id="kpiRatioCE"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión C ➔ V</h3>
+                        <div class="chart-wrap"><canvas id="kpiRatioVC"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión V ➔ S</h3>
+                        <div class="chart-wrap"><canvas id="kpiRatioSV"></canvas></div>
+                    </div>
+                    <!-- 8. Prima Neta por Agente (penúltimo, full) -->
+                    <div class="chart-card full">
+                        <h3><i class="fa fa-dollar-sign"></i> Prima Neta por Agente</h3>
+                        <div class="chart-wrap"><canvas id="kpiPrima"></canvas></div>
+                    </div>
+                    <!-- 9-10. Prima Promedio por Cierre / Solicitud -->
                     <div class="chart-card">
                         <h3><i class="fa fa-hand-holding-dollar"></i> Prima Promedio por Cierre ($/V)</h3>
                         <div class="chart-wrap"><canvas id="kpiPrimaV"></canvas></div>
@@ -970,23 +991,6 @@
                     <div class="chart-card">
                         <h3><i class="fa fa-money-bill-trend-up"></i> Prima Promedio por Solicitud ($/S)</h3>
                         <div class="chart-wrap"><canvas id="kpiPrimaS"></canvas></div>
-                    </div>
-                    <!-- FUNNEL RATIOS KPI -->
-                    <div class="chart-card">
-                        <h3><i class="fa fa-percentage"></i> % Eficiencia: Conversión de P ➔ E</h3>
-                        <div class="chart-wrap"><canvas id="kpiRatioEP"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3><i class="fa fa-percentage"></i> % Eficiencia: Conversión de E ➔ C</h3>
-                        <div class="chart-wrap"><canvas id="kpiRatioCE"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3><i class="fa fa-percentage"></i> % Eficiencia: Conversión de C ➔ V</h3>
-                        <div class="chart-wrap"><canvas id="kpiRatioVC"></canvas></div>
-                    </div>
-                    <div class="chart-card">
-                        <h3><i class="fa fa-percentage"></i> % Eficiencia: Conversión de V ➔ S</h3>
-                        <div class="chart-wrap"><canvas id="kpiRatioSV"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -3000,7 +3004,8 @@
             const primas = agents.map(a => agMap[a].prima);
             const Vs = agents.map(a => agMap[a].V);
             const Ps = agents.map(a => agMap[a].P);
-            const pvs = agents.map(a => agMap[a].P > 0 ? parseFloat((agMap[a].V / agMap[a].P).toFixed(2)) : 0);
+            // Eficiencia P → V en porcentaje (0-100)
+            const pvs = agents.map(a => agMap[a].P > 0 ? parseFloat(((agMap[a].V / agMap[a].P) * 100).toFixed(1)) : 0);
 
             destroyChart('kpiPrima');
             charts['kpiPrima'] = new Chart(document.getElementById('kpiPrima').getContext('2d'), {
@@ -3024,8 +3029,8 @@
             destroyChart('kpiEfectividad');
             charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
                 type: 'bar',
-                data: { labels, datasets: [{ label: '% Eficiencia: Conversión de P ➔ V (Cierre)', data: pvs, backgroundColor: CHART_COLORS.C }] },
-                options: chartOpts('Porcentaje (0.2 = 20%)')
+                data: { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.C }] },
+                options: chartOptsPct()
             });
 
             // Prima Promedio / V
@@ -3068,23 +3073,43 @@
                 options: chartOpts('Cantidad Unidades')
             });
 
-            // Ratios de Embudo
+            // Ratios de Embudo (en porcentaje 0-100)
             const ratios = [
-                { id: 'kpiRatioEP', label: '% Eficiencia: Conversión de P ➔ E', top: 'E', bot: 'P', color: CHART_COLORS.E },
-                { id: 'kpiRatioCE', label: '% Eficiencia: Conversión de E ➔ C', top: 'C', bot: 'E', color: CHART_COLORS.C },
-                { id: 'kpiRatioVC', label: '% Eficiencia: Conversión de C ➔ V', top: 'V', bot: 'C', color: CHART_COLORS.V },
-                { id: 'kpiRatioSV', label: '% Eficiencia: Conversión de V ➔ S', top: 'S', bot: 'V', color: CHART_COLORS.S }
+                { id: 'kpiRatioEP', label: 'Eficiencia P → E', top: 'E', bot: 'P', color: CHART_COLORS.E },
+                { id: 'kpiRatioCE', label: 'Eficiencia E → C', top: 'C', bot: 'E', color: CHART_COLORS.C },
+                { id: 'kpiRatioVC', label: 'Eficiencia C → V', top: 'V', bot: 'C', color: CHART_COLORS.V },
+                { id: 'kpiRatioSV', label: 'Eficiencia V → S', top: 'S', bot: 'V', color: CHART_COLORS.S }
             ];
 
             ratios.forEach(r => {
-                const data = agents.map(a => agMap[a][r.bot] > 0 ? parseFloat((agMap[a][r.top] / agMap[a][r.bot]).toFixed(2)) : 0);
+                const data = agents.map(a => agMap[a][r.bot] > 0 ? parseFloat(((agMap[a][r.top] / agMap[a][r.bot]) * 100).toFixed(1)) : 0);
                 destroyChart(r.id);
                 charts[r.id] = new Chart(document.getElementById(r.id).getContext('2d'), {
                     type: 'bar',
                     data: { labels, datasets: [{ label: r.label, data: data, backgroundColor: r.color }] },
-                    options: chartOpts('Ratio (Tasa 0-1)')
+                    options: chartOptsPct()
                 });
             });
+        }
+
+        // chartOpts especial para gráficas de % (formatea ticks y tooltip con sufijo %)
+        function chartOptsPct() {
+            return {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%` } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: (v) => v + '%' },
+                        title: { display: true, text: '% Eficiencia', color: '#94a3b8', font: { size: 10 } },
+                        beginAtZero: true
+                    }
+                }
+            };
         }
 
         function chartOpts(yLabel) {
