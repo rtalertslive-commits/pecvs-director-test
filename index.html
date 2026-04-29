@@ -1585,7 +1585,8 @@
         });
 
         window.logout = function () {
-            if (confirm("¿Cerrar sesión?")) signOut(auth);
+            // location.reload() limpia todo el state en memoria, evitando data leak entre cuentas
+            if (confirm("¿Cerrar sesión?")) signOut(auth).then(() => location.reload());
         };
 
         window.doSignOut = function () {
@@ -1594,6 +1595,14 @@
 
         onAuthStateChanged(auth, async (u) => {
             if (u) {
+                // Detectar cambio de usuario y forzar recarga (evita data leak en memoria)
+                const lastEmail = sessionStorage.getItem('lastDirEmail');
+                if (lastEmail && lastEmail !== u.email) {
+                    sessionStorage.setItem('lastDirEmail', u.email);
+                    location.reload();
+                    return;
+                }
+                sessionStorage.setItem('lastDirEmail', u.email);
                 user = u;
                 const status = await checkDirectorStatus();
                 if (status === 'active') {
@@ -4356,6 +4365,15 @@
         };
 
         window.initTienda = async function() {
+            // Limpiar primero para evitar render con datos stale del sesión previa
+            catalogData = { agente: [], coach: [], promotor: [] };
+            const catContainer = document.getElementById('catalog-items-list');
+            if (catContainer) catContainer.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando...</div>';
+            const solContainer = document.getElementById('solicitudes-list');
+            if (solContainer) solContainer.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando...</div>';
+            const histContainer = document.getElementById('solicitudes-history');
+            if (histContainer) histContainer.innerHTML = '';
+
             await loadPuntosConfig();
             await loadCatalog('agente');
             renderCatalogItems();
