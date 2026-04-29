@@ -1730,6 +1730,26 @@
             console.log(`🎉 Backfill completado. Refresca la página.`);
         };
 
+        // ─── CLEANUP: borrar tiendas globales viejas (data zombi post-backfill) ─────
+        // Correr una sola vez tras confirmar que las tiendas multi-tenant funcionan: runCleanup()
+        window.runCleanup = async function() {
+            const oldDocs = ['agentCatalog', 'coachCatalog', 'promotorCatalog'];
+            console.log('🧹 Limpiando docs globales viejos...');
+            for (const id of oldDocs) {
+                try {
+                    const ref = doc(db, 'store', id);
+                    const snap = await getDoc(ref);
+                    if (snap.exists()) {
+                        await deleteDoc(ref);
+                        console.log(`✅ Borrado: store/${id}`);
+                    } else {
+                        console.log(`⏭️  No existía: store/${id}`);
+                    }
+                } catch(e) { console.warn(`Error borrando ${id}:`, e.message); }
+            }
+            console.log(`🎉 Cleanup completado.`);
+        };
+
         window.submitDirectorRegistration = async function () {
             const pass = document.getElementById('reg-dir-pass').value;
             const errEl = document.getElementById('reg-pass-err');
