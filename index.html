@@ -823,6 +823,7 @@
             <button class="tab-btn" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
             <button class="tab-btn" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" onclick="switchTab('tienda',this)"><i class="fa fa-store"></i> Tienda <span id="tienda-pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
+            <button class="tab-btn" onclick="switchTab('tesoreria',this)"><i class="fa fa-landmark"></i> Tesorería 🌮</button>
         </div>
 
         <!-- ═══════════════════════════════ TAB: LEADERBOARD ═══════════════════════════════ -->
@@ -1377,7 +1378,88 @@
 
         </div><!-- /tab-tienda -->
 
+        <!-- ═══════════════════ TAB: TESORERÍA ═══════════════════ -->
+        <div id="tab-tesoreria" class="tab-panel">
+            <div class="card">
+                <h2 style="margin-top:0;"><i class="fa fa-landmark"></i> Tesorería de Tacos 🌮</h2>
+                <p style="font-size:12px;color:var(--slate);margin-bottom:20px;">
+                    Como director eres el banco central de tu región. Puedes otorgar tacos extra o quemarlos según el desempeño que veas. Cada movimiento queda registrado.
+                </p>
+
+                <!-- Dashboard de totales -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;">
+                    <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:14px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Supply Total</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--gold);margin-top:4px;" id="tes-supply">— 🌮</div>
+                        <div style="font-size:10px;color:var(--slate);margin-top:2px;">tacos en circulación</div>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:14px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Total Ganado</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--green);margin-top:4px;" id="tes-earned">— 🌮</div>
+                        <div style="font-size:10px;color:var(--slate);margin-top:2px;">desde el inicio</div>
+                    </div>
+                    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:14px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Gastado en Tienda</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--blue);margin-top:4px;" id="tes-spent">— 🌮</div>
+                        <div style="font-size:10px;color:var(--slate);margin-top:2px;">canjes aprobados</div>
+                    </div>
+                    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:14px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Quemado por Director</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--red);margin-top:4px;" id="tes-burned">— 🌮</div>
+                        <div style="font-size:10px;color:var(--slate);margin-top:2px;">ajustes manuales</div>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+                    <input type="text" id="tes-search" placeholder="🔍 Buscar por nombre o email..." oninput="renderTesoreria()" style="max-width:300px;padding:8px 12px;font-size:12px;">
+                    <select id="tes-role-filter" onchange="renderTesoreria()" style="width:auto;min-width:130px;padding:8px;font-size:12px;">
+                        <option value="">Todos los roles</option>
+                        <option value="agent">👤 Agentes</option>
+                        <option value="coach">🧑‍🏫 Coaches</option>
+                        <option value="promoter">📊 Promotores</option>
+                    </select>
+                    <button class="btn btn-sm" onclick="loadTesoreria()" style="margin-left:auto;"><i class="fa fa-rotate"></i> Refrescar</button>
+                </div>
+
+                <!-- Tabla de balances -->
+                <div id="tes-list" style="overflow-x:auto;">
+                    <div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando...</div>
+                </div>
+            </div>
+        </div><!-- /tab-tesoreria -->
+
     </div><!-- end .app -->
+
+    <!-- TESORERÍA: MINT/BURN MODAL -->
+    <div class="modal-overlay" id="tes-action-modal">
+        <div class="modal-box" style="max-width:420px;">
+            <button class="modal-close" onclick="document.getElementById('tes-action-modal').classList.remove('open')">&times;</button>
+            <h2 id="tes-action-title" style="margin-top:0;font-size:18px;">Ajustar tacos</h2>
+            <p style="font-size:12px;color:var(--slate);margin-bottom:14px;" id="tes-action-subtitle">Usuario</p>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div>
+                    <label class="field-label">Cantidad de tacos 🌮</label>
+                    <input type="number" id="tes-action-amount" min="1" placeholder="Ej. 100" style="font-size:18px;font-weight:700;text-align:center;">
+                </div>
+                <div>
+                    <label class="field-label">Motivo (opcional)</label>
+                    <input type="text" id="tes-action-reason" placeholder="Ej. Excelente reporte de marzo">
+                </div>
+                <button class="btn" id="tes-action-confirm" style="font-weight:700;"><i class="fa fa-check"></i> Confirmar</button>
+            </div>
+        </div>
+    </div><!-- /tes-action-modal -->
+
+    <!-- TESORERÍA: HISTORIAL MODAL -->
+    <div class="modal-overlay" id="tes-history-modal">
+        <div class="modal-box" style="max-width:600px;">
+            <button class="modal-close" onclick="document.getElementById('tes-history-modal').classList.remove('open')">&times;</button>
+            <h2 id="tes-history-title" style="margin-top:0;font-size:18px;"><i class="fa fa-clock-rotate-left"></i> Historial</h2>
+            <p style="font-size:12px;color:var(--slate);margin-bottom:14px;" id="tes-history-subtitle">Movimientos de tacos</p>
+            <div id="tes-history-list" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+    </div><!-- /tes-history-modal -->
 
     <!-- PROMOTER REPORT DETAIL MODAL -->
     <div class="modal-overlay" id="prpt-detail-modal">
@@ -2297,6 +2379,7 @@
             if (name === 'reporte-promotores') { refreshPromoterReclFilters(); renderPromoterReclSection(); }
             if (name === 'gestion') renderGestion();
             if (name === 'tienda') window.initTienda();
+            if (name === 'tesoreria') loadTesoreria();
         }
 
         // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -4422,6 +4505,250 @@
         window.destroyChart = destroyChart;
         // tienda functions already assigned to window.* at definition (no re-assignment needed)
         window.chartOpts = chartOpts;
+
+        // ─── TESORERÍA ─────────────────────────────────────────────────────────────────
+        // Cache de usuarios cargados (para no re-fetchear en cada filtro/render)
+        let _tesUsers = []; // [{ email, name, role, balance, earned, spent, burned, log }]
+        let _tesCurrentTarget = null; // { email, role, name } para el modal mint/burn
+        let _tesCurrentAction = null; // 'grant' o 'burn'
+
+        window.loadTesoreria = async function() {
+            const container = document.getElementById('tes-list');
+            if (!container) return;
+            const dc = state.directorCode;
+            if (!dc) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-circle-info"></i> Configura tu Código de Director primero.</div>';
+                return;
+            }
+            container.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando usuarios y balances...</div>';
+
+            try {
+                _tesUsers = [];
+
+                // Agentes (users) — filtrar por directorCode
+                const agentsSnap = await getDocs(query(collection(db, 'users'), where('directorCode', '==', dc)));
+                agentsSnap.forEach(d => {
+                    const data = d.data();
+                    if (data.status === 'inactive') return;
+                    _tesUsers.push(buildTesUser(d.id, data, 'agent'));
+                });
+
+                // Coaches
+                const coachesSnap = await getDocs(query(collection(db, 'coaches'), where('directorCode', '==', dc)));
+                coachesSnap.forEach(d => {
+                    const data = d.data();
+                    if (data.status === 'inactive') return;
+                    _tesUsers.push(buildTesUser(d.id, data, 'coach'));
+                });
+
+                // Promotores
+                const promsSnap = await getDocs(query(collection(db, 'promoters'), where('directorCode', '==', dc)));
+                promsSnap.forEach(d => {
+                    const data = d.data();
+                    if (data.status === 'inactive') return;
+                    _tesUsers.push(buildTesUser(d.id, data, 'promoter'));
+                });
+
+                renderTesoreria();
+            } catch (err) {
+                container.innerHTML = `<div class="empty-state">Error: ${err.message}</div>`;
+                console.error('[loadTesoreria]', err);
+            }
+        }
+
+        // Construye un objeto de usuario para Tesorería desde su doc Firestore
+        function buildTesUser(email, data, role) {
+            const log = Array.isArray(data.karmaLog) ? data.karmaLog : [];
+            // Suma earned (puntos positivos), spent (negativos por canje), burned (negativos manuales)
+            let earned = 0, spent = 0, burned = 0;
+            log.forEach(k => {
+                const pts = k.points || 0;
+                if (pts > 0) {
+                    earned += pts;
+                } else if (k.type === 'manual_burn') {
+                    burned += Math.abs(pts);
+                } else {
+                    // type: 'redemption' u otro consumo
+                    spent += Math.abs(pts);
+                }
+            });
+            const name = data.agentName || data.coachName || data.promoterName || email;
+            return {
+                email, role, name,
+                balance: typeof data.karma === 'number' ? data.karma : 0,
+                earned, spent, burned,
+                log
+            };
+        }
+
+        window.renderTesoreria = function() {
+            const container = document.getElementById('tes-list');
+            if (!container) return;
+
+            // Aplicar filtros
+            const search = (document.getElementById('tes-search')?.value || '').toLowerCase();
+            const roleF = document.getElementById('tes-role-filter')?.value || '';
+            const filtered = _tesUsers.filter(u => {
+                if (roleF && u.role !== roleF) return false;
+                if (search && !u.name.toLowerCase().includes(search) && !u.email.toLowerCase().includes(search)) return false;
+                return true;
+            });
+
+            // Totales del dashboard (sobre TODOS los usuarios, no los filtrados)
+            const supply = _tesUsers.reduce((s, u) => s + u.balance, 0);
+            const totEarned = _tesUsers.reduce((s, u) => s + u.earned, 0);
+            const totSpent  = _tesUsers.reduce((s, u) => s + u.spent, 0);
+            const totBurned = _tesUsers.reduce((s, u) => s + u.burned, 0);
+            document.getElementById('tes-supply').textContent  = supply.toLocaleString('es-MX')  + ' 🌮';
+            document.getElementById('tes-earned').textContent  = totEarned.toLocaleString('es-MX') + ' 🌮';
+            document.getElementById('tes-spent').textContent   = totSpent.toLocaleString('es-MX')  + ' 🌮';
+            document.getElementById('tes-burned').textContent  = totBurned.toLocaleString('es-MX') + ' 🌮';
+
+            if (!filtered.length) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i> Sin usuarios con los filtros actuales.</div>';
+                return;
+            }
+
+            // Sort por balance descendente
+            filtered.sort((a, b) => b.balance - a.balance);
+
+            const roleLabels = { agent: '👤 Agente', coach: '🧑‍🏫 Coach', promoter: '📊 Promotor' };
+            container.innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.04);text-align:left;">
+                            <th style="padding:10px 8px;">Usuario</th>
+                            <th style="padding:10px 8px;">Rol</th>
+                            <th style="padding:10px 8px;text-align:right;">Balance</th>
+                            <th style="padding:10px 8px;text-align:right;">Ganado</th>
+                            <th style="padding:10px 8px;text-align:right;">Gastado</th>
+                            <th style="padding:10px 8px;text-align:right;">Quemado</th>
+                            <th style="padding:10px 8px;text-align:center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                ${filtered.map(u => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:10px 8px;">
+                            <div style="font-weight:600;">${escapeHtml(u.name)}</div>
+                            <div style="font-size:10px;color:var(--slate);">${escapeHtml(u.email)}</div>
+                        </td>
+                        <td style="padding:10px 8px;font-size:11px;">${roleLabels[u.role] || u.role}</td>
+                        <td style="padding:10px 8px;text-align:right;font-weight:700;color:var(--gold);">${u.balance.toLocaleString('es-MX')} 🌮</td>
+                        <td style="padding:10px 8px;text-align:right;color:var(--green);">+${u.earned.toLocaleString('es-MX')}</td>
+                        <td style="padding:10px 8px;text-align:right;color:var(--blue);">-${u.spent.toLocaleString('es-MX')}</td>
+                        <td style="padding:10px 8px;text-align:right;color:var(--red);">-${u.burned.toLocaleString('es-MX')}</td>
+                        <td style="padding:10px 8px;text-align:center;white-space:nowrap;">
+                            <button class="btn btn-sm btn-green" style="padding:4px 10px;" onclick="openTesAction('${escapeHtml(u.email)}','${u.role}','grant')" title="Otorgar tacos">+</button>
+                            <button class="btn btn-sm btn-red" style="padding:4px 10px;" onclick="openTesAction('${escapeHtml(u.email)}','${u.role}','burn')" title="Quemar tacos">−</button>
+                            <button class="btn btn-sm" style="padding:4px 10px;" onclick="openTesHistory('${escapeHtml(u.email)}','${u.role}')" title="Ver historial"><i class="fa fa-clock-rotate-left"></i></button>
+                        </td>
+                    </tr>
+                `).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        window.openTesAction = function(email, role, action) {
+            const u = _tesUsers.find(x => x.email === email && x.role === role);
+            if (!u) { alert('Usuario no encontrado.'); return; }
+            _tesCurrentTarget = u;
+            _tesCurrentAction = action;
+            document.getElementById('tes-action-title').innerHTML = action === 'grant'
+                ? '<i class="fa fa-circle-plus" style="color:var(--green);"></i> Otorgar tacos'
+                : '<i class="fa fa-fire" style="color:var(--red);"></i> Quemar tacos';
+            document.getElementById('tes-action-subtitle').innerHTML = `<strong>${escapeHtml(u.name)}</strong> · Balance actual: <strong style="color:var(--gold);">${u.balance.toLocaleString('es-MX')} 🌮</strong>`;
+            document.getElementById('tes-action-amount').value = '';
+            document.getElementById('tes-action-reason').value = '';
+            const btn = document.getElementById('tes-action-confirm');
+            btn.className = action === 'grant' ? 'btn btn-green' : 'btn btn-red';
+            btn.innerHTML = action === 'grant' ? '<i class="fa fa-check"></i> Otorgar' : '<i class="fa fa-fire"></i> Quemar';
+            btn.onclick = confirmTesAction;
+            document.getElementById('tes-action-modal').classList.add('open');
+        };
+
+        async function confirmTesAction() {
+            const amount = parseInt(document.getElementById('tes-action-amount').value);
+            const reason = document.getElementById('tes-action-reason').value.trim();
+            if (!amount || amount <= 0) { alert('Cantidad debe ser mayor a 0.'); return; }
+            const u = _tesCurrentTarget;
+            const action = _tesCurrentAction;
+            const delta = action === 'grant' ? amount : -amount;
+
+            // Para burn: validar que tenga balance suficiente
+            if (action === 'burn' && u.balance < amount) {
+                if (!confirm(`${u.name} solo tiene ${u.balance} tacos. ¿Quemar de todos modos su balance completo (${u.balance})?`)) return;
+            }
+
+            const colMap = { agent: 'users', coach: 'coaches', promoter: 'promoters' };
+            const col = colMap[u.role];
+            try {
+                const ref = doc(db, col, u.email);
+                const snap = await getDoc(ref);
+                if (!snap.exists()) { alert('Usuario no existe en Firestore.'); return; }
+                const data = snap.data();
+                const currentKarma = typeof data.karma === 'number' ? data.karma : 0;
+                const currentLog = Array.isArray(data.karmaLog) ? data.karmaLog : [];
+                const newKarma = Math.max(0, currentKarma + delta);
+                const logEntry = {
+                    type: action === 'grant' ? 'manual_grant' : 'manual_burn',
+                    points: delta,
+                    reason: reason || (action === 'grant' ? 'Otorgado por director' : 'Quemado por director'),
+                    fecha: new Date().toISOString(),
+                    by: user.email
+                };
+                await updateDoc(ref, { karma: newKarma, karmaLog: [...currentLog, logEntry] });
+                document.getElementById('tes-action-modal').classList.remove('open');
+                await loadTesoreria(); // refresh
+                alert(`✅ ${action === 'grant' ? 'Otorgados' : 'Quemados'} ${amount} tacos a ${u.name}.`);
+            } catch (err) {
+                alert('Error: ' + err.message);
+                console.error('[confirmTesAction]', err);
+            }
+        }
+
+        window.openTesHistory = function(email, role) {
+            const u = _tesUsers.find(x => x.email === email && x.role === role);
+            if (!u) return;
+            document.getElementById('tes-history-title').innerHTML = `<i class="fa fa-clock-rotate-left"></i> Historial de ${escapeHtml(u.name)}`;
+            document.getElementById('tes-history-subtitle').textContent = `Balance actual: ${u.balance.toLocaleString('es-MX')} 🌮 · ${u.log.length} movimientos`;
+            const list = document.getElementById('tes-history-list');
+            if (!u.log.length) {
+                list.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i> Sin movimientos registrados.</div>';
+            } else {
+                // Ordenar por fecha desc
+                const sorted = [...u.log].sort((a, b) => {
+                    const da = a.fecha || a.date || '';
+                    const db = b.fecha || b.date || '';
+                    return db.localeCompare(da);
+                });
+                list.innerHTML = sorted.map(k => {
+                    const pts = k.points || 0;
+                    const isPos = pts > 0;
+                    const color = isPos ? 'var(--green)' : (k.type === 'manual_burn' ? 'var(--red)' : 'var(--blue)');
+                    const sign = isPos ? '+' : '';
+                    let label = '';
+                    let icon = '';
+                    if (k.type === 'manual_grant') { label = 'Otorgado por director'; icon = '🎁'; }
+                    else if (k.type === 'manual_burn') { label = 'Quemado por director'; icon = '🔥'; }
+                    else if (k.type === 'redemption') { label = `Canje: ${k.item || ''}`; icon = '🛒'; }
+                    else if (k.mes) { label = `Reporte mensual: ${k.mes}`; icon = '📋'; }
+                    else if (k.date) { label = `Bitácora día: ${k.date}`; icon = '📝'; }
+                    else { label = 'Otro movimiento'; icon = '•'; }
+                    const fecha = k.fecha || k.date || '';
+                    const fechaFmt = fecha ? new Date(fecha).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '';
+                    return `<div style="padding:8px 12px;background:var(--panel2);border-radius:6px;border-left:3px solid ${color};">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                            <div style="font-size:12px;">${icon} ${escapeHtml(label)}</div>
+                            <div style="font-weight:700;color:${color};white-space:nowrap;">${sign}${pts} 🌮</div>
+                        </div>
+                        ${k.reason ? `<div style="font-size:10px;color:var(--slate);margin-top:2px;">"${escapeHtml(k.reason)}"</div>` : ''}
+                        <div style="font-size:10px;color:var(--slate);margin-top:2px;">${fechaFmt}${k.by ? ' · por ' + escapeHtml(k.by) : ''}</div>
+                    </div>`;
+                }).join('');
+            }
+            document.getElementById('tes-history-modal').classList.add('open');
+        };
     </script>
 </body>
 
