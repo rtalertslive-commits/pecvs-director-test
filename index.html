@@ -2671,14 +2671,15 @@
                     <th colspan="5" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Volumen PECVS$</th>
                     <th colspan="4" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Ratios PECVS</th>
                     <th colspan="2" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Ratios</th>
-                    <th colspan="4" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Promedios</th>
+                    <th rowspan="2" style="border-left:2px solid #475569;color:var(--green);">Prima Neta ($)</th>
+                    <th colspan="3" style="border-left:2px solid #475569;border-bottom:1px solid #475569">Promedios en base a $</th>
                     ${showRedData ? `<th colspan="3" style="border-left:2px solid var(--red);border-bottom:1px solid var(--red);background:rgba(239,68,68,0.1)">RECONCILIACIÓN (🔴 + 🟢)</th>` : ''}
                 </tr>
                 <tr>
                     <th style="border-left:2px solid #475569">P</th><th>E</th><th>C</th><th>V</th><th>S</th>
                     <th style="border-left:2px solid #475569">P/E</th><th>E/C</th><th>C/V</th><th>S/V</th>
                     <th style="border-left:2px solid #475569">P/V</th><th>P/S</th>
-                    <th style="border-left:2px solid #475569">Neta</th><th>$/V</th><th>$/S</th><th>$/Integrante</th>
+                    <th style="border-left:2px solid #475569">$/V</th><th>$/S</th><th>$/Integrante</th>
                     ${showRedData ? `
                     <th style="border-left:2px solid var(--red);color:var(--red)">S (R)</th>
                     <th style="color:var(--red)">$ (R)</th>
@@ -2705,7 +2706,7 @@
                     <td class="ratio-cell" style="border-left:2px solid #475569">${ratioPct(d.V, d.P)}</td>
                     <td class="ratio-cell">${ratioPct(d.S, d.P)}</td>
                     <td style="font-weight:700;color:var(--green);border-left:2px solid #475569">$${primaFmt}</td>
-                    <td class="ratio-cell">${d.V > 0 ? '$' + ratio(d.prima, d.V) : '—'}</td>
+                    <td class="ratio-cell" style="border-left:2px solid #475569">${d.V > 0 ? '$' + ratio(d.prima, d.V) : '—'}</td>
                     <td class="ratio-cell">${d.S > 0 ? '$' + ratio(d.prima, d.S) : '—'}</td>
                     <td class="ratio-cell" style="color:var(--gold-l);">$${primaPerAgentFmt}</td>
                     ${showRedData ? `
@@ -2735,7 +2736,7 @@
                 <td>${ratioPct(tot.V, tot.C)}</td><td>${ratioPct(tot.S, tot.V)}</td>
                 <td style="border-left:2px solid #475569">${ratioPct(tot.V, tot.P)}</td><td>${ratioPct(tot.S, tot.P)}</td>
                 <td style="font-weight:800;color:var(--gold);border-left:2px solid #475569">$${totPrima}</td>
-                <td>${tot.V > 0 ? '$' + ratio(tot.prima, tot.V) : '—'}</td><td>${tot.S > 0 ? '$' + ratio(tot.prima, tot.S) : '—'}</td>
+                <td style="border-left:2px solid #475569">${tot.V > 0 ? '$' + ratio(tot.prima, tot.V) : '—'}</td><td>${tot.S > 0 ? '$' + ratio(tot.prima, tot.S) : '—'}</td>
                 <td></td>
                 ${showRedData ? `
                 <td style="border-left:2px solid var(--red);color:var(--red)">${tot.redS}</td>
