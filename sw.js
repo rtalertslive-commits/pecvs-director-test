@@ -1,8 +1,10 @@
-const CACHE_NAME = 'director-hub-v2.2.1';
-const ASSETS = []; // We won't pre-cache anything to force network logic
+// Versión sincronizada con index.html (era 'director-hub-v2.2.1' inconsistente con v1.0.0 del HTML)
+const CACHE_NAME = 'pecvs-director-v1.6.0';
+const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
+    event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS).catch(() => {})));
 });
 
 self.addEventListener('activate', (event) => {
