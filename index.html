@@ -4970,39 +4970,52 @@
                 const colMap = { agente: 'users', coach: 'coaches', promotor: 'promoters' };
 
                 await runTransaction(db, async (tx) => {
+                    // ═══ TODAS LAS LECTURAS PRIMERO ═══
+                    // Firestore exige todas las reads antes de cualquier write en una transacción.
                     const reqSnap = await tx.get(reqRef);
                     if (!reqSnap.exists() || reqSnap.data().status !== 'pending') {
                         throw new Error('Solicitud ya procesada.');
                     }
                     const req = reqSnap.data();
 
+                    let userRef = null, userSnap = null;
+                    let catRef = null, catSnap = null;
+
                     if (decision === 'approved') {
                         const userCol = colMap[req.rol] || 'users';
-                        const userRef = doc(db, userCol, req.emailSolicitante);
-                        const userSnap = await tx.get(userRef);
+                        userRef = doc(db, userCol, req.emailSolicitante);
+                        userSnap = await tx.get(userRef);
                         if (!userSnap.exists()) throw new Error('Usuario no existe.');
-                        const udata = userSnap.data();
-                        const currentKarma = Number(udata.karma) || 0;
+
+                        const currentKarma = Number(userSnap.data().karma) || 0;
                         const costo = Number(req.costo) || 0;
                         if (currentKarma < costo) {
                             throw new Error(`El usuario solo tiene ${currentKarma} tacos, necesita ${costo}.`);
                         }
+
+                        if (req.catalogDoc && req.itemId) {
+                            catRef = doc(db, 'store', req.catalogDoc);
+                            catSnap = await tx.get(catRef);
+                        }
+                    }
+
+                    // ═══ TODAS LAS ESCRITURAS DESPUÉS ═══
+                    if (decision === 'approved') {
+                        const udata = userSnap.data();
+                        const currentKarma = Number(udata.karma) || 0;
+                        const costo = Number(req.costo) || 0;
                         const newKarma = Math.max(0, currentKarma - costo);
                         const karmaLog = [...(Array.isArray(udata.karmaLog) ? udata.karmaLog : []),
                             { type: 'redemption', points: -costo, item: req.itemNombre, fecha: nowISO() }];
                         tx.update(userRef, { karma: newKarma, karmaLog });
 
-                        // Decremento atómico de stock (si aplica)
-                        if (req.catalogDoc && req.itemId) {
-                            const catRef = doc(db, 'store', req.catalogDoc);
-                            const catSnap = await tx.get(catRef);
-                            if (catSnap.exists()) {
-                                const items = (catSnap.data().items || []).slice();
-                                const idx = items.findIndex(i => i.id === req.itemId);
-                                if (idx >= 0 && Number(items[idx].stock) > 0) {
-                                    items[idx] = { ...items[idx], stock: Number(items[idx].stock) - 1 };
-                                    tx.update(catRef, { items });
-                                }
+                        // Decremento atómico de stock (si el item tiene stock limitado)
+                        if (catSnap && catSnap.exists()) {
+                            const items = (catSnap.data().items || []).slice();
+                            const idx = items.findIndex(i => i.id === req.itemId);
+                            if (idx >= 0 && Number(items[idx].stock) > 0) {
+                                items[idx] = { ...items[idx], stock: Number(items[idx].stock) - 1 };
+                                tx.update(catRef, { items });
                             }
                         }
                     }
