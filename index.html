@@ -4124,6 +4124,62 @@
             const assignLabelFor = { promoter: 'Cód. Director', coach: 'Cód. Promotor', agent: 'Cód. Coach' };
             const roleBadgeColor = { promoter: 'var(--gold)', coach: 'var(--teal)', agent: 'var(--blue)' };
 
+            // Construye el dropdown contextual según el rol del miembro:
+            //   agent    → coaches activos de mi región (vinculo por teamCode)
+            //   coach    → promotores activos de mi región (vinculo por promotorTeamCode)
+            //   promoter → director (yo) — única opción
+            // Si currentValue apunta a alguien que ya no aparece (provisional, inactivo, legacy),
+            // se incluye igual marcado con 🚧 o ⚠️ para no perder la asignación.
+            function buildAssignOptions(role, currentValue) {
+                let opts = [];
+                if (role === 'agent') {
+                    opts = state.coaches
+                        .filter(c => c.status !== 'inactive')
+                        .map(c => {
+                            const code = c.companyCode || c.agentTeamCode || '';
+                            return { value: code, label: `🧑‍🏫 ${c.coachName || c.email}`, code };
+                        })
+                        .filter(o => o.value);
+                } else if (role === 'coach') {
+                    opts = state.promoters
+                        .filter(p => p.status !== 'inactive')
+                        .map(p => {
+                            const code = p.companyCode || p.promotorCode || '';
+                            return { value: code, label: `📊 ${p.promoterName || p.email}`, code };
+                        })
+                        .filter(o => o.value);
+                } else if (role === 'promoter') {
+                    const dc = state.directorCode || '';
+                    if (dc) {
+                        const region = state.regionName ? ' (' + state.regionName + ')' : '';
+                        opts = [{ value: dc, label: `📍 Director${region}`, code: dc }];
+                    }
+                }
+                opts.sort((a, b) => a.label.localeCompare(b.label));
+                // Si el assignCode actual no está entre las opciones (provisional, inactivo, legacy),
+                // se inserta como "extra" al principio para no romper la asignación al guardar.
+                const hasCurrent = opts.some(o => o.value === currentValue);
+                let extraOption = '';
+                if (currentValue && !hasCurrent) {
+                    const isProvisional = String(currentValue).startsWith('PROV-');
+                    const tag = isProvisional ? '🚧 PROVISIONAL' : '⚠️ Inactivo / desconocido';
+                    extraOption = `<option value="${escapeHtml(currentValue)}" selected>${tag} [${escapeHtml(currentValue)}]</option>`;
+                }
+                const placeholder = (!currentValue && opts.length > 0)
+                    ? `<option value="">— Seleccionar —</option>`
+                    : (!currentValue && opts.length === 0)
+                    ? `<option value="">— Sin opciones disponibles —</option>`
+                    : '';
+                const optionsHtml = opts.map(o =>
+                    `<option value="${escapeHtml(o.value)}" ${o.value === currentValue ? 'selected' : ''}>${escapeHtml(o.label)} [${escapeHtml(o.code)}]</option>`
+                ).join('');
+                return placeholder + extraOption + optionsHtml;
+            }
+            // Expongo a window para que updateAssignLabel pueda regenerar el dropdown
+            // cuando el director cambia el rol del miembro en el otro selector.
+            // Se reasigna en cada render de gestión, así siempre captura el state.coaches/promoters más reciente.
+            window._buildAssignOptions = buildAssignOptions;
+
             container.innerHTML = filtered.map(m => {
                 const safeEmail = escapeHtml(m.email);
                 const eid = m.email.replace(/[@.+]/g, '_');
@@ -4144,7 +4200,7 @@
                                 <option value="agent" ${m.role === 'agent' ? 'selected' : ''} style="background:#1e293b;">👤 Agente</option>
                             </select>
                             <span id="assign-lbl-${eid}" style="font-size:11px; color:var(--slate); white-space:nowrap;">${escapeHtml(assignLabelFor[m.role])}:</span>
-                            <input id="assign-inp-${eid}" value="${escapeHtml(m.assignCode)}" placeholder="clave-4-digitos" style="width:130px; font-size:12px; padding:4px 8px; color:var(--teal); background:rgba(6,182,212,0.06); border:1px solid rgba(6,182,212,0.2); border-radius:6px;">
+                            <select id="assign-inp-${eid}" data-role="${m.role}" style="min-width:230px; max-width:300px; font-size:12px; padding:4px 8px; color:var(--teal); background:rgba(6,182,212,0.06); border:1px solid rgba(6,182,212,0.2); border-radius:6px;">${buildAssignOptions(m.role, m.assignCode)}</select>
                         </div>
                     </div>
                     <button class="btn btn-green btn-sm" onclick="saveMemberChanges('${safeEmail}','${m.role}')">
@@ -4161,14 +4217,19 @@
             const eid = email.replace(/[@.+]/g, '_');
             const role = document.getElementById('role-sel-' + eid)?.value;
             const lblEl = document.getElementById('assign-lbl-' + eid);
-            const inpEl = document.getElementById('assign-inp-' + eid);
-            if (!lblEl || !inpEl) return;
+            const selEl = document.getElementById('assign-inp-' + eid);
+            if (!lblEl || !selEl) return;
             const labels = { promoter: 'Cód. Director', coach: 'Cód. Promotor', agent: 'Cód. Coach' };
             lblEl.textContent = (labels[role] || 'Asignado a') + ':';
-            // Pre-fill sensible default when role changes
-            if (role === 'promoter') { inpEl.value = state.directorCode || ''; inpEl.style.color = 'var(--gold)'; }
-            else if (role === 'coach') { inpEl.value = ''; inpEl.style.color = 'var(--teal)'; }
-            else if (role === 'agent') { inpEl.value = ''; inpEl.style.color = 'var(--blue)'; }
+            // Regenerar opciones del dropdown contextual al rol nuevo (sin valor previo: forzar re-elegir).
+            // buildAssignOptions vive en el closure de renderGestionAll, así que lo expongo via window:
+            if (typeof window._buildAssignOptions === 'function') {
+                selEl.innerHTML = window._buildAssignOptions(role, '');
+            }
+            selEl.dataset.role = role;
+            if (role === 'promoter') selEl.style.color = 'var(--gold)';
+            else if (role === 'coach') selEl.style.color = 'var(--teal)';
+            else if (role === 'agent') selEl.style.color = 'var(--blue)';
         };
 
         window.saveMemberChanges = async function (email, originalRole) {
