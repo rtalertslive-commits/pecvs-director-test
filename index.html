@@ -4996,6 +4996,19 @@
                         if (req.catalogDoc && req.itemId) {
                             catRef = doc(db, 'store', req.catalogDoc);
                             catSnap = await tx.get(catRef);
+                            // VALIDAR STOCK: si el item tiene stock=0 (agotado), abortar.
+                            // stock<0 = infinito (no validar), stock>0 = disponible, stock=0 = sin stock
+                            if (catSnap.exists()) {
+                                const items = catSnap.data().items || [];
+                                const item = items.find(i => i.id === req.itemId);
+                                if (item && Number(item.stock) === 0) {
+                                    throw new Error(`Sin stock disponible para "${req.itemNombre}". La solicitud no se puede aprobar.`);
+                                }
+                                // Si el item fue desactivado o eliminado, también bloquear
+                                if (item && item.activo === false) {
+                                    throw new Error(`El item "${req.itemNombre}" está desactivado en el catálogo.`);
+                                }
+                            }
                         }
                     }
 
@@ -5009,13 +5022,17 @@
                             { type: 'redemption', points: -costo, item: req.itemNombre, fecha: nowISO() }];
                         tx.update(userRef, { karma: newKarma, karmaLog });
 
-                        // Decremento atómico de stock (si el item tiene stock limitado)
+                        // Decremento de stock (si el item tiene stock limitado).
+                        // Stock=0 ya bloqueamos arriba; stock<0 (infinito) no se toca.
                         if (catSnap && catSnap.exists()) {
                             const items = (catSnap.data().items || []).slice();
                             const idx = items.findIndex(i => i.id === req.itemId);
-                            if (idx >= 0 && Number(items[idx].stock) > 0) {
-                                items[idx] = { ...items[idx], stock: Number(items[idx].stock) - 1 };
-                                tx.update(catRef, { items });
+                            if (idx >= 0) {
+                                const stock = Number(items[idx].stock);
+                                if (stock > 0) {
+                                    items[idx] = { ...items[idx], stock: stock - 1 };
+                                    tx.update(catRef, { items });
+                                }
                             }
                         }
                     }
