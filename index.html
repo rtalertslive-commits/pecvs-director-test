@@ -1260,6 +1260,10 @@
                         <option value="coach">🧑‍🏫 Coaches</option>
                         <option value="agent">👤 Agentes</option>
                     </select>
+                    <label style="font-size:12px; color:var(--slate); display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:6px 12px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:6px;">
+                        <input type="checkbox" id="gestion-show-inactive" onchange="renderGestionAll()" style="width:auto; margin:0;">
+                        <span>📋 Mostrar inactivos (expulsados)</span>
+                    </label>
                 </div>
                 <!-- Column headers -->
                 <div style="display:grid; grid-template-columns:2fr 80px 1fr 1fr auto; gap:8px; padding:6px 14px; font-size:9px; color:var(--slate); font-weight:700; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border); margin-bottom:8px;">
@@ -1270,6 +1274,16 @@
                     <div></div>
                 </div>
                 <div id="gestion-all-list"></div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+                <p class="card-title"><i class="fa fa-ghost" style="color:var(--orange);"></i> Huérfanos (jerarquía rota)</p>
+                <p style="font-size:12px; color:var(--slate); margin-bottom:14px;">
+                    Miembros activos cuyo código de asignación no apunta a un padre válido. Pueden seguir entrando a la app pero no aparecen en los reportes correctos. Reasignalos a un padre válido.
+                </p>
+                <div id="orphans-list">
+                    <div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Calculando huérfanos...</div>
+                </div>
             </div>
         </div>
 
@@ -3678,7 +3692,132 @@
         function renderGestion() {
             renderPendingList();
             renderGestionAll();
+            renderOrphans();
         }
+
+        // Detecta jerarquía rota: usuarios activos cuyo código de asignación
+        // no apunta a un padre activo y existente.
+        async function renderOrphans() {
+            const container = document.getElementById('orphans-list');
+            if (!container) return;
+
+            // Sets de códigos VÁLIDOS de cada nivel (solo activos del directorCode actual)
+            const promotorCodes = new Set();
+            state.promoters.forEach(p => {
+                if (p.status === 'inactive') return;
+                if (p.companyCode) promotorCodes.add(p.companyCode);
+                if (p.promotorCode) promotorCodes.add(p.promotorCode);
+                // Legacy support para dummy data
+                if (p.promotorNum) promotorCodes.add(`TEAM-PROMOTOR-${p.promotorNum}`);
+            });
+
+            const coachCodes = new Set();
+            state.coaches.forEach(c => {
+                if (c.status === 'inactive') return;
+                if (c.companyCode) coachCodes.add(c.companyCode);
+                if (c.agentTeamCode) coachCodes.add(c.agentTeamCode);
+                if (c.coachNum) coachCodes.add(`TEAM-COACH-${c.coachNum}`);
+            });
+
+            const orphans = [];
+
+            // Coaches huérfanos: promotorTeamCode no apunta a un promotor válido
+            state.coaches.forEach(c => {
+                if (c.status === 'inactive') return;
+                const ptc = c.promotorTeamCode || '';
+                if (!ptc || !promotorCodes.has(ptc)) {
+                    orphans.push({
+                        role: 'coach',
+                        name: c.coachName || '',
+                        email: c.email,
+                        companyCode: c.companyCode || '',
+                        currentAssign: ptc,
+                        reason: !ptc ? 'Sin código de promotor asignado' : `El código "${ptc}" no apunta a ningún promotor activo`
+                    });
+                }
+            });
+
+            // Agentes huérfanos: teamCode no apunta a un coach válido
+            state.agents.forEach(a => {
+                if (a.status === 'inactive') return;
+                const tc = a.teamCode || '';
+                if (!tc || !coachCodes.has(tc)) {
+                    orphans.push({
+                        role: 'agent',
+                        name: a.name || '',
+                        email: a.email,
+                        companyCode: a.companyCode || '',
+                        currentAssign: tc,
+                        reason: !tc ? 'Sin código de coach asignado' : `El código "${tc}" no apunta a ningún coach activo`
+                    });
+                }
+            });
+
+            if (!orphans.length) {
+                container.innerHTML = '<div class="empty-state" style="padding:14px 0;color:var(--green);"><i class="fa fa-check-circle"></i> Sin huérfanos. Toda la jerarquía está conectada.</div>';
+                return;
+            }
+
+            // Opciones para reasignar (códigos válidos de promotores y coaches activos)
+            const promotorOptions = state.promoters
+                .filter(p => p.status !== 'inactive')
+                .map(p => ({ code: p.companyCode || p.promotorCode, name: p.promoterName || p.email }))
+                .filter(o => o.code);
+            const coachOptions = state.coaches
+                .filter(c => c.status !== 'inactive')
+                .map(c => ({ code: c.companyCode || c.agentTeamCode, name: c.coachName || c.email }))
+                .filter(o => o.code);
+
+            container.innerHTML = orphans.map(o => {
+                const safeEmail = escapeHtml(o.email);
+                const eid = 'orphan-' + o.email.replace(/[@.+]/g, '_');
+                const opts = (o.role === 'coach' ? promotorOptions : coachOptions);
+                const optsHtml = '<option value="">— Seleccionar —</option>' +
+                    opts.map(opt => `<option value="${escapeHtml(opt.code)}">${escapeHtml(opt.name)} (${escapeHtml(opt.code)})</option>`).join('');
+                const targetLabel = o.role === 'coach' ? 'Promotor' : 'Coach';
+                const roleEmoji = o.role === 'coach' ? '🧑‍🏫' : '👤';
+
+                return `
+                <div style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(245,158,11,0.05); border-radius:8px; margin-bottom:6px; border:1px solid rgba(245,158,11,0.25);">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px;">
+                            <span style="font-size:13px; font-weight:600; color:var(--white);">${roleEmoji} ${escapeHtml(o.name)}</span>
+                            <span style="font-size:11px; color:var(--slate);">${safeEmail}</span>
+                            <span style="font-size:11px; color:var(--gold);">🔑 ${escapeHtml(o.companyCode)}</span>
+                            <span style="font-size:10px; padding:2px 8px; background:rgba(245,158,11,0.15); color:var(--orange); border-radius:10px; font-weight:700;">👻 HUÉRFANO</span>
+                        </div>
+                        <div style="font-size:11px; color:var(--orange); margin-bottom:6px;">${escapeHtml(o.reason)}</div>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span style="font-size:11px; color:var(--slate);">Reasignar a ${targetLabel}:</span>
+                            <select id="${eid}-sel" style="font-size:12px; padding:4px 8px; min-width:200px;">${optsHtml}</select>
+                        </div>
+                    </div>
+                    <button class="btn btn-green btn-sm" onclick="reassignOrphan('${safeEmail}','${o.role}','${eid}')">
+                        <i class="fa fa-link"></i> Reasignar
+                    </button>
+                </div>`;
+            }).join('');
+        }
+
+        window.reassignOrphan = async function (email, role, eid) {
+            const sel = document.getElementById(eid + '-sel');
+            const newCode = sel?.value;
+            if (!newCode) { alert('Seleccioná un padre antes de reasignar.'); return; }
+            const colMap = { coach: 'coaches', agent: 'users' };
+            const fieldMap = { coach: 'promotorTeamCode', agent: 'teamCode' };
+            const colName = colMap[role];
+            const fieldName = fieldMap[role];
+            if (!colName || !fieldName) { alert('Rol inválido.'); return; }
+            try {
+                await setDoc(doc(db, colName, email), {
+                    [fieldName]: newCode,
+                    reasignadoPor: user.email,
+                    reasignadoAt: nowISO()
+                }, { merge: true });
+                alert('✅ Reasignado correctamente.');
+                renderOrphans();
+            } catch (err) { alert('Error: ' + err.message); }
+        };
 
         function renderPendingList() {
             const container = document.getElementById('pending-list');
@@ -3706,14 +3845,38 @@
             `).join('');
         }
 
-        function renderGestionAll() {
+        // Cache de inactivos cargado bajo demanda (cuando se activa el toggle)
+        let _inactiveCache = null;
+        async function loadInactiveMembers() {
+            const dc = state.directorCode || '';
+            if (!dc) return { promoters: [], coaches: [], agents: [] };
+            try {
+                // Consultas paralelas a las 3 collections, filtrando por directorCode + status:inactive
+                const [pSnap, cSnap, uSnap] = await Promise.all([
+                    getDocs(query(collection(db, 'promoters'), where('directorCode', '==', dc), where('status', '==', 'inactive'))),
+                    getDocs(query(collection(db, 'coaches'),   where('directorCode', '==', dc), where('status', '==', 'inactive'))),
+                    getDocs(query(collection(db, 'users'),     where('directorCode', '==', dc), where('status', '==', 'inactive')))
+                ]);
+                return {
+                    promoters: pSnap.docs.map(d => ({ ...d.data(), email: d.id })),
+                    coaches:   cSnap.docs.map(d => ({ ...d.data(), email: d.id })),
+                    agents:    uSnap.docs.map(d => ({ ...d.data(), email: d.id }))
+                };
+            } catch (e) {
+                console.error('[loadInactiveMembers]', e);
+                return { promoters: [], coaches: [], agents: [] };
+            }
+        }
+
+        async function renderGestionAll() {
             const container = document.getElementById('gestion-all-list');
             if (!container) return;
 
             const search = (document.getElementById('gestion-search')?.value || '').toLowerCase();
             const roleFilter = document.getElementById('gestion-role-filter')?.value || '';
+            const showInactive = document.getElementById('gestion-show-inactive')?.checked || false;
 
-            // Build unified list (active members only)
+            // Build unified list (active members)
             const all = [];
 
             state.promoters.forEach(p => {
@@ -3723,7 +3886,8 @@
                     name: p.promoterName || '',
                     email: p.email,
                     companyCode: p.companyCode || p.promotorCode || '',
-                    assignCode: p.directorCode || state.directorCode || ''
+                    assignCode: p.directorCode || state.directorCode || '',
+                    inactive: false
                 });
             });
 
@@ -3734,7 +3898,8 @@
                     name: c.coachName || '',
                     email: c.email,
                     companyCode: c.companyCode || c.agentTeamCode || '',
-                    assignCode: c.promotorTeamCode || ''
+                    assignCode: c.promotorTeamCode || '',
+                    inactive: false
                 });
             });
 
@@ -3746,9 +3911,42 @@
                     name: a.name || '',
                     email: a.email || '',
                     companyCode: a.companyCode || '',
-                    assignCode: a.teamCode || ''
+                    assignCode: a.teamCode || '',
+                    inactive: false
                 });
             });
+
+            // Si el toggle está activo, cargar y agregar inactivos
+            if (showInactive) {
+                const inactives = await loadInactiveMembers();
+                inactives.promoters.forEach(p => {
+                    all.push({
+                        role: 'promoter', name: p.promoterName || '', email: p.email,
+                        companyCode: p.companyCode || p.promotorCode || '',
+                        assignCode: p.directorCode || '',
+                        inactive: true,
+                        expulsadoPor: p.expulsadoPor, expulsadoAt: p.expulsadoAt, expulsadoMotivo: p.expulsadoMotivo
+                    });
+                });
+                inactives.coaches.forEach(c => {
+                    all.push({
+                        role: 'coach', name: c.coachName || '', email: c.email,
+                        companyCode: c.companyCode || '',
+                        assignCode: c.promotorTeamCode || '',
+                        inactive: true,
+                        expulsadoPor: c.expulsadoPor, expulsadoAt: c.expulsadoAt, expulsadoMotivo: c.expulsadoMotivo
+                    });
+                });
+                inactives.agents.forEach(a => {
+                    all.push({
+                        role: 'agent', name: a.agentName || a.name || '', email: a.email,
+                        companyCode: a.companyCode || '',
+                        assignCode: a.teamCode || '',
+                        inactive: true,
+                        expulsadoPor: a.expulsadoPor, expulsadoAt: a.expulsadoAt, expulsadoMotivo: a.expulsadoMotivo
+                    });
+                });
+            }
 
             // Apply filters
             let filtered = all;
@@ -3770,6 +3968,28 @@
             container.innerHTML = filtered.map(m => {
                 const safeEmail = escapeHtml(m.email);
                 const eid = m.email.replace(/[@.+]/g, '_');
+                if (m.inactive) {
+                    // Render compacto para inactivos: nombre + audit info + botón Reactivar
+                    const auditTxt = m.expulsadoAt
+                        ? `Expulsado ${new Date(m.expulsadoAt).toLocaleString('es-MX')}${m.expulsadoPor ? ' por ' + escapeHtml(m.expulsadoPor) : ''}${m.expulsadoMotivo ? ' (' + escapeHtml(m.expulsadoMotivo) + ')' : ''}`
+                        : 'Sin registro de cuándo/por qué fue expulsado (datos pre-audit)';
+                    const roleEmoji = { promoter: '📊', coach: '🧑‍🏫', agent: '👤' }[m.role] || '';
+                    return `
+                    <div style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(239,68,68,0.04); border-radius:8px; margin-bottom:6px; border:1px solid rgba(239,68,68,0.2); opacity:0.85;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <span style="font-size:13px; font-weight:600; color:var(--white);">${roleEmoji} ${escapeHtml(m.name)}</span>
+                                <span style="font-size:11px; color:var(--slate);">${safeEmail}</span>
+                                <span style="font-size:11px; color:var(--gold);">🔑 ${escapeHtml(m.companyCode)}</span>
+                                <span style="font-size:10px; padding:2px 8px; background:rgba(239,68,68,0.15); color:var(--red); border-radius:10px; font-weight:700; letter-spacing:1px;">INACTIVO</span>
+                            </div>
+                            <div style="font-size:10px; color:var(--slate); margin-top:4px; font-style:italic;">${auditTxt}</div>
+                        </div>
+                        <button class="btn btn-green btn-sm" onclick="reactivateMember('${safeEmail}','${m.role}')">
+                            <i class="fa fa-user-check"></i> Reactivar
+                        </button>
+                    </div>`;
+                }
                 return `
                 <div style="display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
                     <div>
@@ -3881,9 +4101,14 @@
                         newDocData.teamCode  = newAssign || '';     // links to coach's code
                     }
 
-                    // Write new role doc, deactivate old
+                    // Write new role doc, deactivate old (con audit)
                     await setDoc(doc(db, colNew, email), newDocData, { merge: true });
-                    await setDoc(doc(db, colOld, email), { status: 'inactive' }, { merge: true });
+                    await setDoc(doc(db, colOld, email), {
+                        status: 'inactive',
+                        expulsadoPor: user.email,
+                        expulsadoAt: nowISO(),
+                        expulsadoMotivo: `rol_change_${originalRole}_to_${newRole}`
+                    }, { merge: true });
 
                     alert(`✅ ${newName} migrado a ${roleLabels[newRole]}.\nMiembros anteriores quedan huérfanos — reasígnalos desde esta tabla.`);
                 }
@@ -3903,7 +4128,13 @@
             if (!confirm(`¿Expulsar al ${roleLabel} "${name}"?\n\nSu historial de datos se conservará pero perderá acceso al sistema.`)) return;
             try {
                 const colName = { promoter: 'promoters', coach: 'coaches', agent: 'users' }[role];
-                await setDoc(doc(db, colName, email), { status: 'inactive' }, { merge: true });
+                // AUDIT: dejar rastro de quién/cuándo/por qué para diagnóstico futuro
+                await setDoc(doc(db, colName, email), {
+                    status: 'inactive',
+                    expulsadoPor: user.email,
+                    expulsadoAt: nowISO(),
+                    expulsadoMotivo: 'expulsar_member'
+                }, { merge: true });
                 alert(`✅ ${name} ha sido expulsado. Sus datos se conservan.`);
             } catch (err) { alert('Error: ' + err.message); }
         };
@@ -4070,13 +4301,46 @@
             } catch (err) { alert('Error: ' + err.message); }
         };
 
+        window.reactivateMember = async function (email, role) {
+            const colMap = { promoter: 'promoters', coach: 'coaches', agent: 'users' };
+            const colName = colMap[role];
+            if (!colName) { alert('Rol inválido.'); return; }
+            const roleLabel = { promoter: 'promotor', coach: 'coach', agent: 'agente' }[role] || role;
+            if (!confirm(`¿Reactivar a este ${roleLabel}? Volverá a tener acceso a la app y aparecerá en los reportes.`)) return;
+            try {
+                // Marcamos status:active y limpiamos los campos de audit de expulsión.
+                // Guardamos un rastro de quién lo reactivó por si hay que auditar.
+                await setDoc(doc(db, colName, email), {
+                    status: 'active',
+                    expulsadoPor: null,
+                    expulsadoAt: null,
+                    expulsadoMotivo: null,
+                    reactivadoPor: user.email,
+                    reactivadoAt: nowISO()
+                }, { merge: true });
+                alert('✅ Miembro reactivado. Ya puede entrar a la app.');
+                // Refrescar la vista
+                if (typeof renderGestionAll === 'function') renderGestionAll();
+            } catch (err) { alert('Error: ' + err.message); }
+        };
+
+        // Helper común para los 3 expel-* (audit fields)
+        async function _expelWithAudit(collectionName, email, motivo) {
+            await setDoc(doc(db, collectionName, email), {
+                status: 'inactive',
+                expulsadoPor: user.email,
+                expulsadoAt: nowISO(),
+                expulsadoMotivo: motivo
+            }, { merge: true });
+        }
+
         window.expelAgent = async function (agentEmail) {
             if (!agentEmail) return;
             const agent = state.agents.find(a => a.email === agentEmail);
             const name = agent ? agent.name : agentEmail;
             if (!confirm(`¿Expulsar al agente "${name}"?\n\nSu historial de datos se conservará pero perderá acceso al sistema.`)) return;
             try {
-                await setDoc(doc(db, "users", agentEmail), { status: 'inactive' }, { merge: true });
+                await _expelWithAudit('users', agentEmail, 'expulsar_agent');
                 alert(`✅ ${name} ha sido expulsado. Sus datos se conservan.`);
             } catch (err) { alert('Error: ' + err.message); }
         };
@@ -4086,7 +4350,7 @@
             const name = coach ? coach.coachName : coachEmail;
             if (!confirm(`¿Expulsar al coach "${name}"?\n\nSus agentes quedarán sin coach. Sus datos se conservan.`)) return;
             try {
-                await setDoc(doc(db, "coaches", coachEmail), { status: 'inactive' }, { merge: true });
+                await _expelWithAudit('coaches', coachEmail, 'expulsar_coach');
                 alert(`✅ ${name} ha sido expulsado. Sus datos se conservan.`);
             } catch (err) { alert('Error: ' + err.message); }
         };
@@ -4096,7 +4360,7 @@
             const name = promoter ? promoter.promoterName : promEmail;
             if (!confirm(`¿Expulsar al promotor "${name}"?\n\nSus coaches quedarán sin promotor. Sus datos se conservan.`)) return;
             try {
-                await setDoc(doc(db, "promoters", promEmail), { status: 'inactive' }, { merge: true });
+                await _expelWithAudit('promoters', promEmail, 'expulsar_promoter');
                 alert(`✅ ${name} ha sido expulsado. Sus datos se conservan.`);
             } catch (err) { alert('Error: ' + err.message); }
         };
