@@ -1260,10 +1260,6 @@
                         <option value="coach">🧑‍🏫 Coaches</option>
                         <option value="agent">👤 Agentes</option>
                     </select>
-                    <label style="font-size:12px; color:var(--slate); display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:6px 12px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:6px;">
-                        <input type="checkbox" id="gestion-show-inactive" onchange="renderGestionAll()" style="width:auto; margin:0;">
-                        <span>📋 Mostrar inactivos (expulsados)</span>
-                    </label>
                 </div>
                 <!-- Column headers -->
                 <div style="display:grid; grid-template-columns:2fr 80px 1fr 1fr auto; gap:8px; padding:6px 14px; font-size:9px; color:var(--slate); font-weight:700; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border); margin-bottom:8px;">
@@ -1281,8 +1277,24 @@
                 <p style="font-size:12px; color:var(--slate); margin-bottom:14px;">
                     Miembros activos cuyo código de asignación no apunta a un padre válido. Pueden seguir entrando a la app pero no aparecen en los reportes correctos. Reasignalos a un padre válido.
                 </p>
+                <button class="btn btn-sm" style="margin-bottom:12px;" onclick="renderOrphans()">
+                    <i class="fa fa-rotate"></i> Refrescar huérfanos
+                </button>
                 <div id="orphans-list">
                     <div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Calculando huérfanos...</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+                <p class="card-title"><i class="fa fa-user-slash" style="color:var(--red);"></i> Miembros Inactivos (Expulsados)</p>
+                <p style="font-size:12px; color:var(--slate); margin-bottom:14px;">
+                    Miembros con <code>status: inactive</code>. No pueden entrar a la app. Si fue por error, pulsá <strong>Reactivar</strong>.
+                </p>
+                <button class="btn btn-sm" style="margin-bottom:12px;" onclick="renderInactivosCard()">
+                    <i class="fa fa-rotate"></i> Refrescar inactivos
+                </button>
+                <div id="inactivos-list">
+                    <div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando inactivos...</div>
                 </div>
             </div>
         </div>
@@ -3693,13 +3705,24 @@
             renderPendingList();
             renderGestionAll();
             renderOrphans();
+            renderInactivosCard();
         }
 
         // Detecta jerarquía rota: usuarios activos cuyo código de asignación
         // no apunta a un padre activo y existente.
-        async function renderOrphans() {
+        // CRÍTICO: usa queries propias (no state.coaches/state.agents) porque esos
+        // están filtrados por promotorTeamCode/teamCode válidos en sus listeners.
+        // Si un coach tiene un código inválido, NO aparece en state.coaches —
+        // necesitamos consultarlo directamente con where(directorCode==dc).
+        window.renderOrphans = async function () {
             const container = document.getElementById('orphans-list');
             if (!container) return;
+            const dc = state.directorCode;
+            if (!dc) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-circle-info"></i> Configura tu Código de Director primero.</div>';
+                return;
+            }
+            container.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Calculando huérfanos...</div>';
 
             // Sets de códigos VÁLIDOS de cada nivel (solo activos del directorCode actual)
             const promotorCodes = new Set();
@@ -3707,7 +3730,6 @@
                 if (p.status === 'inactive') return;
                 if (p.companyCode) promotorCodes.add(p.companyCode);
                 if (p.promotorCode) promotorCodes.add(p.promotorCode);
-                // Legacy support para dummy data
                 if (p.promotorNum) promotorCodes.add(`TEAM-PROMOTOR-${p.promotorNum}`);
             });
 
@@ -3721,37 +3743,48 @@
 
             const orphans = [];
 
-            // Coaches huérfanos: promotorTeamCode no apunta a un promotor válido
-            state.coaches.forEach(c => {
-                if (c.status === 'inactive') return;
-                const ptc = c.promotorTeamCode || '';
-                if (!ptc || !promotorCodes.has(ptc)) {
-                    orphans.push({
-                        role: 'coach',
-                        name: c.coachName || '',
-                        email: c.email,
-                        companyCode: c.companyCode || '',
-                        currentAssign: ptc,
-                        reason: !ptc ? 'Sin código de promotor asignado' : `El código "${ptc}" no apunta a ningún promotor activo`
-                    });
-                }
-            });
+            // Cargar TODOS los coaches del directorCode (sin filtrar por promotorTeamCode)
+            // así capturamos los que tienen códigos inválidos
+            try {
+                const coachesSnap = await getDocs(query(collection(db, 'coaches'), where('directorCode', '==', dc)));
+                coachesSnap.forEach(d => {
+                    const c = d.data();
+                    if (c.status === 'inactive') return;
+                    const ptc = c.promotorTeamCode || '';
+                    if (!ptc || !promotorCodes.has(ptc)) {
+                        orphans.push({
+                            role: 'coach',
+                            name: c.coachName || '',
+                            email: d.id,
+                            companyCode: c.companyCode || '',
+                            currentAssign: ptc,
+                            reason: !ptc ? 'Sin código de promotor asignado' : `El código "${ptc}" no apunta a ningún promotor activo`
+                        });
+                    }
+                });
 
-            // Agentes huérfanos: teamCode no apunta a un coach válido
-            state.agents.forEach(a => {
-                if (a.status === 'inactive') return;
-                const tc = a.teamCode || '';
-                if (!tc || !coachCodes.has(tc)) {
-                    orphans.push({
-                        role: 'agent',
-                        name: a.name || '',
-                        email: a.email,
-                        companyCode: a.companyCode || '',
-                        currentAssign: tc,
-                        reason: !tc ? 'Sin código de coach asignado' : `El código "${tc}" no apunta a ningún coach activo`
-                    });
-                }
-            });
+                // Cargar TODOS los agentes del directorCode
+                const agentsSnap = await getDocs(query(collection(db, 'users'), where('directorCode', '==', dc)));
+                agentsSnap.forEach(d => {
+                    const a = d.data();
+                    if (a.status === 'inactive') return;
+                    const tc = a.teamCode || '';
+                    if (!tc || !coachCodes.has(tc)) {
+                        orphans.push({
+                            role: 'agent',
+                            name: a.agentName || a.name || '',
+                            email: d.id,
+                            companyCode: a.companyCode || '',
+                            currentAssign: tc,
+                            reason: !tc ? 'Sin código de coach asignado' : `El código "${tc}" no apunta a ningún coach activo`
+                        });
+                    }
+                });
+            } catch (e) {
+                console.error('[renderOrphans]', e);
+                container.innerHTML = `<div class="empty-state">Error: ${escapeHtml(e.message)}</div>`;
+                return;
+            }
 
             if (!orphans.length) {
                 container.innerHTML = '<div class="empty-state" style="padding:14px 0;color:var(--green);"><i class="fa fa-check-circle"></i> Sin huérfanos. Toda la jerarquía está conectada.</div>';
@@ -3799,6 +3832,104 @@
             }).join('');
         }
 
+        // Carga TODOS los inactivos relevantes para este director.
+        // Estrategia amplia: status==inactive en cada collection, luego filtrar
+        // client-side por: directorCode==dc OR promotorTeamCode/teamCode in scope.
+        // Captura legacy data sin directorCode pero con códigos viejos.
+        window.renderInactivosCard = async function () {
+            const container = document.getElementById('inactivos-list');
+            if (!container) return;
+            const dc = state.directorCode;
+            if (!dc) {
+                container.innerHTML = '<div class="empty-state"><i class="fa fa-circle-info"></i> Configura tu Código de Director primero.</div>';
+                return;
+            }
+            container.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando inactivos...</div>';
+
+            // Códigos del scope del director (para capturar legacy sin directorCode)
+            const myPromotorCodes = new Set();
+            state.promoters.forEach(p => {
+                if (p.companyCode) myPromotorCodes.add(p.companyCode);
+                if (p.promotorCode) myPromotorCodes.add(p.promotorCode);
+                if (p.promotorNum) myPromotorCodes.add(`TEAM-PROMOTOR-${p.promotorNum}`);
+            });
+            const myCoachCodes = new Set();
+            state.coaches.forEach(c => {
+                if (c.companyCode) myCoachCodes.add(c.companyCode);
+                if (c.agentTeamCode) myCoachCodes.add(c.agentTeamCode);
+                if (c.coachNum) myCoachCodes.add(`TEAM-COACH-${c.coachNum}`);
+            });
+
+            try {
+                const [pSnap, cSnap, uSnap] = await Promise.all([
+                    getDocs(query(collection(db, 'promoters'), where('status', '==', 'inactive'))),
+                    getDocs(query(collection(db, 'coaches'),   where('status', '==', 'inactive'))),
+                    getDocs(query(collection(db, 'users'),     where('status', '==', 'inactive')))
+                ]);
+
+                const inactivos = [];
+                pSnap.forEach(d => {
+                    const p = d.data();
+                    // Match: directorCode coincide, o legacy data del scope
+                    if (p.directorCode === dc) {
+                        inactivos.push({ role: 'promoter', email: d.id, ...p });
+                    }
+                });
+                cSnap.forEach(d => {
+                    const c = d.data();
+                    const inScope = c.directorCode === dc
+                        || (c.promotorTeamCode && myPromotorCodes.has(c.promotorTeamCode));
+                    if (inScope) {
+                        inactivos.push({ role: 'coach', email: d.id, ...c });
+                    }
+                });
+                uSnap.forEach(d => {
+                    const a = d.data();
+                    const inScope = a.directorCode === dc
+                        || (a.teamCode && myCoachCodes.has(a.teamCode));
+                    if (inScope) {
+                        inactivos.push({ role: 'agent', email: d.id, ...a });
+                    }
+                });
+
+                if (!inactivos.length) {
+                    container.innerHTML = '<div class="empty-state" style="padding:14px 0;color:var(--green);"><i class="fa fa-check-circle"></i> Sin miembros inactivos en tu equipo.</div>';
+                    return;
+                }
+
+                const roleEmojiMap = { promoter: '📊', coach: '🧑‍🏫', agent: '👤' };
+                const roleLabelMap = { promoter: 'Promotor', coach: 'Coach', agent: 'Agente' };
+
+                container.innerHTML = inactivos.map(m => {
+                    const safeEmail = escapeHtml(m.email);
+                    const name = m.promoterName || m.coachName || m.agentName || m.name || '(sin nombre)';
+                    const code = m.companyCode || m.promotorCode || m.teamCode || '';
+                    const auditTxt = m.expulsadoAt
+                        ? `Expulsado ${new Date(m.expulsadoAt).toLocaleString('es-MX')}${m.expulsadoPor ? ' por ' + escapeHtml(m.expulsadoPor) : ''}${m.expulsadoMotivo ? ' (motivo: ' + escapeHtml(m.expulsadoMotivo) + ')' : ''}`
+                        : '⚠️ Sin registro de cuándo/por qué fue expulsado (datos pre-audit)';
+
+                    return `
+                    <div style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(239,68,68,0.04); border-radius:8px; margin-bottom:6px; border:1px solid rgba(239,68,68,0.25);">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <span style="font-size:13px; font-weight:600; color:var(--white);">${roleEmojiMap[m.role]} ${escapeHtml(name)}</span>
+                                <span style="font-size:11px; color:var(--slate);">${safeEmail}</span>
+                                ${code ? `<span style="font-size:11px; color:var(--gold);">🔑 ${escapeHtml(code)}</span>` : ''}
+                                <span style="font-size:10px; padding:2px 8px; background:rgba(239,68,68,0.15); color:var(--red); border-radius:10px; font-weight:700; letter-spacing:1px;">${roleLabelMap[m.role]} INACTIVO</span>
+                            </div>
+                            <div style="font-size:11px; color:var(--slate); margin-top:4px; font-style:italic;">${auditTxt}</div>
+                        </div>
+                        <button class="btn btn-green btn-sm" onclick="reactivateMember('${safeEmail}','${m.role}')">
+                            <i class="fa fa-user-check"></i> Reactivar
+                        </button>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                console.error('[renderInactivosCard]', e);
+                container.innerHTML = `<div class="empty-state">Error: ${escapeHtml(e.message)}</div>`;
+            }
+        };
+
         window.reassignOrphan = async function (email, role, eid) {
             const sel = document.getElementById(eid + '-sel');
             const newCode = sel?.value;
@@ -3845,38 +3976,14 @@
             `).join('');
         }
 
-        // Cache de inactivos cargado bajo demanda (cuando se activa el toggle)
-        let _inactiveCache = null;
-        async function loadInactiveMembers() {
-            const dc = state.directorCode || '';
-            if (!dc) return { promoters: [], coaches: [], agents: [] };
-            try {
-                // Consultas paralelas a las 3 collections, filtrando por directorCode + status:inactive
-                const [pSnap, cSnap, uSnap] = await Promise.all([
-                    getDocs(query(collection(db, 'promoters'), where('directorCode', '==', dc), where('status', '==', 'inactive'))),
-                    getDocs(query(collection(db, 'coaches'),   where('directorCode', '==', dc), where('status', '==', 'inactive'))),
-                    getDocs(query(collection(db, 'users'),     where('directorCode', '==', dc), where('status', '==', 'inactive')))
-                ]);
-                return {
-                    promoters: pSnap.docs.map(d => ({ ...d.data(), email: d.id })),
-                    coaches:   cSnap.docs.map(d => ({ ...d.data(), email: d.id })),
-                    agents:    uSnap.docs.map(d => ({ ...d.data(), email: d.id }))
-                };
-            } catch (e) {
-                console.error('[loadInactiveMembers]', e);
-                return { promoters: [], coaches: [], agents: [] };
-            }
-        }
-
-        async function renderGestionAll() {
+        function renderGestionAll() {
             const container = document.getElementById('gestion-all-list');
             if (!container) return;
 
             const search = (document.getElementById('gestion-search')?.value || '').toLowerCase();
             const roleFilter = document.getElementById('gestion-role-filter')?.value || '';
-            const showInactive = document.getElementById('gestion-show-inactive')?.checked || false;
 
-            // Build unified list (active members)
+            // Build unified list (active members only — inactivos van en su propia card)
             const all = [];
 
             state.promoters.forEach(p => {
@@ -3886,8 +3993,7 @@
                     name: p.promoterName || '',
                     email: p.email,
                     companyCode: p.companyCode || p.promotorCode || '',
-                    assignCode: p.directorCode || state.directorCode || '',
-                    inactive: false
+                    assignCode: p.directorCode || state.directorCode || ''
                 });
             });
 
@@ -3898,8 +4004,7 @@
                     name: c.coachName || '',
                     email: c.email,
                     companyCode: c.companyCode || c.agentTeamCode || '',
-                    assignCode: c.promotorTeamCode || '',
-                    inactive: false
+                    assignCode: c.promotorTeamCode || ''
                 });
             });
 
@@ -3911,42 +4016,9 @@
                     name: a.name || '',
                     email: a.email || '',
                     companyCode: a.companyCode || '',
-                    assignCode: a.teamCode || '',
-                    inactive: false
+                    assignCode: a.teamCode || ''
                 });
             });
-
-            // Si el toggle está activo, cargar y agregar inactivos
-            if (showInactive) {
-                const inactives = await loadInactiveMembers();
-                inactives.promoters.forEach(p => {
-                    all.push({
-                        role: 'promoter', name: p.promoterName || '', email: p.email,
-                        companyCode: p.companyCode || p.promotorCode || '',
-                        assignCode: p.directorCode || '',
-                        inactive: true,
-                        expulsadoPor: p.expulsadoPor, expulsadoAt: p.expulsadoAt, expulsadoMotivo: p.expulsadoMotivo
-                    });
-                });
-                inactives.coaches.forEach(c => {
-                    all.push({
-                        role: 'coach', name: c.coachName || '', email: c.email,
-                        companyCode: c.companyCode || '',
-                        assignCode: c.promotorTeamCode || '',
-                        inactive: true,
-                        expulsadoPor: c.expulsadoPor, expulsadoAt: c.expulsadoAt, expulsadoMotivo: c.expulsadoMotivo
-                    });
-                });
-                inactives.agents.forEach(a => {
-                    all.push({
-                        role: 'agent', name: a.agentName || a.name || '', email: a.email,
-                        companyCode: a.companyCode || '',
-                        assignCode: a.teamCode || '',
-                        inactive: true,
-                        expulsadoPor: a.expulsadoPor, expulsadoAt: a.expulsadoAt, expulsadoMotivo: a.expulsadoMotivo
-                    });
-                });
-            }
 
             // Apply filters
             let filtered = all;
@@ -3968,28 +4040,6 @@
             container.innerHTML = filtered.map(m => {
                 const safeEmail = escapeHtml(m.email);
                 const eid = m.email.replace(/[@.+]/g, '_');
-                if (m.inactive) {
-                    // Render compacto para inactivos: nombre + audit info + botón Reactivar
-                    const auditTxt = m.expulsadoAt
-                        ? `Expulsado ${new Date(m.expulsadoAt).toLocaleString('es-MX')}${m.expulsadoPor ? ' por ' + escapeHtml(m.expulsadoPor) : ''}${m.expulsadoMotivo ? ' (' + escapeHtml(m.expulsadoMotivo) + ')' : ''}`
-                        : 'Sin registro de cuándo/por qué fue expulsado (datos pre-audit)';
-                    const roleEmoji = { promoter: '📊', coach: '🧑‍🏫', agent: '👤' }[m.role] || '';
-                    return `
-                    <div style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(239,68,68,0.04); border-radius:8px; margin-bottom:6px; border:1px solid rgba(239,68,68,0.2); opacity:0.85;">
-                        <div>
-                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                                <span style="font-size:13px; font-weight:600; color:var(--white);">${roleEmoji} ${escapeHtml(m.name)}</span>
-                                <span style="font-size:11px; color:var(--slate);">${safeEmail}</span>
-                                <span style="font-size:11px; color:var(--gold);">🔑 ${escapeHtml(m.companyCode)}</span>
-                                <span style="font-size:10px; padding:2px 8px; background:rgba(239,68,68,0.15); color:var(--red); border-radius:10px; font-weight:700; letter-spacing:1px;">INACTIVO</span>
-                            </div>
-                            <div style="font-size:10px; color:var(--slate); margin-top:4px; font-style:italic;">${auditTxt}</div>
-                        </div>
-                        <button class="btn btn-green btn-sm" onclick="reactivateMember('${safeEmail}','${m.role}')">
-                            <i class="fa fa-user-check"></i> Reactivar
-                        </button>
-                    </div>`;
-                }
                 return `
                 <div style="display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
                     <div>
@@ -4319,8 +4369,10 @@
                     reactivadoAt: nowISO()
                 }, { merge: true });
                 alert('✅ Miembro reactivado. Ya puede entrar a la app.');
-                // Refrescar la vista
+                // Refrescar las 3 vistas (gestion principal + huérfanos + inactivos)
                 if (typeof renderGestionAll === 'function') renderGestionAll();
+                if (typeof renderOrphans === 'function') renderOrphans();
+                if (typeof renderInactivosCard === 'function') renderInactivosCard();
             } catch (err) { alert('Error: ' + err.message); }
         };
 
