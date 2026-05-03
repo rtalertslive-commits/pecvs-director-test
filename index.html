@@ -3999,7 +3999,7 @@
                         : '⚠️ Sin registro de cuándo/por qué fue expulsado (datos pre-audit)';
 
                     return `
-                    <div style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(239,68,68,0.04); border-radius:8px; margin-bottom:6px; border:1px solid rgba(239,68,68,0.25);">
+                    <div style="display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:8px; padding:12px 14px; background:rgba(239,68,68,0.04); border-radius:8px; margin-bottom:6px; border:1px solid rgba(239,68,68,0.25);">
                         <div>
                             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                                 <span style="font-size:13px; font-weight:600; color:var(--white);">${roleEmojiMap[m.role]} ${escapeHtml(name)}</span>
@@ -4011,6 +4011,9 @@
                         </div>
                         <button class="btn btn-green btn-sm" onclick="reactivateMember('${safeEmail}','${m.role}')">
                             <i class="fa fa-user-check"></i> Reactivar
+                        </button>
+                        <button class="btn btn-red btn-sm" onclick="deleteInactiveMember('${safeEmail}','${m.role}')" title="Borrar definitivamente — la persona podrá volver a registrarse desde cero">
+                            <i class="fa fa-trash"></i> Borrar
                         </button>
                     </div>`;
                 }).join('');
@@ -4521,6 +4524,27 @@
                 }, { merge: true });
                 alert('✅ Miembro reactivado. Ya puede entrar a la app.');
                 // Refrescar las 3 vistas (gestion principal + huérfanos + inactivos)
+                if (typeof renderGestionAll === 'function') renderGestionAll();
+                if (typeof renderOrphans === 'function') renderOrphans();
+                if (typeof renderInactivosCard === 'function') renderInactivosCard();
+            } catch (err) { alert('Error: ' + err.message); }
+        };
+
+        // Borra DEFINITIVAMENTE el doc del usuario inactivo. Después la persona puede
+        // volver a registrarse desde cero (loguea → registro → pending_users → director aprueba).
+        // ⚠ Pierde karma, karmaLog, entries y todo el historial. No se puede deshacer.
+        window.deleteInactiveMember = async function (email, role) {
+            const colMap = { promoter: 'promoters', coach: 'coaches', agent: 'users' };
+            const colName = colMap[role];
+            if (!colName) { alert('Rol inválido.'); return; }
+            const roleLabel = { promoter: 'promotor', coach: 'coach', agent: 'agente' }[role] || role;
+            if (!confirm(`⚠️ ¿BORRAR DEFINITIVAMENTE a este ${roleLabel}?\n\nEsta acción:\n• Borra todos sus datos (karma, bitácora, historial)\n• Permite que la persona vuelva a registrarse desde cero\n• NO se puede deshacer\n\n¿Continuar?`)) return;
+            // Doble confirmación porque es destructivo
+            if (!confirm(`Última confirmación: borrar permanentemente a "${email}".\n\n¿Estás 100% seguro?`)) return;
+            try {
+                await deleteDoc(doc(db, colName, email));
+                alert(`✅ Borrado. Si esta persona se loguea en la app, podrá registrarse de nuevo desde cero.`);
+                // Refrescar las 3 vistas
                 if (typeof renderGestionAll === 'function') renderGestionAll();
                 if (typeof renderOrphans === 'function') renderOrphans();
                 if (typeof renderInactivosCard === 'function') renderInactivosCard();
