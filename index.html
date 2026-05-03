@@ -1273,26 +1273,40 @@
             </div>
 
             <div class="card" style="margin-top:20px;">
-                <p class="card-title"><i class="fa fa-ghost" style="color:var(--orange);"></i> Huérfanos (jerarquía rota)</p>
+                <p class="card-title"><i class="fa fa-ghost" style="color:var(--orange);"></i> Huérfanos (jerarquía rota) <span id="orphans-count" style="font-size:12px; color:var(--slate); font-weight:400; margin-left:8px;"></span></p>
                 <p style="font-size:12px; color:var(--slate); margin-bottom:14px;">
                     Miembros activos cuyo código de asignación no apunta a un padre válido. Pueden seguir entrando a la app pero no aparecen en los reportes correctos. Reasignalos a un padre válido.
                 </p>
-                <button class="btn btn-sm" style="margin-bottom:12px;" onclick="renderOrphans()">
-                    <i class="fa fa-rotate"></i> Refrescar huérfanos
-                </button>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+                    <input type="text" id="orphans-search" placeholder="🔍 Buscar por nombre o email..." oninput="renderOrphans()" style="max-width:280px; padding:7px 10px; font-size:12px;">
+                    <label style="font-size:12px; color:var(--slate); display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:6px 12px; background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.2); border-radius:6px;">
+                        <input type="checkbox" id="orphans-hide-test" onchange="renderOrphans()" checked style="width:auto; margin:0;">
+                        <span>🧪 Ocultar datos de prueba (@example.com, @test.com)</span>
+                    </label>
+                    <button class="btn btn-sm" onclick="renderOrphans()">
+                        <i class="fa fa-rotate"></i> Refrescar
+                    </button>
+                </div>
                 <div id="orphans-list">
                     <div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Calculando huérfanos...</div>
                 </div>
             </div>
 
             <div class="card" style="margin-top:20px;">
-                <p class="card-title"><i class="fa fa-user-slash" style="color:var(--red);"></i> Miembros Inactivos (Expulsados)</p>
+                <p class="card-title"><i class="fa fa-user-slash" style="color:var(--red);"></i> Miembros Inactivos (Expulsados) <span id="inactivos-count" style="font-size:12px; color:var(--slate); font-weight:400; margin-left:8px;"></span></p>
                 <p style="font-size:12px; color:var(--slate); margin-bottom:14px;">
                     Miembros con <code>status: inactive</code>. No pueden entrar a la app. Si fue por error, pulsá <strong>Reactivar</strong>.
                 </p>
-                <button class="btn btn-sm" style="margin-bottom:12px;" onclick="renderInactivosCard()">
-                    <i class="fa fa-rotate"></i> Refrescar inactivos
-                </button>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+                    <input type="text" id="inactivos-search" placeholder="🔍 Buscar por nombre o email..." oninput="renderInactivosCard()" style="max-width:280px; padding:7px 10px; font-size:12px;">
+                    <label style="font-size:12px; color:var(--slate); display:inline-flex; align-items:center; gap:6px; cursor:pointer; padding:6px 12px; background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.2); border-radius:6px;">
+                        <input type="checkbox" id="inactivos-hide-test" onchange="renderInactivosCard()" checked style="width:auto; margin:0;">
+                        <span>🧪 Ocultar datos de prueba (@example.com, @test.com)</span>
+                    </label>
+                    <button class="btn btn-sm" onclick="renderInactivosCard()">
+                        <i class="fa fa-rotate"></i> Refrescar
+                    </button>
+                </div>
                 <div id="inactivos-list">
                     <div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando inactivos...</div>
                 </div>
@@ -3786,8 +3800,38 @@
                 return;
             }
 
-            if (!orphans.length) {
-                container.innerHTML = '<div class="empty-state" style="padding:14px 0;color:var(--green);"><i class="fa fa-check-circle"></i> Sin huérfanos. Toda la jerarquía está conectada.</div>';
+            // Aplicar filtros: búsqueda + ocultar datos test
+            const searchEl = document.getElementById('orphans-search');
+            const hideTestEl = document.getElementById('orphans-hide-test');
+            const search = (searchEl?.value || '').toLowerCase();
+            const hideTest = hideTestEl?.checked !== false; // default true
+            const totalCount = orphans.length;
+            let filtered = orphans;
+            if (hideTest) {
+                filtered = filtered.filter(o => !/@(example|test)\.com$/i.test(o.email));
+            }
+            if (search) {
+                filtered = filtered.filter(o =>
+                    (o.name || '').toLowerCase().includes(search) ||
+                    (o.email || '').toLowerCase().includes(search) ||
+                    (o.companyCode || '').toLowerCase().includes(search) ||
+                    (o.currentAssign || '').toLowerCase().includes(search)
+                );
+            }
+
+            // Update count badge
+            const countEl = document.getElementById('orphans-count');
+            if (countEl) {
+                if (totalCount === filtered.length) countEl.textContent = `(${filtered.length})`;
+                else countEl.textContent = `(${filtered.length} de ${totalCount} — filtrados)`;
+            }
+
+            if (!filtered.length) {
+                if (totalCount === 0) {
+                    container.innerHTML = '<div class="empty-state" style="padding:14px 0;color:var(--green);"><i class="fa fa-check-circle"></i> Sin huérfanos. Toda la jerarquía está conectada.</div>';
+                } else {
+                    container.innerHTML = `<div class="empty-state" style="padding:14px 0;"><i class="fa fa-filter"></i> ${totalCount} huérfanos ocultos por filtros. Quitá el filtro de "datos de prueba" o cambiá la búsqueda para verlos.</div>`;
+                }
                 return;
             }
 
@@ -3801,7 +3845,7 @@
                 .map(c => ({ code: c.companyCode || c.agentTeamCode, name: c.coachName || c.email }))
                 .filter(o => o.code);
 
-            container.innerHTML = orphans.map(o => {
+            container.innerHTML = filtered.map(o => {
                 const safeEmail = escapeHtml(o.email);
                 const eid = 'orphan-' + o.email.replace(/[@.+]/g, '_');
                 const opts = (o.role === 'coach' ? promotorOptions : coachOptions);
@@ -3892,15 +3936,41 @@
                     }
                 });
 
-                if (!inactivos.length) {
-                    container.innerHTML = '<div class="empty-state" style="padding:14px 0;color:var(--green);"><i class="fa fa-check-circle"></i> Sin miembros inactivos en tu equipo.</div>';
+                // Aplicar filtros: búsqueda + ocultar test data
+                const search = (document.getElementById('inactivos-search')?.value || '').toLowerCase();
+                const hideTest = document.getElementById('inactivos-hide-test')?.checked !== false; // default true
+                const totalCount = inactivos.length;
+                let filtered = inactivos;
+                if (hideTest) {
+                    filtered = filtered.filter(m => !/@(example|test)\.com$/i.test(m.email));
+                }
+                if (search) {
+                    filtered = filtered.filter(m => {
+                        const name = (m.promoterName || m.coachName || m.agentName || m.name || '').toLowerCase();
+                        return name.includes(search) || (m.email || '').toLowerCase().includes(search);
+                    });
+                }
+
+                // Update count badge
+                const countEl = document.getElementById('inactivos-count');
+                if (countEl) {
+                    if (totalCount === filtered.length) countEl.textContent = `(${filtered.length})`;
+                    else countEl.textContent = `(${filtered.length} de ${totalCount} — filtrados)`;
+                }
+
+                if (!filtered.length) {
+                    if (totalCount === 0) {
+                        container.innerHTML = '<div class="empty-state" style="padding:14px 0;color:var(--green);"><i class="fa fa-check-circle"></i> Sin miembros inactivos en tu equipo.</div>';
+                    } else {
+                        container.innerHTML = `<div class="empty-state" style="padding:14px 0;"><i class="fa fa-filter"></i> ${totalCount} inactivos ocultos por filtros. Quitá el filtro de "datos de prueba" o cambiá la búsqueda para verlos.</div>`;
+                    }
                     return;
                 }
 
                 const roleEmojiMap = { promoter: '📊', coach: '🧑‍🏫', agent: '👤' };
                 const roleLabelMap = { promoter: 'Promotor', coach: 'Coach', agent: 'Agente' };
 
-                container.innerHTML = inactivos.map(m => {
+                container.innerHTML = filtered.map(m => {
                     const safeEmail = escapeHtml(m.email);
                     const name = m.promoterName || m.coachName || m.agentName || m.name || '(sin nombre)';
                     const code = m.companyCode || m.promotorCode || m.teamCode || '';
