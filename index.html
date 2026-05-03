@@ -2453,7 +2453,7 @@
                 const d = diasMap[dayName] || { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
                 const P = d.P || 0, E = d.E || 0, C = d.C || 0, V = d.V || 0, S = d.S || 0, pr = parseFloat(d.prima) || 0;
                 semP += P; semE += E; semC += C; semV += V; semS += S; semPrima += pr;
-                const funnel = P >= E && E >= C && C >= V ? (P > 0 ? '🟢' : '⚪') : '🔴';
+                const funnel = d.sinActividad === true ? '🌙' : (P >= E && E >= C && C >= V ? (P > 0 ? '🟢' : '⚪') : '🔴');
                 return `<tr>
                   <td class="day-label">${dayName} <span style="font-size:10px;color:var(--slate);">${date}</span></td>
                   <td style="text-align:center;">${P}</td><td style="text-align:center;">${E}</td>
