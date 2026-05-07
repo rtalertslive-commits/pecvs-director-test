@@ -2282,7 +2282,14 @@
                         const agentData = docSnap.data();
                         if (agentData.status === 'inactive') return; // skip expulsados
                         if (agentData.agentName) {
-                            batchAgents.push({ name: agentData.agentName, teamCode: agentData.teamCode, email: docSnap.id, companyCode: agentData.companyCode || '' });
+                            batchAgents.push({
+                                name: agentData.agentName,
+                                teamCode: agentData.teamCode,
+                                email: docSnap.id,
+                                companyCode: agentData.companyCode || '',
+                                telegram_username: agentData.telegram_username || null,
+                                auth_provider: agentData.auth_provider || null,
+                            });
                             if (agentData.entries) {
                                 agentData.entries.forEach(e => {
                                     e.agent = agentData.agentName;
@@ -3773,7 +3780,11 @@
                     // Filtrar estrictamente: la solicitud DEBE coincidir con mi región
                     const userRegion = (data.region || '').toLowerCase();
                     if (userRegion !== myRegion) return;
-                    pendingUsers.push({ email: docSnap.id, ...data });
+                    // displayId: para Telegram users mostramos "@username" en vez del raw uid "tg_<id>"
+                    const displayId = data.telegram_username
+                        ? '@' + data.telegram_username
+                        : docSnap.id;
+                    pendingUsers.push({ email: docSnap.id, displayId, ...data });
                 });
                 // Update badge
                 const badge = document.getElementById('pending-badge');
@@ -4109,7 +4120,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.04); border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.08); flex-wrap:wrap; gap:10px;">
                     <div>
                         <div style="font-weight:600; font-size:13px;">${escapeHtml(u.name || u.email)}</div>
-                        <div style="font-size:11px; color:var(--slate); margin-top:2px;">${escapeHtml(u.email)}</div>
+                        <div style="font-size:11px; color:var(--slate); margin-top:2px;">${escapeHtml(u.displayId || u.email)}${u.auth_provider === 'telegram' ? ' <i class="fa-brands fa-telegram" style="color:#60a5fa;"></i>' : ''}</div>
                         <div style="font-size:12px; margin-top:4px;">Clave: <span style="font-size:16px; font-weight:800; color:var(--gold); letter-spacing:3px;">${escapeHtml(u.companyCode || '—')}</span></div>
                     </div>
                     <div style="display:flex; gap:8px;">
@@ -4164,7 +4175,9 @@
                     name: a.name || '',
                     email: a.email || '',
                     companyCode: a.companyCode || '',
-                    assignCode: a.teamCode || ''
+                    assignCode: a.teamCode || '',
+                    telegram_username: a.telegram_username || null,
+                    auth_provider: a.auth_provider || null,
                 });
             });
 
@@ -4244,12 +4257,16 @@
             container.innerHTML = filtered.map(m => {
                 const safeEmail = escapeHtml(m.email);
                 const eid = m.email.replace(/[@.+]/g, '_');
+                // Display id: Telegram users → @username con icono. Resto → email tal cual.
+                const displayHtml = m.telegram_username
+                    ? `@${escapeHtml(m.telegram_username)} <i class="fa-brands fa-telegram" style="color:#60a5fa;font-size:10px;"></i>`
+                    : safeEmail;
                 return `
                 <div style="display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px; padding:12px 14px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06);">
                     <div>
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
                             <input id="name-inp-${eid}" value="${escapeHtml(m.name)}" placeholder="Nombre" style="font-weight:600; font-size:13px; width:190px; padding:5px 8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:var(--white);">
-                            <span style="font-size:11px; color:var(--slate);">${safeEmail}</span>
+                            <span style="font-size:11px; color:var(--slate);" title="${safeEmail}">${displayHtml}</span>
                             <span style="font-size:11px; display:flex; align-items:center; gap:4px;">
                                 🔑 <input id="code-inp-${eid}" value="${escapeHtml(m.companyCode)}" placeholder="0000" maxlength="4" style="width:72px; font-weight:800; color:var(--gold); font-size:13px; letter-spacing:2px; padding:4px 8px; text-align:center; background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.25); border-radius:6px;">
                             </span>
@@ -4412,10 +4429,12 @@
                 .map(p => `<option value="${escapeHtml(p.email)}">${escapeHtml(p.promoterName)} [${escapeHtml(p.companyCode || p.promotorCode || p.email)}]</option>`)
                 .join('');
 
+            const idLabel = pending.auth_provider === 'telegram' ? 'Telegram' : 'Email';
+            const idValue = pending.displayId || pending.email;
             const formHtml = `
                 <div style="background:rgba(255,255,255,0.04); border-radius:8px; padding:14px; font-size:13px; line-height:1.9;">
                     <div><strong style="color:var(--gold);">Nombre:</strong> ${escapeHtml(pending.name || '—')}</div>
-                    <div><strong style="color:var(--gold);">Email:</strong> ${escapeHtml(pending.email)}</div>
+                    <div><strong style="color:var(--gold);">${idLabel}:</strong> ${escapeHtml(idValue)}</div>
                     <div><strong style="color:var(--gold);">Región:</strong> ${escapeHtml(pending.region || '—')}</div>
                     <div><strong style="color:var(--gold);">Clave:</strong> <span style="font-size:18px; font-weight:800; letter-spacing:4px;">${escapeHtml(pending.companyCode || '—')}</span></div>
                 </div>
@@ -4488,6 +4507,15 @@
                     if (!coach) { alert('Coach no encontrado.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
                     // Agent's teamCode = coach's companyCode (4-digit) — links agent to coach's team
                     const coachTeamCode = coach.companyCode || coach.agentTeamCode;
+                    // Si la solicitud viene de Telegram, conservar la metadata para mostrar
+                    // @username en vez del raw uid en gestion/leaderboards.
+                    const tgFields = currentApproval.auth_provider === 'telegram' ? {
+                        auth_provider: 'telegram',
+                        telegram_id: currentApproval.telegram_id || null,
+                        telegram_username: currentApproval.telegram_username || null,
+                        telegram_first_name: currentApproval.telegram_first_name || null,
+                        telegram_last_name: currentApproval.telegram_last_name || null,
+                    } : {};
                     await setDoc(doc(db, "users", email), {
                         agentName: name,
                         email: email,
@@ -4498,7 +4526,8 @@
                         status: 'active',
                         type: 'agent',
                         approvedBy: user.email,
-                        approvedAt: new Date().toISOString()
+                        approvedAt: new Date().toISOString(),
+                        ...tgFields
                     }, { merge: true });
 
                 } else if (role === 'coach') {
