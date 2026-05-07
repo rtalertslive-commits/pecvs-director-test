@@ -764,10 +764,45 @@
         .tab-panel.active {
             animation: fadeIn .3s ease;
         }
+        /* Icono SVG del totopo (Variante H — reemplaza al emoji 🌮).
+           Hereda font-size del padre (1em x 1em). Definido en <symbol> al inicio del <body>. */
+        .totopo-icon {
+            width: 1em;
+            height: 1em;
+            display: inline-block;
+            vertical-align: -0.15em;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 
 <body>
+    <!-- ICONO SVG TOTOPO (Variante H — hecho a mano, asimétrico).
+         Reusable via <svg class="totopo-icon"><use href="#totopo"/></svg> -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+            <linearGradient id="totopoGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+                <stop offset="0%" stop-color="#f5d77a"/>
+                <stop offset="100%" stop-color="#c9941f"/>
+            </linearGradient>
+        </defs>
+        <symbol id="totopo" viewBox="0 0 100 100">
+            <path d="M 47 11 Q 51 11 56 16 L 63 22 Q 71 32 76 42 L 84 56 Q 89 68 90 75 Q 91 80 87 84 L 78 84 Q 65 83 50 84 Q 34 83 22 84 L 14 84 Q 9 83 9 78 Q 11 70 16 60 L 24 45 Q 30 32 36 23 L 41 16 Q 44 11 47 11 Z" fill="url(#totopoGrad)" stroke="#4a2706" stroke-width="3.2" stroke-linejoin="round"/>
+            <circle cx="36" cy="46" r="3.5" fill="#3a1f04" opacity="0.85"/>
+            <circle cx="58" cy="38" r="3" fill="#3a1f04" opacity="0.8"/>
+            <circle cx="48" cy="58" r="3.8" fill="#3a1f04" opacity="0.88"/>
+            <circle cx="65" cy="55" r="2.5" fill="#3a1f04" opacity="0.75"/>
+            <circle cx="30" cy="65" r="2.6" fill="#3a1f04" opacity="0.78"/>
+            <circle cx="55" cy="72" r="2.2" fill="#3a1f04" opacity="0.75"/>
+            <circle cx="40" cy="74" r="1.8" fill="#3a1f04" opacity="0.7"/>
+            <circle cx="68" cy="72" r="2" fill="#3a1f04" opacity="0.72"/>
+            <circle cx="45" cy="34" r="1.5" fill="#3a1f04" opacity="0.65"/>
+            <circle cx="52" cy="50" r="1.5" fill="#fff5d0" opacity="0.55"/>
+            <circle cx="38" cy="58" r="1.1" fill="#fff5d0" opacity="0.5"/>
+            <circle cx="60" cy="62" r="0.9" fill="#fff5d0" opacity="0.45"/>
+        </symbol>
+    </svg>
+
     <!-- LOGIN OVERLAY -->
     <div id="login-overlay" class="login-overlay">
         <div class="login-card">
@@ -815,7 +850,7 @@
             <button class="tab-btn" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
             <button class="tab-btn" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" onclick="switchTab('tienda',this)"><i class="fa fa-store"></i> Tienda <span id="tienda-pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
-            <button class="tab-btn" onclick="switchTab('tesoreria',this)"><i class="fa fa-landmark"></i> Tesorería 🌮</button>
+            <button class="tab-btn" onclick="switchTab('tesoreria',this)"><i class="fa fa-landmark"></i> Tesorería <svg class="totopo-icon"><use href="#totopo"/></svg></button>
             <button class="tab-btn" onclick="switchTab('conceptos',this)"><i class="fa fa-lightbulb"></i> Conceptos</button>
         </div>
 
@@ -1327,7 +1362,7 @@
             <div id="tsub-puntos">
                 <div class="card">
                     <p class="card-title"><i class="fa fa-star"></i> Puntos por Actividad</p>
-                    <p style="font-size:12px;color:var(--slate);margin-bottom:18px;">Define cuántos tacos 🌮 gana cada rol al reportar.</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:18px;">Define cuántos totopos <svg class="totopo-icon"><use href="#totopo"/></svg> gana cada rol al reportar.</p>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;">
                         <div>
                             <label class="field-label">Agente — por día reportado</label>
@@ -1373,7 +1408,7 @@
                             <input type="text" id="new-item-desc" class="form-input" placeholder="Descripción del item">
                         </div>
                         <div>
-                            <label class="field-label">Costo (tacos 🌮)</label>
+                            <label class="field-label">Costo (totopos <svg class="totopo-icon"><use href="#totopo"/></svg>)</label>
                             <input type="number" id="new-item-costo" min="1" class="form-input" value="100">
                         </div>
                         <div>
@@ -1414,31 +1449,31 @@
         <!-- ═══════════════════ TAB: TESORERÍA ═══════════════════ -->
         <div id="tab-tesoreria" class="tab-panel">
             <div class="card">
-                <h2 style="margin-top:0;"><i class="fa fa-landmark"></i> Tesorería de Tacos 🌮</h2>
+                <h2 style="margin-top:0;"><i class="fa fa-landmark"></i> Tesorería de Totopos <svg class="totopo-icon"><use href="#totopo"/></svg></h2>
                 <p style="font-size:12px;color:var(--slate);margin-bottom:20px;">
-                    Como director eres el banco central de tu región. Puedes otorgar tacos extra o quemarlos según el desempeño que veas. Cada movimiento queda registrado.
+                    Como director eres el banco central de tu región. Puedes otorgar totopos extra o quemarlos según el desempeño que veas. Cada movimiento queda registrado.
                 </p>
 
                 <!-- Dashboard de totales -->
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;">
                     <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:14px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Supply Total</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--gold);margin-top:4px;" id="tes-supply">— 🌮</div>
-                        <div style="font-size:10px;color:var(--slate);margin-top:2px;">tacos en circulación</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--gold);margin-top:4px;" id="tes-supply">— <svg class="totopo-icon"><use href="#totopo"/></svg></div>
+                        <div style="font-size:10px;color:var(--slate);margin-top:2px;">totopos en circulación</div>
                     </div>
                     <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:14px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Total Ganado</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--green);margin-top:4px;" id="tes-earned">— 🌮</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--green);margin-top:4px;" id="tes-earned">— <svg class="totopo-icon"><use href="#totopo"/></svg></div>
                         <div style="font-size:10px;color:var(--slate);margin-top:2px;">desde el inicio</div>
                     </div>
                     <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:14px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Gastado en Tienda</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--blue);margin-top:4px;" id="tes-spent">— 🌮</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--blue);margin-top:4px;" id="tes-spent">— <svg class="totopo-icon"><use href="#totopo"/></svg></div>
                         <div style="font-size:10px;color:var(--slate);margin-top:2px;">canjes aprobados</div>
                     </div>
                     <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:14px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Quemado por Director</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--red);margin-top:4px;" id="tes-burned">— 🌮</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--red);margin-top:4px;" id="tes-burned">— <svg class="totopo-icon"><use href="#totopo"/></svg></div>
                         <div style="font-size:10px;color:var(--slate);margin-top:2px;">ajustes manuales</div>
                     </div>
                 </div>
@@ -1535,11 +1570,11 @@
     <div class="modal-overlay" id="tes-action-modal">
         <div class="modal-box" style="max-width:420px;">
             <button class="modal-close" onclick="document.getElementById('tes-action-modal').classList.remove('open')">&times;</button>
-            <h2 id="tes-action-title" style="margin-top:0;font-size:18px;">Ajustar tacos</h2>
+            <h2 id="tes-action-title" style="margin-top:0;font-size:18px;">Ajustar totopos</h2>
             <p style="font-size:12px;color:var(--slate);margin-bottom:14px;" id="tes-action-subtitle">Usuario</p>
             <div style="display:flex;flex-direction:column;gap:12px;">
                 <div>
-                    <label class="field-label">Cantidad de tacos 🌮</label>
+                    <label class="field-label">Cantidad de totopos <svg class="totopo-icon"><use href="#totopo"/></svg></label>
                     <input type="number" id="tes-action-amount" min="1" placeholder="Ej. 100" style="font-size:18px;font-weight:700;text-align:center;">
                 </div>
                 <div>
@@ -1556,7 +1591,7 @@
         <div class="modal-box" style="max-width:600px;">
             <button class="modal-close" onclick="document.getElementById('tes-history-modal').classList.remove('open')">&times;</button>
             <h2 id="tes-history-title" style="margin-top:0;font-size:18px;"><i class="fa fa-clock-rotate-left"></i> Historial</h2>
-            <p style="font-size:12px;color:var(--slate);margin-bottom:14px;" id="tes-history-subtitle">Movimientos de tacos</p>
+            <p style="font-size:12px;color:var(--slate);margin-bottom:14px;" id="tes-history-subtitle">Movimientos de totopos</p>
             <div id="tes-history-list" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
         </div>
     </div><!-- /tes-history-modal -->
@@ -4968,7 +5003,7 @@
                         <div style="font-weight:700;font-size:14px;">${eNombre}</div>
                         <div style="font-size:12px;color:var(--slate);">${eDesc}</div>
                         <div style="font-size:12px;margin-top:2px;">
-                            <span style="color:var(--gold);font-weight:700;">🌮 ${costoNum} tacos</span>
+                            <span style="color:var(--gold);font-weight:700;"><svg class="totopo-icon"><use href="#totopo"/></svg> ${costoNum} totopos</span>
                             &nbsp;·&nbsp;
                             <span style="color:var(--slate);">Stock: ${stockNum < 0 ? '∞' : (Number(stockNum)||0)}</span>
                             &nbsp;·&nbsp;
@@ -5058,7 +5093,7 @@
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
                             <div>
                                 <div style="font-weight:700;">${eEmoji} ${eName}</div>
-                                <div style="font-size:12px;color:var(--slate);">${eSol} &nbsp;·&nbsp; ${eRol} &nbsp;·&nbsp; <span style="color:var(--gold);">🌮 ${costoNum} tacos</span></div>
+                                <div style="font-size:12px;color:var(--slate);">${eSol} &nbsp;·&nbsp; ${eRol} &nbsp;·&nbsp; <span style="color:var(--gold);"><svg class="totopo-icon"><use href="#totopo"/></svg> ${costoNum} totopos</span></div>
                                 <div style="font-size:11px;color:var(--slate);margin-top:2px;">${new Date(r.fechaSolicitud).toLocaleString('es-MX')}</div>
                             </div>
                             <div style="display:flex;gap:6px;">
@@ -5077,7 +5112,7 @@
                     return `
                     <div style="padding:10px 14px;background:var(--panel2);border-radius:8px;border-left:3px solid ${r.status==='approved'?'var(--green)':'var(--red)'};">
                         <div style="font-size:13px;font-weight:600;">${eEmoji} ${eName} &nbsp;<span style="color:${r.status==='approved'?'var(--green)':'var(--red)'};font-size:11px;">${r.status==='approved'?'✓ Aprobado':'✗ Rechazado'}</span></div>
-                        <div style="font-size:11px;color:var(--slate);">${eSol} &nbsp;·&nbsp; 🌮 ${costoNum} tacos &nbsp;·&nbsp; ${new Date(r.fechaResolucion||r.fechaSolicitud).toLocaleDateString('es-MX')}</div>
+                        <div style="font-size:11px;color:var(--slate);">${eSol} &nbsp;·&nbsp; <svg class="totopo-icon"><use href="#totopo"/></svg> ${costoNum} totopos &nbsp;·&nbsp; ${new Date(r.fechaResolucion||r.fechaSolicitud).toLocaleDateString('es-MX')}</div>
                     </div>`;
                 }).join('') : '<div class="empty-state"><i class="fa fa-inbox"></i> Sin historial.</div>';
 
@@ -5096,7 +5131,7 @@
 
                 // NUEVO FLUJO: el stock ya fue decrementado por el agente al solicitar
                 // (runTransaction en _doSolicitarCanje). El director solo:
-                //   - Aprobar → descontar tacos del usuario y marcar status=approved
+                //   - Aprobar → descontar totopos del usuario y marcar status=approved
                 //   - Rechazar → re-incrementar stock (si fue reservado) y marcar status=rejected
                 await runTransaction(db, async (tx) => {
                     // ═══ TODAS LAS LECTURAS PRIMERO ═══
@@ -5118,7 +5153,7 @@
                         const currentKarma = Number(userSnap.data().karma) || 0;
                         const costo = Number(req.costo) || 0;
                         if (currentKarma < costo) {
-                            throw new Error(`El usuario solo tiene ${currentKarma} tacos, necesita ${costo}.`);
+                            throw new Error(`El usuario solo tiene ${currentKarma} totopos, necesita ${costo}.`);
                         }
                     } else if (decision === 'rejected' && req.stockReservado && req.catalogDoc && req.itemId) {
                         // Al rechazar: leemos el catálogo para re-incrementar stock
@@ -5305,10 +5340,10 @@
             const totEarned = _tesUsers.reduce((s, u) => s + u.earned, 0);
             const totSpent  = _tesUsers.reduce((s, u) => s + u.spent, 0);
             const totBurned = _tesUsers.reduce((s, u) => s + u.burned, 0);
-            document.getElementById('tes-supply').textContent  = supply.toLocaleString('es-MX')  + ' 🌮';
-            document.getElementById('tes-earned').textContent  = totEarned.toLocaleString('es-MX') + ' 🌮';
-            document.getElementById('tes-spent').textContent   = totSpent.toLocaleString('es-MX')  + ' 🌮';
-            document.getElementById('tes-burned').textContent  = totBurned.toLocaleString('es-MX') + ' 🌮';
+            document.getElementById('tes-supply').innerHTML  = supply.toLocaleString('es-MX')  + ' <svg class="totopo-icon"><use href="#totopo"/></svg>';
+            document.getElementById('tes-earned').innerHTML  = totEarned.toLocaleString('es-MX') + ' <svg class="totopo-icon"><use href="#totopo"/></svg>';
+            document.getElementById('tes-spent').innerHTML   = totSpent.toLocaleString('es-MX')  + ' <svg class="totopo-icon"><use href="#totopo"/></svg>';
+            document.getElementById('tes-burned').innerHTML  = totBurned.toLocaleString('es-MX') + ' <svg class="totopo-icon"><use href="#totopo"/></svg>';
 
             if (!filtered.length) {
                 container.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i> Sin usuarios con los filtros actuales.</div>';
@@ -5340,13 +5375,13 @@
                             <div style="font-size:10px;color:var(--slate);">${escapeHtml(u.email)}</div>
                         </td>
                         <td style="padding:10px 8px;font-size:11px;">${roleLabels[u.role] || u.role}</td>
-                        <td style="padding:10px 8px;text-align:right;font-weight:700;color:var(--gold);">${u.balance.toLocaleString('es-MX')} 🌮</td>
+                        <td style="padding:10px 8px;text-align:right;font-weight:700;color:var(--gold);">${u.balance.toLocaleString('es-MX')} <svg class="totopo-icon"><use href="#totopo"/></svg></td>
                         <td style="padding:10px 8px;text-align:right;color:var(--green);">+${u.earned.toLocaleString('es-MX')}</td>
                         <td style="padding:10px 8px;text-align:right;color:var(--blue);">-${u.spent.toLocaleString('es-MX')}</td>
                         <td style="padding:10px 8px;text-align:right;color:var(--red);">-${u.burned.toLocaleString('es-MX')}</td>
                         <td style="padding:10px 8px;text-align:center;white-space:nowrap;">
-                            <button class="btn btn-sm btn-green" style="padding:4px 10px;" onclick="openTesAction('${escapeHtml(u.email)}','${u.role}','grant')" title="Otorgar tacos">+</button>
-                            <button class="btn btn-sm btn-red" style="padding:4px 10px;" onclick="openTesAction('${escapeHtml(u.email)}','${u.role}','burn')" title="Quemar tacos">−</button>
+                            <button class="btn btn-sm btn-green" style="padding:4px 10px;" onclick="openTesAction('${escapeHtml(u.email)}','${u.role}','grant')" title="Otorgar totopos">+</button>
+                            <button class="btn btn-sm btn-red" style="padding:4px 10px;" onclick="openTesAction('${escapeHtml(u.email)}','${u.role}','burn')" title="Quemar totopos">−</button>
                             <button class="btn btn-sm" style="padding:4px 10px;" onclick="openTesHistory('${escapeHtml(u.email)}','${u.role}')" title="Ver historial"><i class="fa fa-clock-rotate-left"></i></button>
                         </td>
                     </tr>
@@ -5361,9 +5396,9 @@
             _tesCurrentTarget = u;
             _tesCurrentAction = action;
             document.getElementById('tes-action-title').innerHTML = action === 'grant'
-                ? '<i class="fa fa-circle-plus" style="color:var(--green);"></i> Otorgar tacos'
-                : '<i class="fa fa-fire" style="color:var(--red);"></i> Quemar tacos';
-            document.getElementById('tes-action-subtitle').innerHTML = `<strong>${escapeHtml(u.name)}</strong> · Balance actual: <strong style="color:var(--gold);">${u.balance.toLocaleString('es-MX')} 🌮</strong>`;
+                ? '<i class="fa fa-circle-plus" style="color:var(--green);"></i> Otorgar totopos'
+                : '<i class="fa fa-fire" style="color:var(--red);"></i> Quemar totopos';
+            document.getElementById('tes-action-subtitle').innerHTML = `<strong>${escapeHtml(u.name)}</strong> · Balance actual: <strong style="color:var(--gold);">${u.balance.toLocaleString('es-MX')} <svg class="totopo-icon"><use href="#totopo"/></svg></strong>`;
             document.getElementById('tes-action-amount').value = '';
             document.getElementById('tes-action-reason').value = '';
             const btn = document.getElementById('tes-action-confirm');
@@ -5389,7 +5424,7 @@
             // Para burn: validar balance (con confirm modal pendiente, mantenemos
             // el confirm() nativo aquí porque ya estamos dentro de otro modal)
             if (action === 'burn' && u.balance < amount) {
-                if (!confirm(`${u.name} solo tiene ${u.balance} tacos. ¿Quemar de todos modos su balance completo (${u.balance})?`)) return;
+                if (!confirm(`${u.name} solo tiene ${u.balance} totopos. ¿Quemar de todos modos su balance completo (${u.balance})?`)) return;
             }
 
             const colMap = { agent: 'users', coach: 'coaches', promoter: 'promoters' };
@@ -5417,7 +5452,7 @@
                 });
                 document.getElementById('tes-action-modal').classList.remove('open');
                 await loadTesoreria(); // refresh
-                alert(`✅ ${action === 'grant' ? 'Otorgados' : 'Quemados'} ${amount} tacos a ${u.name}.`);
+                alert(`✅ ${action === 'grant' ? 'Otorgados' : 'Quemados'} ${amount} totopos a ${u.name}.`);
             } catch (err) {
                 alert('Error: ' + err.message);
                 console.error('[confirmTesAction]', err);
@@ -5428,7 +5463,7 @@
             const u = _tesUsers.find(x => x.email === email && x.role === role);
             if (!u) return;
             document.getElementById('tes-history-title').innerHTML = `<i class="fa fa-clock-rotate-left"></i> Historial de ${escapeHtml(u.name)}`;
-            document.getElementById('tes-history-subtitle').textContent = `Balance actual: ${u.balance.toLocaleString('es-MX')} 🌮 · ${u.log.length} movimientos`;
+            document.getElementById('tes-history-subtitle').innerHTML = `Balance actual: ${u.balance.toLocaleString('es-MX')} <svg class="totopo-icon"><use href="#totopo"/></svg> · ${u.log.length} movimientos`;
             const list = document.getElementById('tes-history-list');
             if (!u.log.length) {
                 list.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i> Sin movimientos registrados.</div>';
@@ -5457,7 +5492,7 @@
                     return `<div style="padding:8px 12px;background:var(--panel2);border-radius:6px;border-left:3px solid ${color};">
                         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                             <div style="font-size:12px;">${icon} ${escapeHtml(label)}</div>
-                            <div style="font-weight:700;color:${color};white-space:nowrap;">${sign}${pts} 🌮</div>
+                            <div style="font-weight:700;color:${color};white-space:nowrap;">${sign}${pts} <svg class="totopo-icon"><use href="#totopo"/></svg></div>
                         </div>
                         ${k.reason ? `<div style="font-size:10px;color:var(--slate);margin-top:2px;">"${escapeHtml(k.reason)}"</div>` : ''}
                         <div style="font-size:10px;color:var(--slate);margin-top:2px;">${fechaFmt}${k.by ? ' · por ' + escapeHtml(k.by) : ''}</div>
