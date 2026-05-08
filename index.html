@@ -1000,6 +1000,10 @@
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión C ➔ V</h3>
                         <div class="chart-wrap"><canvas id="kpiRatioVC"></canvas></div>
                     </div>
+                    <div class="chart-card">
+                        <h3><i class="fa fa-coins"></i> Prima promedio: $/S vs $/V</h3>
+                        <div class="chart-wrap"><canvas id="kpiPrimaPromedios"></canvas></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3394,6 +3398,22 @@
                     data: { labels, datasets: [{ label: r.label, data: data, backgroundColor: r.color }] },
                     options: chartOptsPct()
                 });
+            });
+
+            // Prima promedio: $/S vs $/V por agente
+            const primaPerS = agents.map(a => agMap[a].S > 0 ? parseFloat((agMap[a].prima / agMap[a].S).toFixed(2)) : 0);
+            const primaPerV = agents.map(a => agMap[a].V > 0 ? parseFloat((agMap[a].prima / agMap[a].V).toFixed(2)) : 0);
+            destroyChart('kpiPrimaPromedios');
+            charts['kpiPrimaPromedios'] = new Chart(document.getElementById('kpiPrimaPromedios').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Prima por Solicitud ($/S)', data: primaPerS, backgroundColor: CHART_COLORS.S },
+                        { label: 'Prima por Venta ($/V)', data: primaPerV, backgroundColor: CHART_COLORS.V }
+                    ]
+                },
+                options: chartOptsDollar()
             });
         }
 
