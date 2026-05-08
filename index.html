@@ -929,8 +929,8 @@
                                 <th title="Contactos por cierre" style="border-left:2px solid #475569">P/V</th>
                                 <th title="Prima Total" style="border-left:2px solid #475569">Neta</th>
                                 <th title="Prima por cierre">$/V</th>
-                                <th title="Cierres en días rojos"
-                                    style="border-left:2px solid #475569;color:var(--red)">V (R)</th>
+                                <th title="Solicitudes en días rojos"
+                                    style="border-left:2px solid #475569;color:var(--red)">S (R)</th>
                                 <th title="Prima en días rojos" style="color:var(--red)">$ (R)</th>
                             </tr>
                         </thead>
@@ -2972,14 +2972,14 @@
             // aggregate per agent (re-summing only valid days + tracking red activity)
             const agMap = {};
             filtered.forEach(e => {
-                if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redV: 0, redPrima: 0 };
+                if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
                 e.dias.forEach(d => {
                     const { ok } = validateDay(d);
                     if (ok) {
                         COLS.forEach(c => agMap[e.agent][c] += (d[c] || 0));
                         agMap[e.agent].prima += d.prima;
                     } else {
-                        agMap[e.agent].redV += (d.V || 0);
+                        agMap[e.agent].redS += (d.S || 0);
                         agMap[e.agent].redPrima += d.prima;
                     }
                 });
@@ -3018,7 +3018,7 @@
                     <th style="border-left:2px solid #475569">P/V</th>
                     <th style="border-left:2px solid #475569">$/V</th><th>$/Integrante</th>
                     ${showRedData ? `
-                    <th style="border-left:2px solid var(--red);color:var(--red)">V (R)</th>
+                    <th style="border-left:2px solid var(--red);color:var(--red)">S (R)</th>
                     <th style="color:var(--red)">$ (R)</th>
                     <th style="border-left:1px solid var(--red);color:var(--gold)">$ TOTAL</th>
                     ` : ''}
@@ -3044,7 +3044,7 @@
                     <td class="ratio-cell" style="border-left:2px solid #475569">${d.V > 0 ? '$' + ratio(d.prima, d.V) : '—'}</td>
                     <td class="ratio-cell" style="color:var(--gold-l);">$${primaPerAgentFmt}</td>
                     ${showRedData ? `
-                    <td style="border-left:2px solid var(--red);color:var(--red);opacity:0.8">${d.redV}</td>
+                    <td style="border-left:2px solid var(--red);color:var(--red);opacity:0.8">${d.redS}</td>
                     <td style="color:var(--red);opacity:0.8">$${redPrimaFmt}</td>
                     <td style="border-left:1px solid var(--red);font-weight:700;color:var(--gold)">$${totalPrimaFmt}</td>
                     ` : ''}
@@ -3052,11 +3052,11 @@
             }).join('');
 
             // totals row
-            const tot = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redV: 0, redPrima: 0 };
+            const tot = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
             agents.forEach(ag => {
                 COLS.forEach(c => tot[c] += agMap[ag][c]);
                 tot.prima += agMap[ag].prima;
-                tot.redV += agMap[ag].redV;
+                tot.redS += agMap[ag].redS;
                 tot.redPrima += agMap[ag].redPrima;
             });
             const totPrima = tot.prima.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -3073,7 +3073,7 @@
                 <td style="border-left:2px solid #475569">${tot.V > 0 ? '$' + ratio(tot.prima, tot.V) : '—'}</td>
                 <td></td>
                 ${showRedData ? `
-                <td style="border-left:2px solid var(--red);color:var(--red)">${tot.redV}</td>
+                <td style="border-left:2px solid var(--red);color:var(--red)">${tot.redS}</td>
                 <td style="color:var(--red)">$${totRedPrima}</td>
                 <td style="border-left:1px solid var(--red);color:var(--gold);font-weight:800">$${totFinal}</td>
                 ` : ''}
