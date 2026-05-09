@@ -1809,6 +1809,12 @@
                         <option value="coach">🧑‍🏫 Coaches</option>
                         <option value="agent">👤 Agentes</option>
                     </select>
+                    <select id="gestion-promotor-filter" onchange="renderGestionAll()" style="width:auto; min-width:170px; padding:8px; font-size:12px;">
+                        <option value="">Todos los equipos promotor</option>
+                    </select>
+                    <select id="gestion-coach-filter" onchange="renderGestionAll()" style="width:auto; min-width:170px; padding:8px; font-size:12px;">
+                        <option value="">Todos los equipos coach</option>
+                    </select>
                 </div>
                 <!-- Column headers -->
                 <div style="display:grid; grid-template-columns:2fr 80px 1fr 1fr auto; gap:8px; padding:6px 14px; font-size:9px; color:var(--slate); font-weight:700; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border); margin-bottom:8px;">
@@ -5007,6 +5013,52 @@
 
             const search = (document.getElementById('gestion-search')?.value || '').toLowerCase();
             const roleFilter = document.getElementById('gestion-role-filter')?.value || '';
+            const promotorFilter = document.getElementById('gestion-promotor-filter')?.value || '';
+            let coachFilter = document.getElementById('gestion-coach-filter')?.value || '';
+
+            // ─── Repopular dropdowns de equipo (promotor + coach) ────────────────
+            // Preserva el valor seleccionado si sigue siendo válido. El dropdown
+            // de coach se cascadea: si hay promotor seleccionado, sólo muestra
+            // sus coaches. Si el coach actual ya no encaja, se resetea.
+            const _activePromoters = state.promoters
+                .filter(p => p.status !== 'inactive')
+                .sort((a, b) => (a.promoterName || '').localeCompare(b.promoterName || ''));
+            const promFilterEl = document.getElementById('gestion-promotor-filter');
+            if (promFilterEl) {
+                const _prev = promFilterEl.value;
+                promFilterEl.innerHTML = '<option value="">Todos los equipos promotor</option>' +
+                    _activePromoters.map(p => {
+                        const code = p.companyCode || p.promotorCode || '';
+                        const label = p.promoterName || p.email;
+                        return `<option value="${escapeHtml(code)}">📊 ${escapeHtml(label)} [${escapeHtml(code)}]</option>`;
+                    }).join('');
+                if (_activePromoters.some(p => (p.companyCode || p.promotorCode) === _prev)) {
+                    promFilterEl.value = _prev;
+                }
+            }
+
+            let _activeCoaches = state.coaches.filter(c => c.status !== 'inactive');
+            if (promotorFilter) {
+                _activeCoaches = _activeCoaches.filter(c => c.promotorTeamCode === promotorFilter);
+            }
+            _activeCoaches.sort((a, b) => (a.coachName || '').localeCompare(b.coachName || ''));
+            const coachFilterEl = document.getElementById('gestion-coach-filter');
+            if (coachFilterEl) {
+                const _prev = coachFilterEl.value;
+                coachFilterEl.innerHTML = '<option value="">Todos los equipos coach</option>' +
+                    _activeCoaches.map(c => {
+                        const code = c.companyCode || c.agentTeamCode || '';
+                        const label = c.coachName || c.email;
+                        return `<option value="${escapeHtml(code)}">🧑‍🏫 ${escapeHtml(label)} [${escapeHtml(code)}]</option>`;
+                    }).join('');
+                if (_activeCoaches.some(c => (c.companyCode || c.agentTeamCode) === _prev)) {
+                    coachFilterEl.value = _prev;
+                } else {
+                    // El coach previo no encaja con el nuevo cascade — resetear
+                    coachFilterEl.value = '';
+                    coachFilter = '';
+                }
+            }
 
             // Build unified list (active members only — inactivos van en su propia card)
             const all = [];
@@ -5050,6 +5102,36 @@
             // Apply filters
             let filtered = all;
             if (roleFilter) filtered = filtered.filter(m => m.role === roleFilter);
+
+            // Filtro por equipo promotor
+            //   promoter → coincide si su companyCode == filtro
+            //   coach    → coincide si su promotorTeamCode == filtro
+            //   agent    → coincide si su coach pertenece a ese promotor
+            if (promotorFilter) {
+                const _coachCodesUnderProm = state.coaches
+                    .filter(c => c.status !== 'inactive' && c.promotorTeamCode === promotorFilter)
+                    .map(c => c.companyCode || c.agentTeamCode || '')
+                    .filter(Boolean);
+                filtered = filtered.filter(m => {
+                    if (m.role === 'promoter') return m.companyCode === promotorFilter;
+                    if (m.role === 'coach') return m.assignCode === promotorFilter;
+                    if (m.role === 'agent') return _coachCodesUnderProm.includes(m.assignCode);
+                    return false;
+                });
+            }
+
+            // Filtro por equipo coach
+            //   coach    → coincide si su companyCode == filtro
+            //   agent    → coincide si su teamCode == filtro
+            //   promoter → no aplica, se excluye
+            if (coachFilter) {
+                filtered = filtered.filter(m => {
+                    if (m.role === 'coach') return m.companyCode === coachFilter;
+                    if (m.role === 'agent') return m.assignCode === coachFilter;
+                    return false;
+                });
+            }
+
             if (search) filtered = filtered.filter(m =>
                 m.name.toLowerCase().includes(search) ||
                 m.email.toLowerCase().includes(search) ||
