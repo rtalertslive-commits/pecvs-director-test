@@ -1418,6 +1418,12 @@
                             <option value="all">Todo el historial</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="field-label">Mostrar</label>
+                        <button class="btn btn-sm" id="kpi-show-all-btn" onclick="toggleKpiShowAll()" style="white-space:nowrap;">
+                            <i class="fa fa-trophy"></i> Top 10
+                        </button>
+                    </div>
                 </div>
                 <div class="charts-grid">
                     <!-- 1. Volumen PECVS Completo (full width) -->
@@ -3947,6 +3953,14 @@
         }
 
         // ─── KPI CHARTS ──────────────────────────────────────────────────────────────
+        // Toggle "Top 10 / Ver todos" — default top 10 para legibilidad. Si N <= 10
+        // el botón se oculta automáticamente (todos caben).
+        let kpiShowAll = false;
+        window.toggleKpiShowAll = function () {
+            kpiShowAll = !kpiShowAll;
+            renderKPIs();
+        };
+
         function renderKPIs() {
             const period = document.getElementById('kpi-period-sel').value;
             let entries = [];
@@ -4013,8 +4027,28 @@
                 agMap[e.agent].prima += e.totales.prima;
             });
 
-            const agents = Object.keys(agMap);
+            let agents = Object.keys(agMap);
             agents.sort((a, b) => agMap[b].prima - agMap[a].prima);
+
+            // ─── TOP-N TOGGLE ────────────────────────────────────────────────────
+            // Por default mostramos top 10 por prima (los charts se ven legibles).
+            // Si el usuario tocó "Ver todos", mostramos los N agentes (charts más
+            // densos). El botón se actualiza con el conteo total.
+            const _totalAgents = agents.length;
+            if (!kpiShowAll && _totalAgents > 10) {
+                agents = agents.slice(0, 10);
+            }
+            const _btn = document.getElementById('kpi-show-all-btn');
+            if (_btn) {
+                if (_totalAgents <= 10) {
+                    _btn.style.display = 'none';
+                } else {
+                    _btn.style.display = '';
+                    _btn.innerHTML = kpiShowAll
+                        ? '<i class="fa fa-trophy"></i> Top 10'
+                        : `<i class="fa fa-list"></i> Ver todos (${_totalAgents})`;
+                }
+            }
 
             const labels = agents;
             const primas = agents.map(a => agMap[a].prima);
