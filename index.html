@@ -3446,6 +3446,10 @@
                 const lastWeek = Math.max(...entriesLastMes.map(e => parseInt(e.semana)));
                 document.getElementById('lb-sem-filter').value = lastWeek;
             }
+
+            // Re-render con filtros recién seteados (sin esto el leaderboard quedaba
+            // mostrando todo el histórico aunque el filtro mostrara la última semana)
+            if (typeof renderLeaderboard === 'function') renderLeaderboard();
         }
 
         // ─── LEADERBOARD ──────────────────────────────────────────────────────────────
