@@ -5366,6 +5366,22 @@
                 if (!role) { alert('Por favor selecciona un rol.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
                 if (!companyCode) { alert('Esta solicitud no tiene clave de agente. Recházala y pide al usuario que se registre de nuevo.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
 
+                // ─── DUPLICATE GUARD ─────────────────────────────────────────────
+                // Bloqueamos si ya existe un doc activo en la colección destino.
+                // Roles cruzados (ya es coach y se aprueba como promotor) están
+                // permitidos a propósito: una persona puede tener varios roles.
+                // Los expulsados (status:'inactive') NO bloquean — se re-aprueban
+                // y vuelven a quedar activos.
+                const _roleColMap = { agent: 'users', coach: 'coaches', promoter: 'promoters' };
+                const _roleLabelMap = { agent: 'agente', coach: 'coach', promoter: 'promotor' };
+                const _existingSnap = await getDoc(doc(db, _roleColMap[role], email));
+                if (_existingSnap.exists() && _existingSnap.data().status === 'active') {
+                    alert(`⚠️ ${name || email} ya está aprobado como ${_roleLabelMap[role]}.\n\nNo se permiten duplicados del mismo rol. Si necesitás reasignarlo a otro equipo, hacelo desde la pestaña Gestión.`);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar';
+                    return;
+                }
+
                 if (role === 'agent') {
                     const coachEmail = document.getElementById('approve-coach-sel')?.value;
                     if (!coachEmail) { alert('Por favor selecciona un coach.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
