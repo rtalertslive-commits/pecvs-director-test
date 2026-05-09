@@ -1065,7 +1065,29 @@
             flex: 1;
             min-height: 0;
             position: relative;
+            overflow-x: auto;
+            overflow-y: hidden;
+            /* Scrollbar gold sutil */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(212,175,55,0.4) transparent;
         }
+        .kpi-fullscreen-box .kpi-fs-canvas-wrap::-webkit-scrollbar { height: 8px; }
+        .kpi-fullscreen-box .kpi-fs-canvas-wrap::-webkit-scrollbar-thumb {
+            background: rgba(212,175,55,0.4);
+            border-radius: 4px;
+        }
+        .kpi-fullscreen-box .kpi-fs-inner {
+            height: 100%;
+            min-width: 100%;
+            position: relative;
+        }
+        .kpi-fs-hint {
+            font-size: 11px;
+            color: var(--slate);
+            margin: 0 0 8px;
+            opacity: .8;
+        }
+        .kpi-fs-hint i { color: var(--gold-l); margin-right: 4px; }
         .kpi-fullscreen-box .modal-close {
             position: absolute;
             top: 10px;
@@ -2213,8 +2235,11 @@
         <div class="kpi-fullscreen-box">
             <button class="modal-close" onclick="closeKpiFullscreen()">&times;</button>
             <h2 id="kpi-fullscreen-title">KPI</h2>
+            <p class="kpi-fs-hint" id="kpi-fullscreen-hint" style="display:none;"><i class="fa fa-hand-pointer"></i> Tocá una barra para ver el agente. Deslizá hacia los lados ↔ para navegar.</p>
             <div class="kpi-fs-canvas-wrap">
-                <canvas id="kpi-fullscreen-canvas"></canvas>
+                <div class="kpi-fs-inner" id="kpi-fs-inner">
+                    <canvas id="kpi-fullscreen-canvas"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -4060,25 +4085,27 @@
             return candidate.length <= 18 ? candidate : `${first} ${middleInitial} ${last.slice(0, 8)}…`;
         }
 
-        // Wrappea las options de un chart para aplicar truncate + autoSkip según modo:
-        //   - Top 10 (no expanded): nombres truncados rotados 55°
-        //   - Ver todos (expanded): NO labels visibles (demasiados, se amontonan).
-        //     Tooltip al tocar la barra muestra nombre completo + valor.
-        //   - fullscreen: muestra labels rotados 70° con autoSkip de Chart.js
+        // Wrappea las options de un chart para aplicar truncate según modo:
+        //   - Top 10 (no expanded), inline:     nombres truncados rotados 55°
+        //   - Top 10 (no expanded), fullscreen: nombres truncados rotados 70°, autoSkip
+        //   - Ver todos (expanded), inline:     NO labels (demasiados, se amontonan)
+        //   - Ver todos (expanded), fullscreen: NO labels + scroll horizontal
+        //     En ambos casos de "Ver todos" el tooltip al tocar muestra nombre + valor.
         function _applyKpiTruncate(opts, expanded, isFullscreen) {
             const o = { ...opts };
             o.scales = { ...(opts.scales || {}) };
             o.scales.x = { ...(opts.scales?.x || {}) };
 
-            if (expanded && !isFullscreen) {
-                // En "Ver todos" mobile/desktop: ocultar labels para no amontonar.
+            if (expanded) {
+                // "Ver todos" (con o sin fullscreen): ocultar labels.
                 // Usuario toca la barra para ver quién es (tooltip).
                 o.scales.x.ticks = {
                     ...(opts.scales?.x?.ticks || {}),
                     display: false
                 };
             } else {
-                // Top 10 o fullscreen: mostrar labels truncados
+                // Top 10: mostrar labels truncados (más grandes y sin autoSkip
+                // en fullscreen, donde tienen espacio para girar 70°)
                 o.scales.x.ticks = {
                     ...(opts.scales?.x?.ticks || {}),
                     callback: function (value) {
@@ -4120,20 +4147,42 @@
             const modal = document.getElementById('kpi-fullscreen-modal');
             const titleEl = document.getElementById('kpi-fullscreen-title');
             const canvas = document.getElementById('kpi-fullscreen-canvas');
+            const inner = document.getElementById('kpi-fs-inner');
+            const hint = document.getElementById('kpi-fullscreen-hint');
             if (!modal || !canvas) return;
             titleEl.textContent = cfg.title;
             modal.classList.add('open');
-            // Re-render con flag fullscreen (labels visibles, autoSkip activo)
+
+            // Ancho dinámico para que las barras tengan espacio cómodo y se pueda
+            // navegar haciendo scroll horizontal cuando hay muchos agentes.
+            const nBars = cfg.data?.labels?.length || 0;
+            const PX_PER_BAR = 70; // espacio cómodo por barra en fullscreen
+            if (inner) {
+                if (nBars > 0) {
+                    // min-width: 100% en CSS asegura que con pocas barras llene el modal
+                    inner.style.width = (nBars * PX_PER_BAR) + 'px';
+                } else {
+                    inner.style.width = '100%';
+                }
+            }
+
+            // Mostrar hint solo en "Ver todos" (labels ocultos → hay que tocar la barra)
+            if (hint) hint.style.display = (kpiShowAll && nBars > 10) ? 'block' : 'none';
+
+            // Re-render: pasamos kpiShowAll como expanded → en "Ver todos" labels también
+            // se ocultan en fullscreen. En Top 10 se muestran rotados con autoSkip.
             if (charts['_fullscreen']) charts['_fullscreen'].destroy();
             charts['_fullscreen'] = new Chart(canvas.getContext('2d'), {
                 type: cfg.type,
                 data: cfg.data,
-                options: _applyKpiTruncate(cfg.baseOpts, false, true)
+                options: _applyKpiTruncate(cfg.baseOpts, kpiShowAll, true)
             });
         };
 
         window.closeKpiFullscreen = function () {
             document.getElementById('kpi-fullscreen-modal').classList.remove('open');
+            const inner = document.getElementById('kpi-fs-inner');
+            if (inner) inner.style.width = '100%';
             if (charts['_fullscreen']) { charts['_fullscreen'].destroy(); delete charts['_fullscreen']; }
         };
 
