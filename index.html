@@ -1100,6 +1100,8 @@
             max-width: 500px;
             width: 90%;
             position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .modal-box h2 {
@@ -1109,9 +1111,11 @@
         }
 
         .modal-close {
-            position: absolute;
-            top: 14px;
-            right: 18px;
+            position: sticky;
+            top: 0;
+            float: right;
+            margin: -16px -16px 0 0;
+            z-index: 10;
             background: none;
             border: none;
             color: var(--white);
