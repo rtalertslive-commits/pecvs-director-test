@@ -3961,6 +3961,55 @@
             renderKPIs();
         };
 
+        // Trunca "Víctor Manuel González cervantes" → "Víctor M. González" para que
+        // el label del eje X de los charts ocupe poco. Tooltips siguen con nombre full.
+        function truncateAgentDisplay(name) {
+            if (!name) return '';
+            const parts = String(name).split(/\s+/).filter(p => p);
+            if (parts.length === 1) return parts[0].length > 14 ? parts[0].slice(0, 13) + '…' : parts[0];
+            if (parts.length === 2) {
+                // "Ángel Serna" — corto, lo dejo
+                const joined = parts.join(' ');
+                return joined.length <= 16 ? joined : `${parts[0]} ${parts[1][0]}.`;
+            }
+            // 3+ palabras: "Primero L. Último"
+            const first = parts[0];
+            const middleInitial = parts[1][0].toUpperCase() + '.';
+            const last = parts[parts.length - 1];
+            const candidate = `${first} ${middleInitial} ${last}`;
+            return candidate.length <= 18 ? candidate : `${first} ${middleInitial} ${last.slice(0, 8)}…`;
+        }
+
+        // Wrappea las options de un chart para aplicar truncate + autoSkip según modo
+        function _applyKpiTruncate(opts, expanded) {
+            const o = { ...opts };
+            o.scales = { ...(opts.scales || {}) };
+            o.scales.x = { ...(opts.scales?.x || {}) };
+            o.scales.x.ticks = {
+                ...(opts.scales?.x?.ticks || {}),
+                callback: function (value) {
+                    const label = this.getLabelForValue(value);
+                    return truncateAgentDisplay(label);
+                },
+                autoSkip: !expanded,
+                maxRotation: expanded ? 90 : 55,
+                minRotation: expanded ? 90 : 0,
+                font: { size: expanded ? 8 : 10 }
+            };
+            // Tooltip muestra nombre completo (no truncado)
+            o.plugins = { ...(opts.plugins || {}) };
+            o.plugins.tooltip = {
+                ...(opts.plugins?.tooltip || {}),
+                callbacks: {
+                    ...(opts.plugins?.tooltip?.callbacks || {}),
+                    title: function (items) {
+                        return items[0]?.label || '';
+                    }
+                }
+            };
+            return o;
+        }
+
         function renderKPIs() {
             const period = document.getElementById('kpi-period-sel').value;
             let entries = [];
@@ -4057,6 +4106,7 @@
             // Eficiencia P → V en porcentaje (0-100)
             const pvs = agents.map(a => agMap[a].P > 0 ? parseFloat(((agMap[a].V / agMap[a].P) * 100).toFixed(1)) : 0);
 
+            const _expanded = kpiShowAll && _totalAgents > 10;
             destroyChart('kpiVolumen');
             charts['kpiVolumen'] = new Chart(document.getElementById('kpiVolumen').getContext('2d'), {
                 type: 'bar',
@@ -4066,14 +4116,14 @@
                         { label: 'Contactos (P)', data: Ps, backgroundColor: CHART_COLORS.P }
                     ]
                 },
-                options: chartOpts('Cantidad')
+                options: _applyKpiTruncate(chartOpts('Cantidad'), _expanded)
             });
 
             destroyChart('kpiEfectividad');
             charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
                 type: 'bar',
                 data: { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.P }] },
-                options: chartOptsPct()
+                options: _applyKpiTruncate(chartOptsPct(), _expanded)
             });
 
             // Volumen Full PECVS
@@ -4095,7 +4145,7 @@
                         { label: 'S', data: dataS, backgroundColor: CHART_COLORS.S }
                     ]
                 },
-                options: chartOpts('Cantidad Unidades')
+                options: _applyKpiTruncate(chartOpts('Cantidad Unidades'), _expanded)
             });
 
             // Ratios de Embudo (en porcentaje 0-100)
@@ -4111,7 +4161,7 @@
                 charts[r.id] = new Chart(document.getElementById(r.id).getContext('2d'), {
                     type: 'bar',
                     data: { labels, datasets: [{ label: r.label, data: data, backgroundColor: r.color }] },
-                    options: chartOptsPct()
+                    options: _applyKpiTruncate(chartOptsPct(), _expanded)
                 });
             });
 
@@ -4128,7 +4178,7 @@
                         { label: 'Prima por Venta ($/V)', data: primaPerV, backgroundColor: CHART_COLORS.V }
                     ]
                 },
-                options: chartOptsDollar()
+                options: _applyKpiTruncate(chartOptsDollar(), _expanded)
             });
         }
 
