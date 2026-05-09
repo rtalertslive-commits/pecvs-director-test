@@ -985,6 +985,37 @@
             min-width: 180px;
         }
 
+        /* Pills de vista para los KPIs (Top 10 / Top 30 / Todos / Foco 30 / Foco 10) */
+        .kpi-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .kpi-pill {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            color: var(--slate);
+            padding: 7px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .15s ease, color .15s ease, border-color .15s ease;
+            font-family: inherit;
+        }
+        .kpi-pill:hover:not(.active) {
+            background: rgba(255,255,255,0.08);
+            color: var(--white);
+        }
+        .kpi-pill.active {
+            background: rgba(212,175,55,0.15);
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+        .kpi-pill[hidden] { display: none !important; }
+
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -1025,6 +1056,16 @@
             .charts-controls { flex-direction: column; gap: 8px; }
             .charts-controls > div { width: 100%; }
             .charts-controls select { width: 100%; }
+            /* Pills: scroll horizontal en mobile en vez de wrap */
+            .kpi-pills {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                padding-bottom: 2px;
+            }
+            .kpi-pills::-webkit-scrollbar { display: none; }
+            .kpi-pill { padding: 8px 12px; font-size: 13px; }
         }
 
         /* FUNNEL INDICATOR */
@@ -1418,11 +1459,15 @@
                             <option value="all">Todo el historial</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="field-label">Mostrar</label>
-                        <button class="btn btn-sm" id="kpi-show-all-btn" onclick="toggleKpiShowAll()" style="white-space:nowrap;">
-                            <i class="fa fa-trophy"></i> Top 10
-                        </button>
+                    <div style="flex:1 1 100%;">
+                        <label class="field-label">Vista</label>
+                        <div class="kpi-pills" id="kpi-view-pills">
+                            <button class="kpi-pill active" data-mode="top10" onclick="setKpiViewMode('top10')">🥇 Top 10</button>
+                            <button class="kpi-pill" data-mode="top30" onclick="setKpiViewMode('top30')">🏆 Top 30</button>
+                            <button class="kpi-pill" data-mode="all" onclick="setKpiViewMode('all')">👥 Todos</button>
+                            <button class="kpi-pill" data-mode="foco30" onclick="setKpiViewMode('foco30')">🎯 Foco 30</button>
+                            <button class="kpi-pill" data-mode="foco10" onclick="setKpiViewMode('foco10')">🔥 Foco 10</button>
+                        </div>
                     </div>
                 </div>
                 <div class="charts-grid">
@@ -3954,11 +3999,21 @@
         }
 
         // ─── KPI CHARTS ──────────────────────────────────────────────────────────────
-        // Toggle "Top 10 / Ver todos" — default top 10 para legibilidad. Si N <= 10
-        // el botón se oculta automáticamente (todos caben).
-        let kpiShowAll = false;
-        window.toggleKpiShowAll = function () {
-            kpiShowAll = !kpiShowAll;
+        // Modo de vista para los KPIs:
+        //   'top10'  → mejores 10 (default, leyendo legible)
+        //   'top30'  → mejores 30
+        //   'all'    → todos los agentes
+        //   'foco30' → 30 que necesitan más atención (los últimos por prima, peor primero)
+        //   'foco10' → 10 que necesitan más atención
+        // En "Foco" el orden se invierte: el agente más atrás aparece primero (izquierda)
+        // para llamar la atención del director.
+        let kpiViewMode = 'top10';
+        window.setKpiViewMode = function (mode) {
+            kpiViewMode = mode;
+            // Actualizar pills (active + visibilidad la ajusta renderKPIs)
+            document.querySelectorAll('.kpi-pill').forEach(p => {
+                p.classList.toggle('active', p.dataset.mode === mode);
+            });
             renderKPIs();
         };
 
@@ -4086,25 +4141,43 @@
             let agents = Object.keys(agMap);
             agents.sort((a, b) => agMap[b].prima - agMap[a].prima);
 
-            // ─── TOP-N TOGGLE ────────────────────────────────────────────────────
-            // Por default mostramos top 10 por prima (los charts se ven legibles).
-            // Si el usuario tocó "Ver todos", mostramos los N agentes (charts más
-            // densos). El botón se actualiza con el conteo total.
+            // ─── VISTA: TOP / TODOS / FOCO ─────────────────────────────────────
+            // agents está ordenado por prima desc (mejor primero).
+            // En modos "Foco" tomamos los últimos N e invertimos para que el peor
+            // aparezca a la izquierda (le habla al director: estos primeros son
+            // los que más necesitan tu atención esta semana).
             const _totalAgents = agents.length;
-            if (!kpiShowAll && _totalAgents > 10) {
+            let mode = kpiViewMode;
+            // Sanity: si el modo elegido excede el total, downgradeamos a 'all'
+            if ((mode === 'top30' || mode === 'foco30') && _totalAgents <= 30) mode = 'all';
+            if ((mode === 'top10' || mode === 'foco10') && _totalAgents <= 10) mode = 'all';
+
+            if (mode === 'top10') {
                 agents = agents.slice(0, 10);
+            } else if (mode === 'top30') {
+                agents = agents.slice(0, 30);
+            } else if (mode === 'foco30') {
+                agents = agents.slice(-30).reverse();
+            } else if (mode === 'foco10') {
+                agents = agents.slice(-10).reverse();
             }
-            const _btn = document.getElementById('kpi-show-all-btn');
-            if (_btn) {
-                if (_totalAgents <= 10) {
-                    _btn.style.display = 'none';
-                } else {
-                    _btn.style.display = '';
-                    _btn.innerHTML = kpiShowAll
-                        ? '<i class="fa fa-trophy"></i> Top 10'
-                        : `<i class="fa fa-list"></i> Ver todos (${_totalAgents})`;
-                }
-            }
+            // 'all' → no slicing, usar todos
+
+            // Mostrar/ocultar pills según total disponible
+            const _pillVisibility = {
+                top10:  _totalAgents > 10,
+                top30:  _totalAgents > 30,
+                all:    _totalAgents > 10,
+                foco30: _totalAgents > 30,
+                foco10: _totalAgents > 10
+            };
+            // Si todos caben en 10, sólo dejamos visible "top10" (que ya es el total)
+            if (_totalAgents <= 10) _pillVisibility.top10 = true;
+            document.querySelectorAll('.kpi-pill').forEach(p => {
+                const m = p.dataset.mode;
+                const visible = _totalAgents <= 10 ? (m === 'top10') : !!_pillVisibility[m];
+                p.hidden = !visible;
+            });
 
             const labels = agents;
             const primas = agents.map(a => agMap[a].prima);
@@ -4113,7 +4186,9 @@
             // Eficiencia P → V en porcentaje (0-100)
             const pvs = agents.map(a => agMap[a].P > 0 ? parseFloat(((agMap[a].V / agMap[a].P) * 100).toFixed(1)) : 0);
 
-            const _expanded = kpiShowAll && _totalAgents > 10;
+            // Ocultar labels del eje X cuando hay > 10 barras (se amontonan).
+            // Tooltip al tocar la barra muestra el nombre completo + valor.
+            const _expanded = agents.length > 10;
 
             const dataKpiVolumen = {
                 labels, datasets: [
