@@ -996,6 +996,7 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px;
+            position: relative;
         }
 
         .chart-card.full {
@@ -1008,11 +1009,69 @@
             letter-spacing: .1em;
             color: var(--gold-l);
             margin: 0 0 16px;
+            padding-right: 36px; /* deja lugar al botón ⛶ */
         }
 
         .chart-wrap {
             height: 280px;
             position: relative;
+        }
+
+        /* Botón ⛶ esquina superior derecha de cada chart-card */
+        .kpi-fullscreen-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(212, 175, 55, 0.08);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            color: var(--gold-l);
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .15s ease, color .15s ease;
+            z-index: 5;
+        }
+        .kpi-fullscreen-btn:hover {
+            background: rgba(212, 175, 55, 0.18);
+            color: var(--gold);
+        }
+
+        /* Modal de pantalla completa para KPI charts */
+        .kpi-fullscreen-box {
+            background: var(--panel);
+            border: 1px solid var(--gold);
+            border-radius: 12px;
+            padding: 20px;
+            width: 95vw;
+            height: 92vh;
+            max-width: 1400px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .kpi-fullscreen-box h2 {
+            margin: 0 0 14px;
+            font-size: 15px;
+            color: var(--gold);
+            font-family: 'Playfair Display', serif;
+            padding-right: 40px;
+        }
+        .kpi-fullscreen-box .kpi-fs-canvas-wrap {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+        }
+        .kpi-fullscreen-box .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            margin: 0;
+            float: none;
         }
 
         /* ═══ MOBILE: charts 1-col + padding reducido (override del .charts-grid de arriba) ═══ */
@@ -1025,6 +1084,9 @@
             .charts-controls { flex-direction: column; gap: 8px; }
             .charts-controls > div { width: 100%; }
             .charts-controls select { width: 100%; }
+            .kpi-fullscreen-btn { top: 10px; right: 10px; width: 28px; height: 28px; font-size: 13px; }
+            .kpi-fullscreen-box { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 14px; }
+            .kpi-fullscreen-box h2 { font-size: 13px; }
         }
 
         /* FUNNEL INDICATOR */
@@ -1428,32 +1490,39 @@
                 <div class="charts-grid">
                     <!-- 1. Volumen PECVS Completo (full width) -->
                     <div class="chart-card full">
+                        <button class="kpi-fullscreen-btn" onclick="openKpiFullscreen('kpiVolumeFull')" title="Pantalla completa" aria-label="Pantalla completa"><i class="fa fa-expand"></i></button>
                         <h3><i class="fa fa-arrows-to-circle"></i> Volumen PECVS Completo por Agente</h3>
                         <div class="chart-wrap"><canvas id="kpiVolumeFull"></canvas></div>
                     </div>
                     <!-- 2. Cierres V vs P -->
                     <div class="chart-card">
+                        <button class="kpi-fullscreen-btn" onclick="openKpiFullscreen('kpiVolumen')" title="Pantalla completa" aria-label="Pantalla completa"><i class="fa fa-expand"></i></button>
                         <h3><i class="fa fa-bars-progress"></i> Cierres (V) vs Contactos (P)</h3>
                         <div class="chart-wrap"><canvas id="kpiVolumen"></canvas></div>
                     </div>
                     <!-- 3-6. Eficiencia (P → V primero, luego embudo en orden) -->
                     <div class="chart-card">
+                        <button class="kpi-fullscreen-btn" onclick="openKpiFullscreen('kpiEfectividad')" title="Pantalla completa" aria-label="Pantalla completa"><i class="fa fa-expand"></i></button>
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ V (Cierre)</h3>
                         <div class="chart-wrap"><canvas id="kpiEfectividad"></canvas></div>
                     </div>
                     <div class="chart-card">
+                        <button class="kpi-fullscreen-btn" onclick="openKpiFullscreen('kpiRatioEP')" title="Pantalla completa" aria-label="Pantalla completa"><i class="fa fa-expand"></i></button>
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ E</h3>
                         <div class="chart-wrap"><canvas id="kpiRatioEP"></canvas></div>
                     </div>
                     <div class="chart-card">
+                        <button class="kpi-fullscreen-btn" onclick="openKpiFullscreen('kpiRatioCE')" title="Pantalla completa" aria-label="Pantalla completa"><i class="fa fa-expand"></i></button>
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión E ➔ C</h3>
                         <div class="chart-wrap"><canvas id="kpiRatioCE"></canvas></div>
                     </div>
                     <div class="chart-card">
+                        <button class="kpi-fullscreen-btn" onclick="openKpiFullscreen('kpiRatioVC')" title="Pantalla completa" aria-label="Pantalla completa"><i class="fa fa-expand"></i></button>
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión C ➔ V</h3>
                         <div class="chart-wrap"><canvas id="kpiRatioVC"></canvas></div>
                     </div>
                     <div class="chart-card">
+                        <button class="kpi-fullscreen-btn" onclick="openKpiFullscreen('kpiPrimaPromedios')" title="Pantalla completa" aria-label="Pantalla completa"><i class="fa fa-expand"></i></button>
                         <h3><i class="fa fa-coins"></i> Prima promedio: $/S vs $/V</h3>
                         <div class="chart-wrap"><canvas id="kpiPrimaPromedios"></canvas></div>
                     </div>
@@ -2135,6 +2204,17 @@
             <div style="display:flex;gap:10px;">
                 <button class="btn btn-sm" style="flex:1;" onclick="dismissUpdate()">Después</button>
                 <button class="btn btn-sm btn-green" style="flex:1;" onclick="applyUpdate()">Recargar ahora</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI FULLSCREEN MODAL -->
+    <div class="modal-overlay" id="kpi-fullscreen-modal" onclick="if(event.target===this)closeKpiFullscreen()">
+        <div class="kpi-fullscreen-box">
+            <button class="modal-close" onclick="closeKpiFullscreen()">&times;</button>
+            <h2 id="kpi-fullscreen-title">KPI</h2>
+            <div class="kpi-fs-canvas-wrap">
+                <canvas id="kpi-fullscreen-canvas"></canvas>
             </div>
         </div>
     </div>
@@ -3980,22 +4060,38 @@
             return candidate.length <= 18 ? candidate : `${first} ${middleInitial} ${last.slice(0, 8)}…`;
         }
 
-        // Wrappea las options de un chart para aplicar truncate + autoSkip según modo
-        function _applyKpiTruncate(opts, expanded) {
+        // Wrappea las options de un chart para aplicar truncate + autoSkip según modo:
+        //   - Top 10 (no expanded): nombres truncados rotados 55°
+        //   - Ver todos (expanded): NO labels visibles (demasiados, se amontonan).
+        //     Tooltip al tocar la barra muestra nombre completo + valor.
+        //   - fullscreen: muestra labels rotados 70° con autoSkip de Chart.js
+        function _applyKpiTruncate(opts, expanded, isFullscreen) {
             const o = { ...opts };
             o.scales = { ...(opts.scales || {}) };
             o.scales.x = { ...(opts.scales?.x || {}) };
-            o.scales.x.ticks = {
-                ...(opts.scales?.x?.ticks || {}),
-                callback: function (value) {
-                    const label = this.getLabelForValue(value);
-                    return truncateAgentDisplay(label);
-                },
-                autoSkip: !expanded,
-                maxRotation: expanded ? 90 : 55,
-                minRotation: expanded ? 90 : 0,
-                font: { size: expanded ? 8 : 10 }
-            };
+
+            if (expanded && !isFullscreen) {
+                // En "Ver todos" mobile/desktop: ocultar labels para no amontonar.
+                // Usuario toca la barra para ver quién es (tooltip).
+                o.scales.x.ticks = {
+                    ...(opts.scales?.x?.ticks || {}),
+                    display: false
+                };
+            } else {
+                // Top 10 o fullscreen: mostrar labels truncados
+                o.scales.x.ticks = {
+                    ...(opts.scales?.x?.ticks || {}),
+                    callback: function (value) {
+                        const label = this.getLabelForValue(value);
+                        return truncateAgentDisplay(label);
+                    },
+                    autoSkip: isFullscreen,
+                    maxRotation: isFullscreen ? 70 : 55,
+                    minRotation: 0,
+                    font: { size: isFullscreen ? 11 : 10 }
+                };
+            }
+
             // Tooltip muestra nombre completo (no truncado)
             o.plugins = { ...(opts.plugins || {}) };
             o.plugins.tooltip = {
@@ -4009,6 +4105,37 @@
             };
             return o;
         }
+
+        // ─── KPI FULLSCREEN MODAL ─────────────────────────────────────────────
+        // Cada chart-card tiene un botón ⛶ que abre el chart en pantalla completa.
+        // Guardamos config de cada chart al render para poder re-rendear en modal.
+        const _kpiConfigs = {};
+        function _saveKpiConfig(id, title, type, data, baseOpts) {
+            _kpiConfigs[id] = { title, type, data, baseOpts };
+        }
+
+        window.openKpiFullscreen = function (id) {
+            const cfg = _kpiConfigs[id];
+            if (!cfg) return;
+            const modal = document.getElementById('kpi-fullscreen-modal');
+            const titleEl = document.getElementById('kpi-fullscreen-title');
+            const canvas = document.getElementById('kpi-fullscreen-canvas');
+            if (!modal || !canvas) return;
+            titleEl.textContent = cfg.title;
+            modal.classList.add('open');
+            // Re-render con flag fullscreen (labels visibles, autoSkip activo)
+            if (charts['_fullscreen']) charts['_fullscreen'].destroy();
+            charts['_fullscreen'] = new Chart(canvas.getContext('2d'), {
+                type: cfg.type,
+                data: cfg.data,
+                options: _applyKpiTruncate(cfg.baseOpts, false, true)
+            });
+        };
+
+        window.closeKpiFullscreen = function () {
+            document.getElementById('kpi-fullscreen-modal').classList.remove('open');
+            if (charts['_fullscreen']) { charts['_fullscreen'].destroy(); delete charts['_fullscreen']; }
+        };
 
         function renderKPIs() {
             const period = document.getElementById('kpi-period-sel').value;
@@ -4107,24 +4234,27 @@
             const pvs = agents.map(a => agMap[a].P > 0 ? parseFloat(((agMap[a].V / agMap[a].P) * 100).toFixed(1)) : 0);
 
             const _expanded = kpiShowAll && _totalAgents > 10;
+
+            const dataKpiVolumen = {
+                labels, datasets: [
+                    { label: 'Cierres (V)', data: Vs, backgroundColor: CHART_COLORS.V },
+                    { label: 'Contactos (P)', data: Ps, backgroundColor: CHART_COLORS.P }
+                ]
+            };
             destroyChart('kpiVolumen');
             charts['kpiVolumen'] = new Chart(document.getElementById('kpiVolumen').getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels, datasets: [
-                        { label: 'Cierres (V)', data: Vs, backgroundColor: CHART_COLORS.V },
-                        { label: 'Contactos (P)', data: Ps, backgroundColor: CHART_COLORS.P }
-                    ]
-                },
+                type: 'bar', data: dataKpiVolumen,
                 options: _applyKpiTruncate(chartOpts('Cantidad'), _expanded)
             });
+            _saveKpiConfig('kpiVolumen', 'Cierres (V) vs Contactos (P)', 'bar', dataKpiVolumen, chartOpts('Cantidad'));
 
+            const dataKpiEfectividad = { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.P }] };
             destroyChart('kpiEfectividad');
             charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
-                type: 'bar',
-                data: { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.P }] },
+                type: 'bar', data: dataKpiEfectividad,
                 options: _applyKpiTruncate(chartOptsPct(), _expanded)
             });
+            _saveKpiConfig('kpiEfectividad', 'Eficiencia: Conversión P → V (Cierre)', 'bar', dataKpiEfectividad, chartOptsPct());
 
             // Volumen Full PECVS
             const dataP = agents.map(a => agMap[a].P);
@@ -4132,21 +4262,22 @@
             const dataC = agents.map(a => agMap[a].C);
             const dataV = agents.map(a => agMap[a].V);
             const dataS = agents.map(a => agMap[a].S);
+            const dataKpiVolumeFull = {
+                labels,
+                datasets: [
+                    { label: 'P', data: dataP, backgroundColor: CHART_COLORS.P },
+                    { label: 'E', data: dataE, backgroundColor: CHART_COLORS.E },
+                    { label: 'C', data: dataC, backgroundColor: CHART_COLORS.C },
+                    { label: 'V', data: dataV, backgroundColor: CHART_COLORS.V },
+                    { label: 'S', data: dataS, backgroundColor: CHART_COLORS.S }
+                ]
+            };
             destroyChart('kpiVolumeFull');
             charts['kpiVolumeFull'] = new Chart(document.getElementById('kpiVolumeFull').getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'P', data: dataP, backgroundColor: CHART_COLORS.P },
-                        { label: 'E', data: dataE, backgroundColor: CHART_COLORS.E },
-                        { label: 'C', data: dataC, backgroundColor: CHART_COLORS.C },
-                        { label: 'V', data: dataV, backgroundColor: CHART_COLORS.V },
-                        { label: 'S', data: dataS, backgroundColor: CHART_COLORS.S }
-                    ]
-                },
+                type: 'bar', data: dataKpiVolumeFull,
                 options: _applyKpiTruncate(chartOpts('Cantidad Unidades'), _expanded)
             });
+            _saveKpiConfig('kpiVolumeFull', 'Volumen PECVS Completo por Agente', 'bar', dataKpiVolumeFull, chartOpts('Cantidad Unidades'));
 
             // Ratios de Embudo (en porcentaje 0-100)
             const ratios = [
@@ -4157,29 +4288,31 @@
 
             ratios.forEach(r => {
                 const data = agents.map(a => agMap[a][r.bot] > 0 ? parseFloat(((agMap[a][r.top] / agMap[a][r.bot]) * 100).toFixed(1)) : 0);
+                const ratioData = { labels, datasets: [{ label: r.label, data: data, backgroundColor: r.color }] };
                 destroyChart(r.id);
                 charts[r.id] = new Chart(document.getElementById(r.id).getContext('2d'), {
-                    type: 'bar',
-                    data: { labels, datasets: [{ label: r.label, data: data, backgroundColor: r.color }] },
+                    type: 'bar', data: ratioData,
                     options: _applyKpiTruncate(chartOptsPct(), _expanded)
                 });
+                _saveKpiConfig(r.id, r.label, 'bar', ratioData, chartOptsPct());
             });
 
             // Prima promedio: $/S vs $/V por agente
             const primaPerS = agents.map(a => agMap[a].S > 0 ? parseFloat((agMap[a].prima / agMap[a].S).toFixed(2)) : 0);
             const primaPerV = agents.map(a => agMap[a].V > 0 ? parseFloat((agMap[a].prima / agMap[a].V).toFixed(2)) : 0);
+            const dataKpiPrimaPromedios = {
+                labels,
+                datasets: [
+                    { label: 'Prima por Solicitud ($/S)', data: primaPerS, backgroundColor: CHART_COLORS.S },
+                    { label: 'Prima por Venta ($/V)', data: primaPerV, backgroundColor: CHART_COLORS.V }
+                ]
+            };
             destroyChart('kpiPrimaPromedios');
             charts['kpiPrimaPromedios'] = new Chart(document.getElementById('kpiPrimaPromedios').getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'Prima por Solicitud ($/S)', data: primaPerS, backgroundColor: CHART_COLORS.S },
-                        { label: 'Prima por Venta ($/V)', data: primaPerV, backgroundColor: CHART_COLORS.V }
-                    ]
-                },
+                type: 'bar', data: dataKpiPrimaPromedios,
                 options: _applyKpiTruncate(chartOptsDollar(), _expanded)
             });
+            _saveKpiConfig('kpiPrimaPromedios', 'Prima promedio: $/S vs $/V', 'bar', dataKpiPrimaPromedios, chartOptsDollar());
         }
 
         // chartOpts especial para gráficas con montos en pesos $
