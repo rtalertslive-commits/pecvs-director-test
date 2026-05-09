@@ -1010,24 +1010,8 @@
             margin: 0 0 16px;
         }
 
-        /* chart-wrap se vuelve horizontalmente scrollable cuando el chart-inner
-           supera el ancho disponible (modo "Ver todos" con muchos agentes). */
         .chart-wrap {
             height: 280px;
-            position: relative;
-            overflow-x: auto;
-            overflow-y: hidden;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(212,175,55,0.4) transparent;
-        }
-        .chart-wrap::-webkit-scrollbar { height: 6px; }
-        .chart-wrap::-webkit-scrollbar-thumb {
-            background: rgba(212,175,55,0.4);
-            border-radius: 3px;
-        }
-        .chart-inner {
-            height: 100%;
-            min-width: 100%;
             position: relative;
         }
 
@@ -1445,33 +1429,33 @@
                     <!-- 1. Volumen PECVS Completo (full width) -->
                     <div class="chart-card full">
                         <h3><i class="fa fa-arrows-to-circle"></i> Volumen PECVS Completo por Agente</h3>
-                        <div class="chart-wrap"><div class="chart-inner"><canvas id="kpiVolumeFull"></canvas></div></div>
+                        <div class="chart-wrap"><canvas id="kpiVolumeFull"></canvas></div>
                     </div>
                     <!-- 2. Cierres V vs P -->
                     <div class="chart-card">
                         <h3><i class="fa fa-bars-progress"></i> Cierres (V) vs Contactos (P)</h3>
-                        <div class="chart-wrap"><div class="chart-inner"><canvas id="kpiVolumen"></canvas></div></div>
+                        <div class="chart-wrap"><canvas id="kpiVolumen"></canvas></div>
                     </div>
                     <!-- 3-6. Eficiencia (P → V primero, luego embudo en orden) -->
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ V (Cierre)</h3>
-                        <div class="chart-wrap"><div class="chart-inner"><canvas id="kpiEfectividad"></canvas></div></div>
+                        <div class="chart-wrap"><canvas id="kpiEfectividad"></canvas></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ E</h3>
-                        <div class="chart-wrap"><div class="chart-inner"><canvas id="kpiRatioEP"></canvas></div></div>
+                        <div class="chart-wrap"><canvas id="kpiRatioEP"></canvas></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión E ➔ C</h3>
-                        <div class="chart-wrap"><div class="chart-inner"><canvas id="kpiRatioCE"></canvas></div></div>
+                        <div class="chart-wrap"><canvas id="kpiRatioCE"></canvas></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión C ➔ V</h3>
-                        <div class="chart-wrap"><div class="chart-inner"><canvas id="kpiRatioVC"></canvas></div></div>
+                        <div class="chart-wrap"><canvas id="kpiRatioVC"></canvas></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-coins"></i> Prima promedio: $/S vs $/V</h3>
-                        <div class="chart-wrap"><div class="chart-inner"><canvas id="kpiPrimaPromedios"></canvas></div></div>
+                        <div class="chart-wrap"><canvas id="kpiPrimaPromedios"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -3997,22 +3981,31 @@
             return candidate.length <= 18 ? candidate : `${first} ${middleInitial} ${last.slice(0, 8)}…`;
         }
 
-        // Wrappea las options de un chart para mostrar nombres truncados en eje X.
-        // Tooltip al tocar la barra muestra el nombre completo + valor.
-        function _applyKpiTruncate(opts) {
+        // Wrappea las options de un chart para aplicar truncate según modo:
+        //   - Top 10 (no expanded): nombres truncados rotados 55°
+        //   - Ver todos (expanded): NO labels (se amontonan con muchos agentes).
+        //     Tooltip al tocar la barra muestra nombre completo + valor.
+        function _applyKpiTruncate(opts, expanded) {
             const o = { ...opts };
             o.scales = { ...(opts.scales || {}) };
             o.scales.x = { ...(opts.scales?.x || {}) };
-            o.scales.x.ticks = {
-                ...(opts.scales?.x?.ticks || {}),
-                callback: function (value) {
-                    return truncateAgentDisplay(this.getLabelForValue(value));
-                },
-                autoSkip: false,
-                maxRotation: 55,
-                minRotation: 0,
-                font: { size: 10 }
-            };
+            if (expanded) {
+                o.scales.x.ticks = {
+                    ...(opts.scales?.x?.ticks || {}),
+                    display: false
+                };
+            } else {
+                o.scales.x.ticks = {
+                    ...(opts.scales?.x?.ticks || {}),
+                    callback: function (value) {
+                        return truncateAgentDisplay(this.getLabelForValue(value));
+                    },
+                    autoSkip: false,
+                    maxRotation: 55,
+                    minRotation: 0,
+                    font: { size: 10 }
+                };
+            }
             o.plugins = { ...(opts.plugins || {}) };
             o.plugins.tooltip = {
                 ...(opts.plugins?.tooltip || {}),
@@ -4022,22 +4015,6 @@
                 }
             };
             return o;
-        }
-
-        // En "Ver todos" expandimos el ancho del chart-inner para que cada agente
-        // tenga espacio cómodo y aparezca scroll horizontal en el chart-wrap.
-        // En Top 10 (default) volvemos a 100% y no hay scroll.
-        function _setKpiInnerWidth(canvasId, n, expanded) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            const inner = canvas.parentElement;
-            if (!inner || !inner.classList.contains('chart-inner')) return;
-            if (expanded && n > 0) {
-                const PX_PER_BAR = 80; // espacio por agente con scroll horizontal
-                inner.style.width = Math.max(n * PX_PER_BAR, 100) + 'px';
-            } else {
-                inner.style.width = '100%';
-            }
         }
 
         function renderKPIs() {
@@ -4144,19 +4121,17 @@
                     { label: 'Contactos (P)', data: Ps, backgroundColor: CHART_COLORS.P }
                 ]
             };
-            _setKpiInnerWidth('kpiVolumen', labels.length, _expanded);
             destroyChart('kpiVolumen');
             charts['kpiVolumen'] = new Chart(document.getElementById('kpiVolumen').getContext('2d'), {
                 type: 'bar', data: dataKpiVolumen,
-                options: _applyKpiTruncate(chartOpts('Cantidad'))
+                options: _applyKpiTruncate(chartOpts('Cantidad'), _expanded)
             });
 
             const dataKpiEfectividad = { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.P }] };
-            _setKpiInnerWidth('kpiEfectividad', labels.length, _expanded);
             destroyChart('kpiEfectividad');
             charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
                 type: 'bar', data: dataKpiEfectividad,
-                options: _applyKpiTruncate(chartOptsPct())
+                options: _applyKpiTruncate(chartOptsPct(), _expanded)
             });
 
             // Volumen Full PECVS
@@ -4175,11 +4150,10 @@
                     { label: 'S', data: dataS, backgroundColor: CHART_COLORS.S }
                 ]
             };
-            _setKpiInnerWidth('kpiVolumeFull', labels.length, _expanded);
             destroyChart('kpiVolumeFull');
             charts['kpiVolumeFull'] = new Chart(document.getElementById('kpiVolumeFull').getContext('2d'), {
                 type: 'bar', data: dataKpiVolumeFull,
-                options: _applyKpiTruncate(chartOpts('Cantidad Unidades'))
+                options: _applyKpiTruncate(chartOpts('Cantidad Unidades'), _expanded)
             });
 
             // Ratios de Embudo (en porcentaje 0-100)
@@ -4192,11 +4166,10 @@
             ratios.forEach(r => {
                 const data = agents.map(a => agMap[a][r.bot] > 0 ? parseFloat(((agMap[a][r.top] / agMap[a][r.bot]) * 100).toFixed(1)) : 0);
                 const ratioData = { labels, datasets: [{ label: r.label, data: data, backgroundColor: r.color }] };
-                _setKpiInnerWidth(r.id, labels.length, _expanded);
                 destroyChart(r.id);
                 charts[r.id] = new Chart(document.getElementById(r.id).getContext('2d'), {
                     type: 'bar', data: ratioData,
-                    options: _applyKpiTruncate(chartOptsPct())
+                    options: _applyKpiTruncate(chartOptsPct(), _expanded)
                 });
             });
 
@@ -4210,11 +4183,10 @@
                     { label: 'Prima por Venta ($/V)', data: primaPerV, backgroundColor: CHART_COLORS.V }
                 ]
             };
-            _setKpiInnerWidth('kpiPrimaPromedios', labels.length, _expanded);
             destroyChart('kpiPrimaPromedios');
             charts['kpiPrimaPromedios'] = new Chart(document.getElementById('kpiPrimaPromedios').getContext('2d'), {
                 type: 'bar', data: dataKpiPrimaPromedios,
-                options: _applyKpiTruncate(chartOptsDollar())
+                options: _applyKpiTruncate(chartOptsDollar(), _expanded)
             });
         }
 
