@@ -4023,6 +4023,23 @@
             // Eficiencia P → V en porcentaje (0-100)
             const pvs = agents.map(a => agMap[a].P > 0 ? parseFloat(((agMap[a].V / agMap[a].P) * 100).toFixed(1)) : 0);
 
+            // ─── MOBILE: barras horizontales (indexAxis: 'y') ──────────────────────
+            // En mobile cada agente toma una fila completa (nombres legibles, sin rotar).
+            // El chart-wrap crece dinámicamente: 32px por agente + padding del header/legend.
+            // En desktop sigue como vertical (indexAxis default 'x').
+            const _isMobile = window.innerWidth < 768;
+            const _mobileChartHeight = Math.max(260, agents.length * 32 + 90);
+            function _withMobileFlip(opts) {
+                if (!_isMobile) return opts;
+                return { ...opts, indexAxis: 'y' };
+            }
+            function _setHeight(canvasId) {
+                if (!_isMobile) return;
+                const wrap = document.getElementById(canvasId)?.parentElement;
+                if (wrap) wrap.style.height = _mobileChartHeight + 'px';
+            }
+
+            _setHeight('kpiVolumen');
             destroyChart('kpiVolumen');
             charts['kpiVolumen'] = new Chart(document.getElementById('kpiVolumen').getContext('2d'), {
                 type: 'bar',
@@ -4032,14 +4049,15 @@
                         { label: 'Contactos (P)', data: Ps, backgroundColor: CHART_COLORS.P }
                     ]
                 },
-                options: chartOpts('Cantidad')
+                options: _withMobileFlip(chartOpts('Cantidad'))
             });
 
+            _setHeight('kpiEfectividad');
             destroyChart('kpiEfectividad');
             charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
                 type: 'bar',
                 data: { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.P }] },
-                options: chartOptsPct()
+                options: _withMobileFlip(chartOptsPct())
             });
 
             // Volumen Full PECVS
@@ -4048,6 +4066,7 @@
             const dataC = agents.map(a => agMap[a].C);
             const dataV = agents.map(a => agMap[a].V);
             const dataS = agents.map(a => agMap[a].S);
+            _setHeight('kpiVolumeFull');
             destroyChart('kpiVolumeFull');
             charts['kpiVolumeFull'] = new Chart(document.getElementById('kpiVolumeFull').getContext('2d'), {
                 type: 'bar',
@@ -4061,7 +4080,7 @@
                         { label: 'S', data: dataS, backgroundColor: CHART_COLORS.S }
                     ]
                 },
-                options: chartOpts('Cantidad Unidades')
+                options: _withMobileFlip(chartOpts('Cantidad Unidades'))
             });
 
             // Ratios de Embudo (en porcentaje 0-100)
@@ -4073,17 +4092,19 @@
 
             ratios.forEach(r => {
                 const data = agents.map(a => agMap[a][r.bot] > 0 ? parseFloat(((agMap[a][r.top] / agMap[a][r.bot]) * 100).toFixed(1)) : 0);
+                _setHeight(r.id);
                 destroyChart(r.id);
                 charts[r.id] = new Chart(document.getElementById(r.id).getContext('2d'), {
                     type: 'bar',
                     data: { labels, datasets: [{ label: r.label, data: data, backgroundColor: r.color }] },
-                    options: chartOptsPct()
+                    options: _withMobileFlip(chartOptsPct())
                 });
             });
 
             // Prima promedio: $/S vs $/V por agente
             const primaPerS = agents.map(a => agMap[a].S > 0 ? parseFloat((agMap[a].prima / agMap[a].S).toFixed(2)) : 0);
             const primaPerV = agents.map(a => agMap[a].V > 0 ? parseFloat((agMap[a].prima / agMap[a].V).toFixed(2)) : 0);
+            _setHeight('kpiPrimaPromedios');
             destroyChart('kpiPrimaPromedios');
             charts['kpiPrimaPromedios'] = new Chart(document.getElementById('kpiPrimaPromedios').getContext('2d'), {
                 type: 'bar',
@@ -4094,7 +4115,7 @@
                         { label: 'Prima por Venta ($/V)', data: primaPerV, backgroundColor: CHART_COLORS.V }
                     ]
                 },
-                options: chartOptsDollar()
+                options: _withMobileFlip(chartOptsDollar())
             });
         }
 
