@@ -498,6 +498,40 @@
             #tab-reporte-promotores .card,
             #tab-tesoreria .card,
             #tab-conceptos .card { display: none; }
+
+            /* ═══ Gestión de Equipo Activo: layout stack en mobile ═══ */
+            /* El header de columnas (5-col grid) no hace sentido apilado, lo escondo */
+            #tab-gestion .card > div[style*="grid-template-columns:2fr 80px"] {
+                display: none !important;
+            }
+            /* Cada row de miembro: info full-width, Guardar+Expulsar en 2 cols abajo */
+            #gestion-all-list > div {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 10px !important;
+                padding: 12px !important;
+            }
+            #gestion-all-list > div > div:first-child {
+                grid-column: 1 / -1;
+            }
+            #gestion-all-list input[id^="name-inp-"] {
+                width: 100% !important;
+            }
+            #gestion-all-list select[id^="assign-inp-"] {
+                min-width: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                flex: 1;
+            }
+            #gestion-all-list > div > button.btn {
+                width: 100%;
+                justify-content: center;
+            }
+            /* Huérfanos e Inactivos: filtros verticales en mobile */
+            #tab-gestion .card > div[style*="display:flex"] {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
         }
 
         /* ═══ BOTÓN INSTALAR APP (PWA) ═══ */
