@@ -5367,16 +5367,38 @@
                 if (!companyCode) { alert('Esta solicitud no tiene clave de agente. Recházala y pide al usuario que se registre de nuevo.'); btn.disabled = false; btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar'; return; }
 
                 // ─── DUPLICATE GUARD ─────────────────────────────────────────────
-                // Bloqueamos si ya existe un doc activo en la colección destino.
+                // Bloqueamos si ya existe un doc activo en la colección destino,
+                // ya sea por email (doc.id) o por companyCode (clave de agente).
                 // Roles cruzados (ya es coach y se aprueba como promotor) están
                 // permitidos a propósito: una persona puede tener varios roles.
                 // Los expulsados (status:'inactive') NO bloquean — se re-aprueban
                 // y vuelven a quedar activos.
                 const _roleColMap = { agent: 'users', coach: 'coaches', promoter: 'promoters' };
                 const _roleLabelMap = { agent: 'agente', coach: 'coach', promoter: 'promotor' };
-                const _existingSnap = await getDoc(doc(db, _roleColMap[role], email));
-                if (_existingSnap.exists() && _existingSnap.data().status === 'active') {
+                const _nameField = { agent: 'agentName', coach: 'coachName', promoter: 'promoterName' };
+                const _targetCol = _roleColMap[role];
+                const _myDir = state.directorCode || '';
+
+                // 1) Email duplicado (doc.id global)
+                const _existingByEmail = await getDoc(doc(db, _targetCol, email));
+                if (_existingByEmail.exists() && _existingByEmail.data().status === 'active') {
                     alert(`⚠️ ${name || email} ya está aprobado como ${_roleLabelMap[role]}.\n\nNo se permiten duplicados del mismo rol. Si necesitás reasignarlo a otro equipo, hacelo desde la pestaña Gestión.`);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar';
+                    return;
+                }
+
+                // 2) Clave (companyCode) duplicada en el mismo director/tenant
+                //    (entre tenants distintos puede coincidir; eso es válido)
+                const _byCodeSnap = await getDocs(query(collection(db, _targetCol), where('companyCode', '==', companyCode)));
+                const _codeConflict = _byCodeSnap.docs.find(d => {
+                    const x = d.data();
+                    return x.status === 'active' && (x.directorCode || '') === _myDir;
+                });
+                if (_codeConflict) {
+                    const _conflictData = _codeConflict.data();
+                    const _conflictName = _conflictData[_nameField[role]] || _conflictData.email || _codeConflict.id;
+                    alert(`⚠️ La clave ${companyCode} ya está siendo usada por otro ${_roleLabelMap[role]}: ${_conflictName}.\n\nNo se permiten códigos duplicados del mismo rol. Pedile al usuario que se registre con una clave distinta.`);
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar';
                     return;
