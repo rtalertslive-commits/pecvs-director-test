@@ -11,6 +11,12 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- PWA manifest + icon (gold radial bg + serif "D") -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#d4af37">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
     <style>
         :root {
             --bg: #020617;
@@ -101,28 +107,87 @@
             gap: 24px;
         }
 
-        /* HEADER */
+        /* HEADER — column en mobile, row en desktop (mismo patrón que agente) */
         .header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 15px;
             padding-bottom: 20px;
             border-bottom: 1px solid var(--border);
         }
+        @media (min-width: 768px) {
+            .header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
 
-        .header-left h1 {
+        /* BRAND: monograma dorado + wordmark "Actividad" + subtitle pulse */
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .brand-mono {
+            width: 48px;
+            height: 48px;
+            border-radius: 11px;
+            background: linear-gradient(135deg, var(--gold-l) 0%, var(--gold) 50%, #a08015 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-family: 'Playfair Display', serif;
-            font-size: 30px;
+            font-weight: 900;
+            font-size: 26px;
+            color: var(--bg);
+            box-shadow: 0 4px 14px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .header-left h1 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 19px;
             margin: 0;
-            background: linear-gradient(90deg, var(--white), var(--gold));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--white);
+            letter-spacing: -0.3px;
+            line-height: 1.1;
+            background: none;
+            -webkit-text-fill-color: var(--white);
+        }
+        .brand-sub {
+            font-size: 9px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 3px;
+            font-weight: 600;
+            color: var(--slate);
+        }
+        .brand-sub .ver {
+            color: var(--slate);
+            margin-left: 6px;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+        @keyframes brandSubPulse {
+            0%, 100% {
+                color: var(--gold);
+                text-shadow: 0 0 0 transparent;
+            }
+            50% {
+                color: var(--gold-l);
+                text-shadow: 0 0 10px rgba(212, 175, 55, 0.7), 0 0 20px rgba(212, 175, 55, 0.35);
+            }
+        }
+        .pulse-text {
+            animation: brandSubPulse 3s ease-in-out infinite;
+            color: var(--gold);
         }
 
         .header-left p {
             margin: 4px 0 0;
-            font-size: 12px;
+            font-size: 14px;
             color: var(--slate);
         }
 
@@ -224,6 +289,308 @@
 
         .tab-panel.active {
             display: block;
+        }
+
+        /* ═══ BOTTOM NAV (mobile only, estilo iOS/Android) ═══ */
+        .bottom-nav { display: none; }
+        @media (max-width: 767px) {
+            .tab-nav { display: none; }
+            body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+            .bottom-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0; left: 0; right: 0;
+                background: rgba(2, 6, 23, 0.92);
+                border-top: 1px solid var(--border);
+                padding: 8px 4px calc(10px + env(safe-area-inset-bottom, 0px));
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                z-index: 100;
+            }
+        }
+        .bottom-nav .bn-btn {
+            flex: 1; background: none; border: none;
+            color: var(--slate); cursor: pointer; text-align: center;
+            padding: 6px 2px;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+        }
+        .bottom-nav .bn-btn i {
+            font-size: 19px; line-height: 1;
+            transition: transform 0.15s ease;
+        }
+        .bottom-nav .bn-btn span {
+            font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
+        }
+        .bottom-nav .bn-btn.active { color: var(--gold); }
+        .bottom-nav .bn-btn.active i { transform: scale(1.12); }
+        .bottom-nav .bn-badge {
+            position: absolute;
+            top: 2px;
+            right: calc(50% - 18px);
+            background: var(--red);
+            color: #fff;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 5px;
+            min-width: 14px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        /* ═══ MOBILE LEADERBOARD ═══ */
+        .lb-mobile { display: none; }
+        @media (max-width: 767px) {
+            .lb-mobile { display: block; }
+            .lb-desktop { display: none; }
+            .lb-filters { flex-direction: column; gap: 8px; }
+        }
+        .lb-sort {
+            display: flex; gap: 6px; margin-bottom: 12px; padding: 4px;
+            background: rgba(255,255,255,0.03); border-radius: 8px;
+        }
+        .lb-sort-btn {
+            flex: 1; padding: 8px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--slate);
+            font-size: 12px; font-weight: 600;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .lb-sort-btn.active {
+            color: var(--gold); border-color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+        }
+        .lb-team-total {
+            background: linear-gradient(135deg, rgba(20, 30, 48, 0.98) 0%, rgba(36, 28, 18, 0.95) 100%);
+            border: 1.5px solid var(--gold);
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+            position: sticky; top: 0; z-index: 10;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35),
+                        0 0 0 1px rgba(212, 175, 55, 0.15),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+        .lb-team-total-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 15px; color: var(--gold);
+            font-weight: 700; letter-spacing: 2.5px;
+            margin: 0 0 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+            text-align: center;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .lb-team-total-main {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .lb-team-total-main > div { text-align: center; }
+        .lb-team-total-main .label {
+            font-size: 9px;
+            color: var(--slate);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 4px;
+        }
+        .lb-team-total-main .value {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--gold);
+            line-height: 1.1;
+            font-variant-numeric: tabular-nums;
+        }
+        @media (max-width: 360px) {
+            .lb-team-total-main .value { font-size: 14px; }
+        }
+        .lb-team-total-sub {
+            font-size: 12px; color: var(--slate);
+            text-align: center;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(212, 175, 55, 0.2);
+        }
+        .lb-team-total-sub + .lb-team-total-sub {
+            border-top: none; padding-top: 4px;
+        }
+        .lb-team-total-sub strong { color: var(--white); font-weight: 700; }
+        .lb-mobile-row {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .lb-mobile-row-header {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .lb-rank {
+            font-size: 13px; font-weight: 800;
+            color: var(--gold); min-width: 28px;
+        }
+        .lb-name {
+            flex: 1; font-size: 14px; font-weight: 700; color: var(--white);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .lb-chevron {
+            font-size: 11px; color: var(--slate);
+            transition: transform 0.2s;
+        }
+        .lb-mobile-row.open .lb-chevron { transform: rotate(180deg); }
+        .lb-mobile-row-stats {
+            display: flex; justify-content: space-between;
+            margin-top: 8px; font-size: 13px; color: var(--white);
+        }
+        .lb-mobile-row-stats strong { color: var(--gold); }
+        .lb-mobile-row-detail {
+            display: none;
+            margin-top: 12px; padding-top: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 12px; color: var(--slate); line-height: 1.7;
+        }
+        .lb-mobile-row-detail strong { color: var(--white); font-weight: 700; }
+        .lb-mobile-row.open .lb-mobile-row-detail { display: block; }
+        .lb-mobile-row-pecvs {
+            display: flex; justify-content: space-between;
+            font-family: 'Inter', monospace;
+            font-size: 13px; color: var(--white);
+            margin-bottom: 6px;
+        }
+        .lb-mobile-row-pecvs span strong { color: var(--gold); }
+        .lb-mobile-empty {
+            padding: 30px 20px; text-align: center;
+            color: var(--slate); font-size: 14px;
+        }
+
+        /* ═══ "DISPONIBLE EN COMPUTADORA" — pestañas heavy ocultas en mobile ═══ */
+        .desktop-only-msg { display: none; }
+        @media (max-width: 767px) {
+            .desktop-only-msg {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 60px 24px;
+                color: var(--slate);
+                font-size: 14px;
+            }
+            .desktop-only-msg i {
+                font-size: 48px; color: var(--gold);
+                opacity: 0.6; margin-bottom: 16px;
+            }
+            .desktop-only-msg strong {
+                color: var(--white); font-size: 16px;
+                display: block; margin-bottom: 6px;
+            }
+            #tab-bitacora .card,
+            #tab-reporte .card,
+            #tab-reporte-promotores .card,
+            #tab-tesoreria .card,
+            #tab-conceptos .card { display: none; }
+        }
+
+        /* ═══ BOTÓN INSTALAR APP (PWA) ═══ */
+        .btn-install {
+            display: none;
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1.5px solid var(--gold);
+            background: rgba(212, 175, 55, 0.08);
+            color: var(--gold-l);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-install:hover { background: var(--gold); color: var(--bg); }
+        .btn-install.show { display: inline-flex; }
+        .btn-install .ic { font-size: 16px; }
+
+        #ios-install-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 99998;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #ios-install-modal.show { display: flex; }
+        #ios-install-modal .ios-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px 22px;
+            max-width: 360px;
+            width: 100%;
+            text-align: center;
+        }
+        #ios-install-modal h3 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--white);
+            margin: 0 0 14px;
+        }
+        #ios-install-modal ol {
+            text-align: left;
+            color: var(--slate);
+            font-size: 13px;
+            line-height: 1.7;
+            padding-left: 22px;
+            margin: 12px 0 18px;
+        }
+        #ios-install-modal ol strong { color: var(--gold-l); }
+        #ios-install-modal .close-btn {
+            background: var(--gold);
+            color: var(--bg);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 24px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #ios-install-modal .share-icon {
+            display: inline-block;
+            width: 20px; height: 26px;
+            border: 2px solid var(--gold);
+            border-radius: 4px;
+            position: relative;
+            vertical-align: middle;
+            margin: 0 3px;
+        }
+        #ios-install-modal .share-icon::before {
+            content: ''; position: absolute;
+            top: -8px; left: 50%;
+            width: 2px; height: 12px;
+            background: var(--gold);
+            transform: translateX(-50%);
+        }
+        #ios-install-modal .share-icon::after {
+            content: ''; position: absolute;
+            top: -8px; left: 50%;
+            width: 8px; height: 8px;
+            border-top: 2px solid var(--gold);
+            border-left: 2px solid var(--gold);
+            transform: translateX(-50%) rotate(45deg);
         }
 
         /* CARDS */
@@ -614,6 +981,18 @@
             position: relative;
         }
 
+        /* ═══ MOBILE: charts 1-col + padding reducido (override del .charts-grid de arriba) ═══ */
+        @media (max-width: 767px) {
+            .charts-grid { grid-template-columns: 1fr !important; gap: 12px; }
+            .card { padding: 14px; }
+            .chart-card { padding: 14px; }
+            .chart-card h3 { margin-bottom: 10px; }
+            .chart-wrap { height: 260px; }
+            .charts-controls { flex-direction: column; gap: 8px; }
+            .charts-controls > div { width: 100%; }
+            .charts-controls select { width: 100%; }
+        }
+
         /* FUNNEL INDICATOR */
         .funnel-row {
             display: flex;
@@ -813,9 +1192,27 @@
                 style="width:100%; justify-content:center; padding:15px; border-radius:12px;">
                 <i class="fa-brands fa-google"></i> Continuar con Google
             </button>
+            <button class="btn-install" id="install-btn" onclick="installApp()">
+                <span class="ic">📲</span>
+                <span>Instalar App en este dispositivo</span>
+            </button>
             <div style="margin-top: 25px; font-size: 11px; color: var(--slate); opacity: 0.6;">
                 <span data-app-version>—</span> · Sincronización mediante Google Firebase
             </div>
+        </div>
+    </div>
+
+    <!-- Modal de instrucciones iOS (Safari no soporta beforeinstallprompt) -->
+    <div id="ios-install-modal" onclick="if(event.target===this)closeIosInstall()">
+        <div class="ios-card">
+            <div style="font-size:42px;margin-bottom:6px;">📲</div>
+            <h3>Instalar Director Hub en tu iPhone</h3>
+            <ol>
+                <li>Pulsá el botón <strong>Compartir</strong> <span class="share-icon"></span> en la barra de Safari (abajo).</li>
+                <li>Deslizá hacia abajo y elegí <strong>"Agregar a pantalla de inicio"</strong>.</li>
+                <li>Confirmá tocando <strong>"Agregar"</strong> arriba a la derecha.</li>
+            </ol>
+            <button class="close-btn" onclick="closeIosInstall()">Entendido</button>
         </div>
     </div>
 
@@ -824,11 +1221,15 @@
         <!-- HEADER -->
         <div class="header">
             <div class="header-left">
-                <h1><i class="fa-solid fa-chart-line" style="font-size:22px;margin-right:10px;"></i>PECVS$ Analytics
-                    <small style="font-size:10px; color:var(--slate);" data-app-version>—</small>
-                </h1>
+                <div class="brand">
+                    <div class="brand-mono">D</div>
+                    <div>
+                        <h1>Actividad</h1>
+                        <div class="brand-sub"><span class="pulse-text">REGISTRO PROFESIONAL</span> <span class="ver" data-app-version>—</span></div>
+                    </div>
+                </div>
                 <p id="director-display">Director: —</p>
-                <p id="team-display" style="font-size:10px; color:var(--gold); font-weight:700;">Código: Sin Código</p>
+                <p id="team-display" style="font-size:11px; color:var(--gold); font-weight:700; margin-top:2px;">Código: Sin Código</p>
             </div>
             <div class="header-right">
                 <button class="btn btn-sm" onclick="openConfig()"><i class="fa fa-cog"></i> Configuración</button>
@@ -837,21 +1238,21 @@
             </div>
         </div>
 
-        <!-- TAB NAV -->
+        <!-- TAB NAV (desktop) -->
         <div class="tab-nav">
-            <button class="tab-btn" onclick="switchTab('bitacora',this)"><i class="fa fa-book-open"></i> Bitácora</button>
-            <button class="tab-btn active" onclick="switchTab('leaderboard',this)"><i class="fa fa-table"></i> Leaderboard /
+            <button class="tab-btn" data-tab="bitacora" onclick="switchTab('bitacora',this)"><i class="fa fa-book-open"></i> Bitácora</button>
+            <button class="tab-btn active" data-tab="leaderboard" onclick="switchTab('leaderboard',this)"><i class="fa fa-table"></i> Leaderboard /
                 Ratios</button>
-            <button class="tab-btn" onclick="switchTab('kpis',this)"><i class="fa fa-chart-column"></i>
+            <button class="tab-btn" data-tab="kpis" onclick="switchTab('kpis',this)"><i class="fa fa-chart-column"></i>
                 KPIs (Barras)</button>
-            <button class="tab-btn" onclick="switchTab('charts',this)"><i class="fa fa-chart-area"></i>
+            <button class="tab-btn" data-tab="charts" onclick="switchTab('charts',this)"><i class="fa fa-chart-area"></i>
                 Tendencias</button>
-            <button class="tab-btn" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
-            <button class="tab-btn" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
-            <button class="tab-btn" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
-            <button class="tab-btn" onclick="switchTab('tienda',this)"><i class="fa fa-store"></i> Tienda <span id="tienda-pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
-            <button class="tab-btn" onclick="switchTab('tesoreria',this)"><i class="fa fa-landmark"></i> Tesorería <svg class="totopo-icon"><use href="#totopo"/></svg></button>
-            <button class="tab-btn" onclick="switchTab('conceptos',this)"><i class="fa fa-lightbulb"></i> Conceptos</button>
+            <button class="tab-btn" data-tab="reporte" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
+            <button class="tab-btn" data-tab="reporte-promotores" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
+            <button class="tab-btn" data-tab="gestion" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
+            <button class="tab-btn" data-tab="tienda" onclick="switchTab('tienda',this)"><i class="fa fa-store"></i> Tienda <span id="tienda-pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
+            <button class="tab-btn" data-tab="tesoreria" onclick="switchTab('tesoreria',this)"><i class="fa fa-landmark"></i> Tesorería <svg class="totopo-icon"><use href="#totopo"/></svg></button>
+            <button class="tab-btn" data-tab="conceptos" onclick="switchTab('conceptos',this)"><i class="fa fa-lightbulb"></i> Conceptos</button>
         </div>
 
         <!-- ═══════════════════════════════ TAB: LEADERBOARD ═══════════════════════════════ -->
@@ -889,9 +1290,6 @@
                         </select>
                     </div>
                     <div style="margin-top:18px;">
-                        <button class="btn btn-sm"
-                            onclick="lb_coach_filter.value='';lb_mes_filter.value='';lb_sem_filter.value='';renderLeaderboard()"><i
-                                class="fa fa-filter-circle-xmark"></i>Quitar filtros</button>
                         <button id="btn-tog-red" class="btn btn-sm" onclick="toggleRed()">
                             <i class="fa fa-eye"></i> Ver Conciliación Real
                         </button>
@@ -900,7 +1298,18 @@
 
                 <!-- Info box removed per user request -->
 
-                <div class="table-scroll">
+                <!-- ═══ MOBILE LEADERBOARD (visible solo en mobile) ═══ -->
+                <div class="lb-mobile">
+                    <div class="lb-sort">
+                        <button class="lb-sort-btn active" data-sort="prima" onclick="setMobileLbSort('prima')">Prima ↓</button>
+                        <button class="lb-sort-btn" data-sort="S" onclick="setMobileLbSort('S')">S ↓</button>
+                        <button class="lb-sort-btn" data-sort="P" onclick="setMobileLbSort('P')">P ↓</button>
+                    </div>
+                    <div id="lb-mobile-team-total"></div>
+                    <div id="lb-mobile-rows"></div>
+                </div>
+
+                <div class="table-scroll lb-desktop">
                     <table class="lb-table">
                         <thead id="lb-thead">
                             <tr>
@@ -1068,6 +1477,11 @@
 
         <!-- ═══════════════════ TAB: REPORTES DE COACHES ═══════════════════ -->
         <div id="tab-reporte" class="tab-panel">
+            <div class="desktop-only-msg">
+                <i class="fa fa-desktop"></i>
+                <strong>Solo en computadora</strong>
+                Los reportes de coaches están optimizados para pantalla grande.<br>Abrí esta sección desde tu PC.
+            </div>
             <!-- Sub-tab switcher -->
             <div style="display:flex; gap:8px; margin-bottom:20px;">
                 <button id="rpt-sub-btn-ventas" onclick="switchReporteSub('ventas')" style="padding:8px 18px; border-radius:8px; border:none; background:var(--gold); color:#000; font-weight:700; font-size:13px; cursor:pointer;">📊 Reportes de Ventas</button>
@@ -1139,6 +1553,11 @@
 
         <!-- ═══════════════════ TAB: BITÁCORA ═══════════════════ -->
         <div id="tab-bitacora" class="tab-panel">
+            <div class="desktop-only-msg">
+                <i class="fa fa-desktop"></i>
+                <strong>Solo en computadora</strong>
+                La bitácora de agentes tiene muchas columnas y se ve mejor en pantalla grande.<br>Abrí esta sección desde tu PC.
+            </div>
             <div class="card">
                 <p class="card-title"><i class="fa fa-book-open"></i> Bitácora de Agentes <span style="font-size:12px;font-weight:400;color:var(--slate);">(solo lectura, para efectos de supervisión)</span></p>
                 <div class="info-box">
@@ -1216,6 +1635,11 @@
 
         <!-- ═══════════════════ TAB: REPORTES DE PROMOTORES ═══════════════════ -->
         <div id="tab-reporte-promotores" class="tab-panel">
+            <div class="desktop-only-msg">
+                <i class="fa fa-desktop"></i>
+                <strong>Solo en computadora</strong>
+                Los reportes de promotores están optimizados para pantalla grande.<br>Abrí esta sección desde tu PC.
+            </div>
             <!-- Sub-tab switcher -->
             <div style="display:flex;gap:8px;margin-bottom:20px;">
                 <button id="prpt-sub-btn-recl" onclick="switchPromoterReporteSub('recl')" style="padding:8px 18px;border-radius:8px;border:none;background:var(--gold);color:#000;font-weight:700;font-size:13px;cursor:pointer;">👥 Reclutamiento</button>
@@ -1449,6 +1873,11 @@
 
         <!-- ═══════════════════ TAB: TESORERÍA ═══════════════════ -->
         <div id="tab-tesoreria" class="tab-panel">
+            <div class="desktop-only-msg">
+                <i class="fa fa-desktop"></i>
+                <strong>Solo en computadora</strong>
+                Tesorería tiene tablas y acciones que se ven mejor en pantalla grande.<br>Abrí esta sección desde tu PC.
+            </div>
             <div class="card">
                 <h2 style="margin-top:0;"><i class="fa fa-landmark"></i> Tesorería de Totopos <svg class="totopo-icon"><use href="#totopo"/></svg></h2>
                 <p style="font-size:12px;color:var(--slate);margin-bottom:20px;">
@@ -1500,6 +1929,11 @@
 
         <!-- ═══════════════════ TAB: CONCEPTOS ═══════════════════ -->
         <div id="tab-conceptos" class="tab-panel">
+            <div class="desktop-only-msg">
+                <i class="fa fa-desktop"></i>
+                <strong>Solo en computadora</strong>
+                Los conceptos PECVS se ven mejor en pantalla grande.<br>Abrí esta sección desde tu PC.
+            </div>
             <div class="card" style="padding: 25px;">
                 <h2 style="font-family:'Playfair Display',serif; color:var(--gold); border-bottom: 2px solid var(--gold); padding-bottom:10px; margin-bottom:25px; font-size:22px;">
                     <i class="fa fa-graduation-cap-solid"></i> EL EMBUDO DE EFECTIVIDAD
@@ -1623,6 +2057,32 @@
     </div>
 
     <!-- UPDATE AVAILABLE MODAL -->
+    <!-- BOTTOM NAV (mobile only, estilo iOS/Android) -->
+    <nav class="bottom-nav">
+        <button class="bn-btn active" data-tab="leaderboard" onclick="switchTab('leaderboard',this)">
+            <i class="fa fa-table"></i>
+            <span>Equipo</span>
+        </button>
+        <button class="bn-btn" data-tab="kpis" onclick="switchTab('kpis',this)">
+            <i class="fa fa-chart-column"></i>
+            <span>KPIs</span>
+        </button>
+        <button class="bn-btn" data-tab="charts" onclick="switchTab('charts',this)">
+            <i class="fa fa-chart-area"></i>
+            <span>Tend.</span>
+        </button>
+        <button class="bn-btn" data-tab="gestion" onclick="switchTab('gestion',this)">
+            <i class="fa fa-users-gear"></i>
+            <span>Gestión</span>
+            <span id="pending-badge-mobile" class="bn-badge" style="display:none;">0</span>
+        </button>
+        <button class="bn-btn" data-tab="tienda" onclick="switchTab('tienda',this)">
+            <i class="fa fa-store"></i>
+            <span>Tienda</span>
+            <span id="tienda-pending-badge-mobile" class="bn-badge" style="display:none;">0</span>
+        </button>
+    </nav>
+
     <div class="modal-overlay" id="update-available-modal">
         <div class="modal-box" style="max-width:340px;text-align:center;">
             <div style="font-size:48px;margin-bottom:8px;">🚀</div>
@@ -1839,28 +2299,89 @@
         // Pre-fetch al arrancar (no bloqueante para el resto del init)
         getServerTime().then(t => { serverNow = t; _serverNowFetchedAt = Date.now(); }).catch(() => {});
 
+        // ─── PWA INSTALL ───────────────────────────────────────────────────────────
+        // Captura el evento beforeinstallprompt (Chrome/Edge en Android y desktop) y
+        // muestra un boton custom. iOS Safari NO dispara este evento — para iOS
+        // detectamos el dispositivo y mostramos un modal con instrucciones manuales.
+        let _deferredInstallPrompt = null;
+        const _isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+        const _isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+
+        if (!_isStandalone) {
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                _deferredInstallPrompt = e;
+                document.getElementById('install-btn').classList.add('show');
+            });
+            window.addEventListener('appinstalled', () => {
+                _deferredInstallPrompt = null;
+                document.getElementById('install-btn').classList.remove('show');
+            });
+            if (_isIOS) {
+                document.getElementById('install-btn').classList.add('show');
+            }
+        }
+
+        window.installApp = async function () {
+            if (_isIOS && !_deferredInstallPrompt) {
+                document.getElementById('ios-install-modal').classList.add('show');
+                return;
+            }
+            if (!_deferredInstallPrompt) {
+                alert('La instalación no está disponible en este navegador. Probá con Chrome o Edge.');
+                return;
+            }
+            _deferredInstallPrompt.prompt();
+            const { outcome } = await _deferredInstallPrompt.userChoice;
+            if (outcome === 'accepted') {
+                console.log('✅ Usuario aceptó la instalación');
+            }
+            _deferredInstallPrompt = null;
+            document.getElementById('install-btn').classList.remove('show');
+        };
+
+        window.closeIosInstall = function () {
+            document.getElementById('ios-install-modal').classList.remove('show');
+        };
+
         // ─── AUTH LOGIC ──────────────────────────────────────────────────────────────
-        // Login robusto: previene doble-click + ignora errores benignos.
-        // Bug detectado en Android (iOS perdona pero Android lanza auth/cancelled-popup-request
-        // cuando el usuario tap dos veces y el segundo popup mata al primero).
+        // Login con dos branches según plataforma (mismo fix v1.8.5 del agente):
+        //  - iOS PWA standalone: handler MINIMAL síncrono — sin async, sin btn.disabled
+        //    antes del popup. signInWithPopup en iOS PWA abre el popup vía Safari como
+        //    intermediario; cualquier mutación DOM o async wrapping ROMPE el user-gesture
+        //    chain. Sin este branch, el botón "Iniciar sesión con Google" no hace nada
+        //    en iOS instalado como PWA.
+        //  - Resto (Chrome/Android/Safari browser/iOS browser): protección anti-doble-click
+        //    (bug Android: auth/cancelled-popup-request) + silenciar errores benignos.
+        const _isIosPwaStandalone =
+            /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+            (window.navigator.standalone === true ||
+             window.matchMedia('(display-mode: standalone)').matches);
+
         let _loginInProgress = false;
-        document.getElementById('login-btn').addEventListener('click', async () => {
+        document.getElementById('login-btn').addEventListener('click', () => {
+            if (_isIosPwaStandalone) {
+                signInWithPopup(auth, provider).catch(err => {
+                    alert("Error login: " + err.message);
+                });
+                return;
+            }
             if (_loginInProgress) return;
             _loginInProgress = true;
             const btn = document.getElementById('login-btn');
             btn.disabled = true;
-            try {
-                await signInWithPopup(auth, provider);
-            } catch (err) {
-                // Errores benignos que NO requieren alert al usuario (intentará de nuevo)
-                const benign = ['auth/cancelled-popup-request', 'auth/popup-closed-by-user'];
-                if (!benign.includes(err.code)) {
-                    alert("Error login: " + err.message);
-                }
-            } finally {
-                _loginInProgress = false;
-                btn.disabled = false;
-            }
+            signInWithPopup(auth, provider)
+                .catch(err => {
+                    const benign = ['auth/cancelled-popup-request', 'auth/popup-closed-by-user'];
+                    if (!benign.includes(err.code)) {
+                        alert("Error login: " + err.message);
+                    }
+                })
+                .finally(() => {
+                    _loginInProgress = false;
+                    btn.disabled = false;
+                });
         });
 
         window.logout = function () {
@@ -2625,9 +3146,11 @@
         // ─── TABS ─────────────────────────────────────────────────────────────────────
         function switchTab(name, btn) {
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            // Limpiar active en AMBOS navs (top tabs desktop + bottom nav mobile)
+            document.querySelectorAll('.tab-btn, .bn-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + name).classList.add('active');
-            btn.classList.add('active');
+            // Activar el botón correspondiente en ambos navs (matched por data-tab)
+            document.querySelectorAll(`[data-tab="${name}"]`).forEach(b => b.classList.add('active'));
             if (name === 'charts') renderCharts();
             if (name === 'kpis') renderKPIs();
             if (name === 'leaderboard') renderLeaderboard();
@@ -2904,6 +3427,21 @@
             btn.classList.toggle('btn-red', showRedData);
         }
 
+        // ─── MOBILE LEADERBOARD STATE ───────────────────────────────────────────────
+        // El leaderboard mobile usa una vista alternativa con team-total sticky + cards
+        // expandibles. Suma TODO (válido + rojo) sin distinción para simplificar.
+        let mobileLbSort = 'prima';  // 'prima' | 'S' | 'P'
+        window.setMobileLbSort = function (key) {
+            mobileLbSort = key;
+            document.querySelectorAll('.lb-sort-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.sort === key);
+            });
+            renderLeaderboard();
+        };
+        window.toggleLbMobileRow = function (el) {
+            el.classList.toggle('open');
+        };
+
         function validateDay(d) {
             const V = d.V || 0;
             if (d.P === 0 && d.E === 0 && d.C === 0 && V === 0 && d.S === 0 && d.prima === 0) return { ok: true, errors: [] };
@@ -2970,10 +3508,18 @@
             );
 
             // aggregate per agent (re-summing only valid days + tracking red activity)
+            // ALSO build agMapMobile que suma TODO (válido + rojo) sin distinción —
+            // usado por el mobile leaderboard para "simplificar".
             const agMap = {};
+            const agMapMobile = {};
             filtered.forEach(e => {
                 if (!agMap[e.agent]) agMap[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, redS: 0, redPrima: 0 };
+                if (!agMapMobile[e.agent]) agMapMobile[e.agent] = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
                 e.dias.forEach(d => {
+                    // Mobile aggregation: sumar todo sin filtrar
+                    COLS.forEach(c => agMapMobile[e.agent][c] += (d[c] || 0));
+                    agMapMobile[e.agent].prima += d.prima;
+                    // Desktop aggregation: filtrar por validateDay (valid vs red)
                     const { ok } = validateDay(d);
                     if (ok) {
                         COLS.forEach(c => agMap[e.agent][c] += (d[c] || 0));
@@ -2991,6 +3537,11 @@
             const tfoot = document.getElementById('lb-foot');
 
             if (!agents.length) {
+                // Mobile: empty state
+                const mTotalEl = document.getElementById('lb-mobile-team-total');
+                const mRowsEl = document.getElementById('lb-mobile-rows');
+                if (mTotalEl) mTotalEl.innerHTML = '';
+                if (mRowsEl) mRowsEl.innerHTML = '<div class="lb-mobile-empty">No hay datos con los filtros actuales.</div>';
                 tbody.innerHTML = `<tr class="no-data-row"><td colspan="${showRedData ? 17 : 14}">No hay datos con los filtros actuales.</td></tr>`;
                 tfoot.innerHTML = ''; return;
             }
@@ -3078,6 +3629,92 @@
                 <td style="border-left:1px solid var(--red);color:var(--gold);font-weight:800">$${totFinal}</td>
                 ` : ''}
             </tr>`;
+
+            // ─── MOBILE LEADERBOARD ───────────────────────────────────────────────
+            // Renderiza la vista mobile (team total sticky + cards expandibles).
+            // Usa agMapMobile que suma todo (válido + rojo) sin distinción.
+            renderMobileLeaderboard(agMapMobile);
+        }
+
+        function renderMobileLeaderboard(agMap) {
+            const totalEl = document.getElementById('lb-mobile-team-total');
+            const rowsEl = document.getElementById('lb-mobile-rows');
+            if (!totalEl || !rowsEl) return;
+
+            const agents = Object.keys(agMap);
+            if (!agents.length) {
+                totalEl.innerHTML = '';
+                rowsEl.innerHTML = '<div class="lb-mobile-empty">No hay datos con los filtros actuales.</div>';
+                return;
+            }
+
+            // Compute team totals (suma de todo)
+            const tot = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
+            agents.forEach(ag => {
+                ['P','E','C','V','S','prima'].forEach(c => tot[c] += agMap[ag][c]);
+            });
+            const numAgents = agents.length;
+            const totPrimaCompact = tot.prima.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            const efPV = tot.P > 0 ? ((tot.V / tot.P) * 100).toFixed(1) + '%' : '—';
+            const dolPerV = tot.V > 0 ? '$' + (tot.prima / tot.V).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+            const dolPerInt = numAgents > 0 ? '$' + (tot.prima / numAgents).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+
+            totalEl.innerHTML = `
+                <div class="lb-team-total">
+                    <div class="lb-team-total-title"><i class="fa fa-trophy"></i> EQUIPO TOTAL</div>
+                    <div class="lb-team-total-main">
+                        <div>
+                            <div class="label">P · Prosp.</div>
+                            <div class="value">${tot.P}</div>
+                        </div>
+                        <div>
+                            <div class="label">S · Solic.</div>
+                            <div class="value">${tot.S}</div>
+                        </div>
+                        <div>
+                            <div class="label">Prima ($)</div>
+                            <div class="value">$${totPrimaCompact}</div>
+                        </div>
+                    </div>
+                    <div class="lb-team-total-sub">Eficiencia P → V: <strong>${efPV}</strong></div>
+                    <div class="lb-team-total-sub">$/V: <strong>${dolPerV}</strong>  ·  $/Integrante: <strong>${dolPerInt}</strong></div>
+                </div>
+            `;
+
+            // Sort agents by selected key (default: prima desc)
+            agents.sort((a, b) => agMap[b][mobileLbSort] - agMap[a][mobileLbSort]);
+
+            rowsEl.innerHTML = agents.map((ag, i) => {
+                const d = agMap[ag];
+                const primaFmt = d.prima.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const ef = d.P > 0 ? ((d.V / d.P) * 100).toFixed(1) + '%' : '—';
+                const dpv = d.V > 0 ? '$' + (d.prima / d.V).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+                return `
+                    <div class="lb-mobile-row" onclick="toggleLbMobileRow(this)">
+                        <div class="lb-mobile-row-header">
+                            <div class="lb-rank">#${i + 1}</div>
+                            <div class="lb-name">${escapeHtml(ag)}</div>
+                            <div class="lb-chevron"><i class="fa fa-chevron-down"></i></div>
+                        </div>
+                        <div class="lb-mobile-row-stats">
+                            <div>P: <strong>${d.P}</strong></div>
+                            <div>S: <strong>${d.S}</strong></div>
+                            <div>Prima: <strong>$${primaFmt}</strong></div>
+                        </div>
+                        <div class="lb-mobile-row-detail">
+                            <div class="lb-mobile-row-pecvs">
+                                <span>P:<strong>${d.P}</strong></span>
+                                <span>E:<strong>${d.E}</strong></span>
+                                <span>C:<strong>${d.C}</strong></span>
+                                <span>V:<strong>${d.V}</strong></span>
+                                <span>S:<strong>${d.S}</strong></span>
+                            </div>
+                            <div>Eficiencia P → V: <strong>${ef}</strong></div>
+                            <div>$/V: <strong>${dpv}</strong></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // ─── CHARTS ──────────────────────────────────────────────────────────────────
@@ -3779,7 +4416,9 @@
                 if (!myRegion) {
                     // Sin región no mostramos nada (evita data leak entre directores)
                     const badge = document.getElementById('pending-badge');
+                    const badgeMobile = document.getElementById('pending-badge-mobile');
                     if (badge) badge.style.display = 'none';
+                    if (badgeMobile) badgeMobile.style.display = 'none';
                     if (document.getElementById('tab-gestion')?.classList.contains('active')) renderGestion();
                     return;
                 }
@@ -3794,14 +4433,23 @@
                         : docSnap.id;
                     pendingUsers.push({ email: docSnap.id, displayId, ...data });
                 });
-                // Update badge
+                // Update badge (desktop + mobile)
                 const badge = document.getElementById('pending-badge');
+                const badgeMobile = document.getElementById('pending-badge-mobile');
                 if (badge) {
                     if (pendingUsers.length > 0) {
                         badge.textContent = pendingUsers.length;
                         badge.style.display = 'inline';
                     } else {
                         badge.style.display = 'none';
+                    }
+                }
+                if (badgeMobile) {
+                    if (pendingUsers.length > 0) {
+                        badgeMobile.textContent = pendingUsers.length;
+                        badgeMobile.style.display = 'inline-block';
+                    } else {
+                        badgeMobile.style.display = 'none';
                     }
                 }
                 if (document.getElementById('tab-gestion')?.classList.contains('active')) renderGestion();
@@ -5112,10 +5760,12 @@
                 const pending  = all.filter(r => r.status === 'pending').sort((a,b) => (b.fechaSolicitud||'').localeCompare(a.fechaSolicitud||''));
                 const resolved = all.filter(r => r.status !== 'pending').sort((a,b) => (b.fechaResolucion||'').localeCompare(a.fechaResolucion||''));
 
-                // Update badge
+                // Update badge (desktop + mobile)
                 const badge = document.getElementById('tienda-pending-badge');
+                const badgeMobile = document.getElementById('tienda-pending-badge-mobile');
                 const solBadge = document.getElementById('sol-count-badge');
                 if (badge) { badge.style.display = pending.length ? 'inline' : 'none'; badge.textContent = pending.length; }
+                if (badgeMobile) { badgeMobile.style.display = pending.length ? 'inline-block' : 'none'; badgeMobile.textContent = pending.length; }
                 if (solBadge) { solBadge.style.display = pending.length ? 'inline' : 'none'; solBadge.textContent = pending.length; }
 
                 container.innerHTML = pending.length ? pending.map(r => {
