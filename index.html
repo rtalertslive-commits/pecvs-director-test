@@ -1920,8 +1920,16 @@
                             <input type="text" id="new-item-nombre" class="form-input" placeholder="Ej: Día libre">
                         </div>
                         <div>
-                            <label class="field-label">Emoji</label>
+                            <label class="field-label">Emoji <span style="font-size:10px;color:var(--slate);font-weight:400;">(si no hay imagen)</span></label>
                             <input type="text" id="new-item-emoji" class="form-input" placeholder="🎁" maxlength="4" style="width:80px;">
+                        </div>
+                        <div style="grid-column:1/-1;">
+                            <label class="field-label">Imagen <span style="font-size:10px;color:var(--slate);font-weight:400;">(opcional, se comprime a JPEG ~50KB)</span></label>
+                            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                                <input type="file" id="new-item-image" accept="image/*" style="flex:1;min-width:200px;max-width:340px;font-size:12px;">
+                                <img id="new-item-image-preview" alt="preview" style="display:none;width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.3);">
+                                <button type="button" id="new-item-image-clear" onclick="clearItemImage()" style="display:none;background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">Quitar</button>
+                            </div>
                         </div>
                         <div style="grid-column:1/-1;">
                             <label class="field-label">Descripción</label>
@@ -2178,6 +2186,14 @@
         </button>
     </nav>
 
+    <!-- IMAGE PREVIEW (zoom) MODAL — para items de tienda con foto -->
+    <div class="modal-overlay" id="image-preview-modal" onclick="if(event.target===this)closeImagePreview()">
+        <div style="position:relative;max-width:92vw;max-height:90vh;">
+            <button onclick="closeImagePreview()" style="position:absolute;top:-44px;right:0;background:none;border:none;color:var(--white);font-size:32px;cursor:pointer;z-index:2;line-height:1;">&times;</button>
+            <img id="image-preview-img" alt="" style="max-width:92vw;max-height:90vh;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);display:block;">
+        </div>
+    </div>
+
     <div class="modal-overlay" id="update-available-modal">
         <div class="modal-box" style="max-width:340px;text-align:center;">
             <div style="font-size:48px;margin-bottom:8px;">🚀</div>
@@ -2339,11 +2355,13 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, deleteDoc, getDocs, addDoc, updateDoc, collection, query, where, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         // Initialize
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
         const provider = new GoogleAuthProvider();
 
         // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -6000,6 +6018,102 @@
             await setDoc(doc(db, 'store', id), { items: catalogData[role] }, { merge: false });
         }
 
+        // ─── IMAGEN DE ITEM DE TIENDA ─────────────────────────────────────────
+        // Comprime client-side a JPEG (~30-50KB) y sube a Firebase Storage en
+        // store-items/{directorCode}/{itemId}.jpg. El item guarda imageUrl
+        // (download URL público) e imagePath (para borrar después).
+        // Si el item tiene imageUrl, se renderea como thumbnail; al click abre
+        // modal ampliado. Si no hay imagen, fallback al emoji como antes.
+        const ITEM_IMG_MAX_DIM = 600;     // px en el lado más largo
+        const ITEM_IMG_QUALITY = 0.82;    // JPEG quality 0-1
+        let _pendingItemImageBlob = null; // blob comprimido, pendiente de subir al confirmar Agregar
+
+        async function compressImageToJpeg(file, maxDim = ITEM_IMG_MAX_DIM, quality = ITEM_IMG_QUALITY) {
+            const img = await new Promise((res, rej) => {
+                const i = new Image();
+                i.onload = () => res(i);
+                i.onerror = () => rej(new Error('No se pudo leer la imagen'));
+                i.src = URL.createObjectURL(file);
+            });
+            let w = img.naturalWidth, h = img.naturalHeight;
+            if (w > maxDim || h > maxDim) {
+                const ratio = Math.min(maxDim / w, maxDim / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            // Fondo blanco para PNGs con transparencia (JPEG no soporta alpha)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            URL.revokeObjectURL(img.src);
+            return new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+        }
+
+        async function uploadItemImage(blob, itemId) {
+            const dc = state.directorCode || 'unknown';
+            const path = `store-items/${dc}/${itemId}.jpg`;
+            const r = storageRef(storage, path);
+            await uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=2592000' });
+            const url = await getDownloadURL(r);
+            return { url, path };
+        }
+
+        async function deleteItemImageFromStorage(item) {
+            if (!item || !item.imagePath) return;
+            try { await deleteObject(storageRef(storage, item.imagePath)); }
+            catch (e) { console.warn('No se pudo borrar la imagen del storage:', e?.message || e); }
+        }
+
+        window.clearItemImage = function () {
+            _pendingItemImageBlob = null;
+            const inp = document.getElementById('new-item-image');
+            if (inp) inp.value = '';
+            const preview = document.getElementById('new-item-image-preview');
+            if (preview) { preview.style.display = 'none'; preview.src = ''; }
+            const clearBtn = document.getElementById('new-item-image-clear');
+            if (clearBtn) clearBtn.style.display = 'none';
+        };
+
+        // Listener del file input: comprime al elegir y muestra preview
+        document.addEventListener('change', async (ev) => {
+            if (ev.target?.id !== 'new-item-image') return;
+            const file = ev.target.files?.[0];
+            if (!file) { _pendingItemImageBlob = null; return; }
+            if (!file.type.startsWith('image/')) { alert('El archivo debe ser una imagen.'); ev.target.value = ''; return; }
+            try {
+                const blob = await compressImageToJpeg(file);
+                _pendingItemImageBlob = blob;
+                const preview = document.getElementById('new-item-image-preview');
+                if (preview) {
+                    preview.src = URL.createObjectURL(blob);
+                    preview.style.display = 'block';
+                }
+                const clearBtn = document.getElementById('new-item-image-clear');
+                if (clearBtn) clearBtn.style.display = 'inline-block';
+            } catch (e) {
+                alert('No se pudo procesar la imagen: ' + (e?.message || e));
+                _pendingItemImageBlob = null;
+            }
+        });
+
+        window.openImagePreview = function (url) {
+            if (!url) return;
+            const modal = document.getElementById('image-preview-modal');
+            const img = document.getElementById('image-preview-img');
+            if (!modal || !img) return;
+            img.src = url;
+            modal.classList.add('open');
+        };
+        window.closeImagePreview = function () {
+            const modal = document.getElementById('image-preview-modal');
+            const img = document.getElementById('image-preview-img');
+            if (modal) modal.classList.remove('open');
+            if (img) img.src = '';
+        };
+
         function renderCatalogItems() {
             const items = catalogData[currentCatRole];
             const container = document.getElementById('catalog-items-list');
@@ -6011,9 +6125,13 @@
                 const eDesc = escapeHtml(item.descripcion || '');
                 const costoNum = Number(item.costo) || 0;
                 const stockNum = Number(item.stock);
+                // Si el item tiene imageUrl, muestra thumbnail clickeable; sino, emoji.
+                const visual = item.imageUrl
+                    ? `<img src="${escapeHtml(item.imageUrl)}" alt="${eNombre}" loading="lazy" onclick="openImagePreview('${escapeHtml(item.imageUrl)}')" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.3);cursor:zoom-in;flex-shrink:0;">`
+                    : `<span style="font-size:28px;width:56px;text-align:center;flex-shrink:0;">${eEmoji}</span>`;
                 return `
                 <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--panel2);border-radius:10px;border:1px solid ${item.activo ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.06)'};">
-                    <span style="font-size:28px;">${eEmoji}</span>
+                    ${visual}
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:700;font-size:14px;">${eNombre}</div>
                         <div style="font-size:12px;color:var(--slate);">${eDesc}</div>
@@ -6044,14 +6162,31 @@
             const costo  = parseInt(document.getElementById('new-item-costo').value) || 100;
             const stock  = parseInt(document.getElementById('new-item-stock').value);
             if (!nombre) { alert('Ingresa el nombre del item'); return; }
-            const item = { id: Date.now().toString(), nombre, descripcion: desc, emoji, costo, stock: isNaN(stock) ? -1 : stock, activo: true };
-            await loadCatalog(currentCatRole);
-            catalogData[currentCatRole].push(item);
-            await saveCatalog(currentCatRole);
-            renderCatalogItems();
-            ['new-item-nombre','new-item-desc','new-item-emoji'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-            document.getElementById('new-item-costo').value = '100';
-            document.getElementById('new-item-stock').value = '-1';
+            const btn = document.querySelector('button[onclick="addCatalogItem()"]');
+            const prevBtnHtml = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Procesando...'; }
+            try {
+                const itemId = Date.now().toString();
+                const item = { id: itemId, nombre, descripcion: desc, emoji, costo, stock: isNaN(stock) ? -1 : stock, activo: true };
+                if (_pendingItemImageBlob) {
+                    if (btn) btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Subiendo imagen...';
+                    const { url, path } = await uploadItemImage(_pendingItemImageBlob, itemId);
+                    item.imageUrl = url;
+                    item.imagePath = path;
+                }
+                await loadCatalog(currentCatRole);
+                catalogData[currentCatRole].push(item);
+                await saveCatalog(currentCatRole);
+                renderCatalogItems();
+                ['new-item-nombre','new-item-desc','new-item-emoji'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+                document.getElementById('new-item-costo').value = '100';
+                document.getElementById('new-item-stock').value = '-1';
+                clearItemImage();
+            } catch (e) {
+                alert('Error al guardar el item: ' + (e?.message || e));
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = prevBtnHtml; }
+            }
         };
 
         window.toggleCatalogItem = async function(idx) {
@@ -6066,6 +6201,9 @@
         window.deleteCatalogItem = async function(idx) {
             if (!confirm('¿Eliminar este item del catálogo?')) return;
             await loadCatalog(currentCatRole);
+            const itemToDelete = catalogData[currentCatRole][idx];
+            // Borrar imagen del Storage primero (silencioso si falla — borrar el item del catálogo es prioridad)
+            if (itemToDelete) await deleteItemImageFromStorage(itemToDelete);
             catalogData[currentCatRole].splice(idx, 1);
             await saveCatalog(currentCatRole);
             renderCatalogItems();
