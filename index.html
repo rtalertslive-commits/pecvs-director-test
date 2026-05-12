@@ -1047,11 +1047,17 @@
         }
 
         /* ─── KPI Charts: scroll horizontal con barra visible ─── */
+        /* min-width: 0 evita que el chart-card crezca infinitamente por el
+           contenido interno (default grid item min-width:auto bug). */
+        .chart-card { min-width: 0; }
         .chart-wrap.kpi-scroll {
             overflow-x: auto;
             overflow-y: hidden;
             scrollbar-width: thin;
             scrollbar-color: var(--gold) rgba(255,255,255,0.06);
+            /* width: 100% asegura que el wrap no se expanda con su contenido */
+            width: 100%;
+            min-width: 0;
         }
         .chart-wrap.kpi-scroll::-webkit-scrollbar {
             height: 10px;
@@ -1073,10 +1079,12 @@
             background-clip: padding-box;
             border: 2px solid transparent;
         }
+        /* Ancho dinamico via --bar-count (seteado por JS). Si pocas barras,
+           el max(100%, ...) usa 100% del wrap. Si muchas, expande a N*50px. */
         .kpi-chart-inner {
             height: 100%;
             position: relative;
-            min-width: 100%;
+            width: max(100%, calc(var(--bar-count, 1) * 50px));
         }
 
         /* ═══ MOBILE: charts 1-col + padding reducido (override del .charts-grid de arriba) ═══ */
@@ -4472,21 +4480,19 @@
             return o;
         }
 
-        // Ajusta el ancho del contenedor interno de cada KPI chart según el
-        // número de agentes, para que aparezca el scroll horizontal cuando
-        // hay muchas barras. Llamar ANTES de crear los charts.
+        // Setea --bar-count en cada .kpi-chart-inner. El CSS usa
+        //   width: max(100%, calc(var(--bar-count) * 50px))
+        // para que el ancho sea reactivo al ancho del padre (sin importar
+        // si el tab está visible al momento del render).
         function _sizeKpiInners(agentCount) {
-            const MIN_BAR_PX = 50; // ancho mínimo deseado por barra
             const ids = ['kpiVolumeFull', 'kpiVolumen', 'kpiEfectividad', 'kpiRatioEP', 'kpiRatioCE', 'kpiRatioVC', 'kpiPrimaPromedios'];
             ids.forEach(id => {
                 const canvas = document.getElementById(id);
                 if (!canvas) return;
                 const inner = canvas.parentElement;
-                if (!inner || !inner.classList.contains('kpi-chart-inner')) return;
-                const wrap = inner.parentElement; // .chart-wrap.kpi-scroll
-                const wrapWidth = wrap ? wrap.clientWidth : 0;
-                const needed = Math.max(wrapWidth, agentCount * MIN_BAR_PX);
-                inner.style.width = needed + 'px';
+                if (inner && inner.classList.contains('kpi-chart-inner')) {
+                    inner.style.setProperty('--bar-count', String(Math.max(1, agentCount)));
+                }
             });
         }
 
