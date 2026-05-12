@@ -1051,15 +1051,15 @@
            contenido interno (default grid item min-width:auto bug). */
         .chart-card { min-width: 0; }
         .chart-wrap.kpi-scroll {
-            overflow-x: auto;
+            /* `scroll` (no `auto`) FORZA que la barra horizontal este siempre
+               visible — incluso cuando todo el contenido cabe en el viewport.
+               El track vacio sirve como indicador visual de "esto es scrolleable". */
+            overflow-x: scroll;
             overflow-y: hidden;
-            /* `auto` muestra la barra solo cuando hay overflow real.
-               Webkit appearance + thumb/track custom obligan a iOS a mostrarla persistente. */
             scrollbar-width: auto;
             scrollbar-color: var(--gold) rgba(255,255,255,0.10);
             width: 100%;
             min-width: 0;
-            /* Reserva espacio para la barra abajo */
             padding-bottom: 4px;
         }
         .chart-wrap.kpi-scroll::-webkit-scrollbar {
@@ -4679,9 +4679,11 @@
             // los que más necesitan tu atención esta semana).
             const _totalAgents = agents.length;
             let mode = kpiViewMode;
-            // Sanity: si el modo elegido excede el total, downgradeamos a 'all'
-            if ((mode === 'top30' || mode === 'foco30') && _totalAgents <= 30) mode = 'all';
-            if ((mode === 'top10' || mode === 'foco10') && _totalAgents <= 10) mode = 'all';
+            // Si el modo elegido es top30/foco30 pero no hay >30 agentes,
+            // bajamos a top10/foco10 (las pills de 30 ya no se muestran).
+            if ((mode === 'top30' || mode === 'foco30') && _totalAgents <= 30) {
+                mode = (mode === 'top30') ? 'top10' : 'foco10';
+            }
 
             if (mode === 'top10') {
                 agents = agents.slice(0, 10);
@@ -4692,22 +4694,24 @@
             } else if (mode === 'foco10') {
                 agents = agents.slice(-10).reverse();
             }
-            // 'all' → no slicing, usar todos
+            // 'all' → no slicing, usar todos. slice() es tolerante a arrays
+            // mas pequenos que N, asi que con pocos agentes top10/foco10
+            // simplemente devuelven todos (top10 sorted, foco10 reversed).
 
-            // Mostrar/ocultar pills según total disponible
+            // Mostrar/ocultar pills según total disponible.
+            // top10, all, foco10 SIEMPRE visibles (aun con pocos agentes, foco10
+            // da orden invertido = peor primero, distinto de top10).
+            // top30 y foco30 solo cuando hay mas de 30.
             const _pillVisibility = {
-                top10:  _totalAgents > 10,
+                top10:  true,
+                all:    true,
+                foco10: true,
                 top30:  _totalAgents > 30,
-                all:    _totalAgents > 10,
-                foco30: _totalAgents > 30,
-                foco10: _totalAgents > 10
+                foco30: _totalAgents > 30
             };
-            // Si todos caben en 10, sólo dejamos visible "top10" (que ya es el total)
-            if (_totalAgents <= 10) _pillVisibility.top10 = true;
             document.querySelectorAll('.kpi-pill').forEach(p => {
                 const m = p.dataset.mode;
-                const visible = _totalAgents <= 10 ? (m === 'top10') : !!_pillVisibility[m];
-                p.hidden = !visible;
+                p.hidden = !_pillVisibility[m];
             });
 
             const labels = agents;
