@@ -1053,26 +1053,33 @@
         .chart-wrap.kpi-scroll {
             overflow-x: auto;
             overflow-y: hidden;
-            scrollbar-width: thin;
-            scrollbar-color: var(--gold) rgba(255,255,255,0.06);
-            /* width: 100% asegura que el wrap no se expanda con su contenido */
+            /* `auto` muestra la barra solo cuando hay overflow real.
+               Webkit appearance + thumb/track custom obligan a iOS a mostrarla persistente. */
+            scrollbar-width: auto;
+            scrollbar-color: var(--gold) rgba(255,255,255,0.10);
             width: 100%;
             min-width: 0;
+            /* Reserva espacio para la barra abajo */
+            padding-bottom: 4px;
         }
         .chart-wrap.kpi-scroll::-webkit-scrollbar {
-            height: 10px;
+            -webkit-appearance: none;
+            height: 12px;
             display: block;
         }
         .chart-wrap.kpi-scroll::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.06);
-            border-radius: 5px;
+            background: rgba(255,255,255,0.10);
+            border-radius: 6px;
             margin: 0 4px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
         }
         .chart-wrap.kpi-scroll::-webkit-scrollbar-thumb {
             background: var(--gold);
-            border-radius: 5px;
+            border-radius: 6px;
+            min-width: 40px;
             border: 2px solid transparent;
             background-clip: padding-box;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
         }
         .chart-wrap.kpi-scroll::-webkit-scrollbar-thumb:hover {
             background: var(--gold-l);
@@ -1087,6 +1094,45 @@
             width: max(100%, calc(var(--bar-count, 1) * 50px));
         }
 
+        /* ─── KPI HTML Legend (afuera del scroll horizontal) ─── */
+        .kpi-chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+            padding: 0;
+        }
+        .chart-legend-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            color: var(--white);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s, opacity .15s, border-color .15s;
+        }
+        .chart-legend-btn:hover {
+            background: rgba(255,255,255,0.07);
+            border-color: rgba(255,255,255,0.18);
+        }
+        .chart-legend-btn.is-hidden {
+            opacity: 0.42;
+            text-decoration: line-through;
+        }
+        .chart-legend-btn .legend-swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
         /* ═══ MOBILE: charts 1-col + padding reducido (override del .charts-grid de arriba) ═══ */
         @media (max-width: 767px) {
             .charts-grid { grid-template-columns: 1fr !important; gap: 12px; }
@@ -1094,7 +1140,8 @@
             .chart-card { padding: 14px; }
             .chart-card h3 { margin-bottom: 10px; }
             .chart-wrap { height: 260px; }
-            .chart-wrap.kpi-scroll::-webkit-scrollbar { height: 8px; }
+            .chart-wrap.kpi-scroll::-webkit-scrollbar { height: 10px; }
+            .chart-legend-btn { font-size: 10px; padding: 4px 9px; }
             .charts-controls { flex-direction: column; gap: 8px; }
             .charts-controls > div { width: 100%; }
             .charts-controls select { width: 100%; }
@@ -1610,32 +1657,39 @@
                     <!-- 1. Volumen PECVS Completo (full width) -->
                     <div class="chart-card full">
                         <h3><i class="fa fa-arrows-to-circle"></i> Volumen PECVS Completo por Agente</h3>
+                        <div class="kpi-chart-legend" id="legend-kpiVolumeFull"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiVolumeFull"></canvas></div></div>
                     </div>
                     <!-- 2. Cierres V vs P -->
                     <div class="chart-card">
                         <h3><i class="fa fa-bars-progress"></i> Cierres (V) vs Contactos (P)</h3>
+                        <div class="kpi-chart-legend" id="legend-kpiVolumen"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiVolumen"></canvas></div></div>
                     </div>
                     <!-- 3-6. Eficiencia (P → V primero, luego embudo en orden) -->
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ V (Cierre)</h3>
+                        <div class="kpi-chart-legend" id="legend-kpiEfectividad"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiEfectividad"></canvas></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ E</h3>
+                        <div class="kpi-chart-legend" id="legend-kpiRatioEP"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioEP"></canvas></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión E ➔ C</h3>
+                        <div class="kpi-chart-legend" id="legend-kpiRatioCE"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioCE"></canvas></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión C ➔ V</h3>
+                        <div class="kpi-chart-legend" id="legend-kpiRatioVC"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioVC"></canvas></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-coins"></i> Prima promedio: $/S vs $/V</h3>
+                        <div class="kpi-chart-legend" id="legend-kpiPrimaPromedios"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiPrimaPromedios"></canvas></div></div>
                     </div>
                 </div>
@@ -4458,10 +4512,13 @@
         //   - Top 10 (no expanded): nombres truncados rotados 55°
         //   - Ver todos (expanded): NO labels (se amontonan con muchos agentes).
         //     Tooltip al tocar la barra muestra nombre completo + valor.
-        function _applyKpiTruncate(opts, expanded) {
+        function _applyKpiTruncate(opts, expanded, isMulti) {
             // Siempre esconder nombres del eje X. El nombre completo aparece en
-            // el tooltip al tocar/hover la barra. (Param `expanded` se mantiene
-            // por compatibilidad pero ya no afecta el comportamiento.)
+            // el tooltip al tocar/hover la barra.
+            // - Legend nativo de Chart.js se desactiva (lo manejamos en HTML
+            //   afuera del scroll horizontal).
+            // - Si isMulti=true (charts con varios datasets), tooltip mode 'index'
+            //   muestra todas las barras del agente al tocar cualquiera del set.
             const o = { ...opts };
             o.scales = { ...(opts.scales || {}) };
             o.scales.x = { ...(opts.scales?.x || {}) };
@@ -4470,13 +4527,17 @@
                 display: false
             };
             o.plugins = { ...(opts.plugins || {}) };
-            o.plugins.tooltip = {
+            o.plugins.legend = { ...(opts.plugins?.legend || {}), display: false };
+            const tipBase = {
                 ...(opts.plugins?.tooltip || {}),
                 callbacks: {
                     ...(opts.plugins?.tooltip?.callbacks || {}),
                     title: function (items) { return items[0]?.label || ''; }
                 }
             };
+            o.plugins.tooltip = isMulti
+                ? { ...tipBase, mode: 'index', intersect: false }
+                : tipBase;
             return o;
         }
 
@@ -4493,6 +4554,52 @@
                 if (inner && inner.classList.contains('kpi-chart-inner')) {
                     inner.style.setProperty('--bar-count', String(Math.max(1, agentCount)));
                 }
+            });
+        }
+
+        // Plugin global: copia los limites del eje y al eje y1 para que el
+        // axis derecho refleje exactamente el mismo rango/escala que el izq.
+        // Registramos una sola vez al cargar el script.
+        (function registerMirrorYAxisPlugin() {
+            if (!window.Chart || window.__mirrorYAxisRegistered) return;
+            Chart.register({
+                id: 'mirrorYAxis',
+                afterDataLimits: function (chart, args) {
+                    if (!args || !args.scale) return;
+                    if (args.scale.id !== 'y1') return;
+                    const y = chart.scales && chart.scales.y;
+                    if (!y) return;
+                    if (Number.isFinite(y.min)) args.scale.min = y.min;
+                    if (Number.isFinite(y.max)) args.scale.max = y.max;
+                }
+            });
+            window.__mirrorYAxisRegistered = true;
+        })();
+
+        // Renderiza un legend HTML afuera del scroll horizontal. Cada item
+        // es un boton que toggle-ea la visibilidad del dataset y se marca
+        // tachado cuando esta oculto.
+        function _buildHtmlLegend(chart, legendElId) {
+            const el = document.getElementById(legendElId);
+            if (!el || !chart) return;
+            el.innerHTML = '';
+            chart.data.datasets.forEach((ds, i) => {
+                const meta = chart.getDatasetMeta(i);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'chart-legend-btn' + (meta.hidden ? ' is-hidden' : '');
+                const swatch = document.createElement('span');
+                swatch.className = 'legend-swatch';
+                swatch.style.background = ds.backgroundColor || '#888';
+                btn.appendChild(swatch);
+                btn.appendChild(document.createTextNode(ds.label || ('Dataset ' + i)));
+                btn.addEventListener('click', () => {
+                    const m = chart.getDatasetMeta(i);
+                    m.hidden = m.hidden === null ? !chart.data.datasets[i].hidden : null;
+                    btn.classList.toggle('is-hidden');
+                    chart.update();
+                });
+                el.appendChild(btn);
             });
         }
 
@@ -4625,15 +4732,17 @@
             destroyChart('kpiVolumen');
             charts['kpiVolumen'] = new Chart(document.getElementById('kpiVolumen').getContext('2d'), {
                 type: 'bar', data: dataKpiVolumen,
-                options: _applyKpiTruncate(chartOpts('Cantidad'), _expanded)
+                options: _applyKpiTruncate(chartOpts('Cantidad'), _expanded, true)
             });
+            _buildHtmlLegend(charts['kpiVolumen'], 'legend-kpiVolumen');
 
             const dataKpiEfectividad = { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.P }] };
             destroyChart('kpiEfectividad');
             charts['kpiEfectividad'] = new Chart(document.getElementById('kpiEfectividad').getContext('2d'), {
                 type: 'bar', data: dataKpiEfectividad,
-                options: _applyKpiTruncate(chartOptsPct(), _expanded)
+                options: _applyKpiTruncate(chartOptsPct(), _expanded, false)
             });
+            _buildHtmlLegend(charts['kpiEfectividad'], 'legend-kpiEfectividad');
 
             // Volumen Full PECVS
             const dataP = agents.map(a => agMap[a].P);
@@ -4654,8 +4763,9 @@
             destroyChart('kpiVolumeFull');
             charts['kpiVolumeFull'] = new Chart(document.getElementById('kpiVolumeFull').getContext('2d'), {
                 type: 'bar', data: dataKpiVolumeFull,
-                options: _applyKpiTruncate(chartOpts('Cantidad Unidades'), _expanded)
+                options: _applyKpiTruncate(chartOpts('Cantidad Unidades'), _expanded, true)
             });
+            _buildHtmlLegend(charts['kpiVolumeFull'], 'legend-kpiVolumeFull');
 
             // Ratios de Embudo (en porcentaje 0-100)
             const ratios = [
@@ -4670,8 +4780,9 @@
                 destroyChart(r.id);
                 charts[r.id] = new Chart(document.getElementById(r.id).getContext('2d'), {
                     type: 'bar', data: ratioData,
-                    options: _applyKpiTruncate(chartOptsPct(), _expanded)
+                    options: _applyKpiTruncate(chartOptsPct(), _expanded, false)
                 });
+                _buildHtmlLegend(charts[r.id], 'legend-' + r.id);
             });
 
             // Prima promedio: $/S vs $/V por agente
@@ -4687,12 +4798,14 @@
             destroyChart('kpiPrimaPromedios');
             charts['kpiPrimaPromedios'] = new Chart(document.getElementById('kpiPrimaPromedios').getContext('2d'), {
                 type: 'bar', data: dataKpiPrimaPromedios,
-                options: _applyKpiTruncate(chartOptsDollar(), _expanded)
+                options: _applyKpiTruncate(chartOptsDollar(), _expanded, true)
             });
+            _buildHtmlLegend(charts['kpiPrimaPromedios'], 'legend-kpiPrimaPromedios');
         }
 
         // chartOpts especial para gráficas con montos en pesos $
         function chartOptsDollar() {
+            const fmt = (v) => '$' + v.toLocaleString('es-MX');
             return {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
@@ -4702,9 +4815,16 @@
                 scales: {
                     x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
                     y: {
+                        position: 'left',
                         grid: { color: 'rgba(255,255,255,.05)' },
-                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: (v) => '$' + v.toLocaleString('es-MX') },
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: fmt },
                         title: { display: true, text: 'Prima ($)', color: '#94a3b8', font: { size: 10 } },
+                        beginAtZero: true
+                    },
+                    y1: {
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: fmt },
                         beginAtZero: true
                     }
                 }
@@ -4713,6 +4833,7 @@
 
         // chartOpts especial para gráficas de % (formatea ticks y tooltip con sufijo %)
         function chartOptsPct() {
+            const fmt = (v) => v + '%';
             return {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
@@ -4722,9 +4843,16 @@
                 scales: {
                     x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
                     y: {
+                        position: 'left',
                         grid: { color: 'rgba(255,255,255,.05)' },
-                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: (v) => v + '%' },
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: fmt },
                         title: { display: true, text: '% Eficiencia', color: '#94a3b8', font: { size: 10 } },
+                        beginAtZero: true
+                    },
+                    y1: {
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: fmt },
                         beginAtZero: true
                     }
                 }
@@ -4737,7 +4865,19 @@
                 plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } } },
                 scales: {
                     x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-                    y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } }, title: { display: true, text: yLabel, color: '#94a3b8', font: { size: 10 } } }
+                    y: {
+                        position: 'left',
+                        grid: { color: 'rgba(255,255,255,.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } },
+                        title: { display: true, text: yLabel, color: '#94a3b8', font: { size: 10 } },
+                        beginAtZero: true
+                    },
+                    y1: {
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#94a3b8', font: { size: 10 } },
+                        beginAtZero: true
+                    }
                 }
             };
         }
