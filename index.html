@@ -1051,40 +1051,49 @@
            contenido interno (default grid item min-width:auto bug). */
         .chart-card { min-width: 0; }
         .chart-wrap.kpi-scroll {
-            /* `scroll` (no `auto`) FORZA que la barra horizontal este siempre
-               visible — incluso cuando todo el contenido cabe en el viewport.
-               El track vacio sirve como indicador visual de "esto es scrolleable". */
             overflow-x: scroll;
             overflow-y: hidden;
-            scrollbar-width: auto;
-            scrollbar-color: var(--gold) rgba(255,255,255,0.10);
             width: 100%;
             min-width: 0;
-            padding-bottom: 4px;
+            /* Ocultamos la scrollbar nativa — usamos una custom abajo que SI
+               queda persistente en Mac/iOS (overlay scrollbars del sistema
+               se fading sin importar el CSS). */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge legacy */
         }
         .chart-wrap.kpi-scroll::-webkit-scrollbar {
-            -webkit-appearance: none;
-            height: 12px;
-            display: block;
+            display: none;
+            width: 0;
+            height: 0;
         }
-        .chart-wrap.kpi-scroll::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.10);
-            border-radius: 6px;
-            margin: 0 4px;
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+
+        /* ─── Scrollbar custom SIEMPRE visible (debajo del chart) ─── */
+        .kpi-custom-scrollbar {
+            height: 10px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 5px;
+            margin: 8px 0 2px;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
         }
-        .chart-wrap.kpi-scroll::-webkit-scrollbar-thumb {
+        .kpi-custom-scroll-thumb {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
             background: var(--gold);
-            border-radius: 6px;
-            min-width: 40px;
-            border: 2px solid transparent;
-            background-clip: padding-box;
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+            border-radius: 5px;
+            min-width: 28px;
+            cursor: grab;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset,
+                        0 1px 2px rgba(0,0,0,0.3);
         }
-        .chart-wrap.kpi-scroll::-webkit-scrollbar-thumb:hover {
+        .kpi-custom-scroll-thumb:active {
+            cursor: grabbing;
             background: var(--gold-l);
-            background-clip: padding-box;
-            border: 2px solid transparent;
         }
         /* Ancho dinamico via --bar-count (seteado por JS). Si pocas barras,
            el max(100%, ...) usa 100% del wrap. Si muchas, expande a N*50px. */
@@ -1659,38 +1668,45 @@
                         <h3><i class="fa fa-arrows-to-circle"></i> Volumen PECVS Completo por Agente</h3>
                         <div class="kpi-chart-legend" id="legend-kpiVolumeFull"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiVolumeFull"></canvas></div></div>
+                        <div class="kpi-custom-scrollbar" data-for="kpiVolumeFull"><div class="kpi-custom-scroll-thumb"></div></div>
                     </div>
                     <!-- 2. Cierres V vs P -->
                     <div class="chart-card">
                         <h3><i class="fa fa-bars-progress"></i> Cierres (V) vs Contactos (P)</h3>
                         <div class="kpi-chart-legend" id="legend-kpiVolumen"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiVolumen"></canvas></div></div>
+                        <div class="kpi-custom-scrollbar" data-for="kpiVolumen"><div class="kpi-custom-scroll-thumb"></div></div>
                     </div>
                     <!-- 3-6. Eficiencia (P → V primero, luego embudo en orden) -->
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ V (Cierre)</h3>
                         <div class="kpi-chart-legend" id="legend-kpiEfectividad"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiEfectividad"></canvas></div></div>
+                        <div class="kpi-custom-scrollbar" data-for="kpiEfectividad"><div class="kpi-custom-scroll-thumb"></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ E</h3>
                         <div class="kpi-chart-legend" id="legend-kpiRatioEP"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioEP"></canvas></div></div>
+                        <div class="kpi-custom-scrollbar" data-for="kpiRatioEP"><div class="kpi-custom-scroll-thumb"></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión E ➔ C</h3>
                         <div class="kpi-chart-legend" id="legend-kpiRatioCE"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioCE"></canvas></div></div>
+                        <div class="kpi-custom-scrollbar" data-for="kpiRatioCE"><div class="kpi-custom-scroll-thumb"></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión C ➔ V</h3>
                         <div class="kpi-chart-legend" id="legend-kpiRatioVC"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioVC"></canvas></div></div>
+                        <div class="kpi-custom-scrollbar" data-for="kpiRatioVC"><div class="kpi-custom-scroll-thumb"></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-coins"></i> Prima promedio: $/S vs $/V</h3>
                         <div class="kpi-chart-legend" id="legend-kpiPrimaPromedios"></div>
                         <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiPrimaPromedios"></canvas></div></div>
+                        <div class="kpi-custom-scrollbar" data-for="kpiPrimaPromedios"><div class="kpi-custom-scroll-thumb"></div></div>
                     </div>
                 </div>
             </div>
@@ -4576,6 +4592,105 @@
             window.__mirrorYAxisRegistered = true;
         })();
 
+        // Scrollbar custom siempre visible: sync con scroll horizontal del
+        // chart-wrap. Soporta drag del thumb + click en el track para jump.
+        // Idempotente — los listeners se ataan una sola vez via __kpiScrollbarBound.
+        function _attachKpiScrollbar(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const wrap = canvas.closest('.chart-wrap.kpi-scroll');
+            const card = wrap && wrap.closest('.chart-card');
+            if (!wrap || !card) return;
+            const bar = card.querySelector('.kpi-custom-scrollbar[data-for="' + canvasId + '"]');
+            if (!bar) return;
+            const thumb = bar.querySelector('.kpi-custom-scroll-thumb');
+            if (!thumb) return;
+
+            const update = () => {
+                const inner = wrap.firstElementChild;
+                if (!inner) return;
+                const innerW = inner.scrollWidth || inner.offsetWidth || 0;
+                const wrapW = wrap.clientWidth || 1;
+                const barW = bar.clientWidth || 1;
+                if (innerW <= wrapW + 1) {
+                    // Sin overflow: thumb = ancho completo (comunica "ya ves todo")
+                    thumb.style.width = '100%';
+                    thumb.style.left = '0px';
+                    return;
+                }
+                const ratio = wrapW / innerW;
+                const thumbW = Math.max(28, Math.floor(barW * ratio));
+                const maxLeft = barW - thumbW;
+                const scrollPct = wrap.scrollLeft / (innerW - wrapW);
+                const leftPx = Math.max(0, Math.min(maxLeft, scrollPct * maxLeft));
+                thumb.style.width = thumbW + 'px';
+                thumb.style.left = leftPx + 'px';
+            };
+
+            if (!wrap.__kpiScrollbarBound) {
+                wrap.addEventListener('scroll', update, { passive: true });
+                // Re-render on container resize (tab switch, window resize)
+                if (window.ResizeObserver) {
+                    const ro = new ResizeObserver(() => requestAnimationFrame(update));
+                    ro.observe(wrap);
+                    ro.observe(wrap.firstElementChild || wrap);
+                } else {
+                    window.addEventListener('resize', update);
+                }
+                wrap.__kpiScrollbarBound = true;
+            }
+
+            if (!thumb.__dragBound) {
+                let dragging = false, startX = 0, startScroll = 0, barWcache = 0, thumbWcache = 0, innerWcache = 0, wrapWcache = 0;
+                const onDown = (e) => {
+                    dragging = true;
+                    const pt = e.touches ? e.touches[0] : e;
+                    startX = pt.clientX;
+                    startScroll = wrap.scrollLeft;
+                    const inner = wrap.firstElementChild;
+                    innerWcache = (inner && (inner.scrollWidth || inner.offsetWidth)) || 0;
+                    wrapWcache = wrap.clientWidth || 1;
+                    barWcache = bar.clientWidth || 1;
+                    thumbWcache = thumb.offsetWidth || 1;
+                    e.preventDefault();
+                };
+                const onMove = (e) => {
+                    if (!dragging) return;
+                    const pt = e.touches ? e.touches[0] : e;
+                    const dx = pt.clientX - startX;
+                    const trackTravel = Math.max(1, barWcache - thumbWcache);
+                    const scrollableRange = Math.max(0, innerWcache - wrapWcache);
+                    wrap.scrollLeft = startScroll + (dx / trackTravel) * scrollableRange;
+                };
+                const onUp = () => { dragging = false; };
+                thumb.addEventListener('mousedown', onDown);
+                thumb.addEventListener('touchstart', onDown, { passive: false });
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('touchmove', onMove, { passive: true });
+                document.addEventListener('mouseup', onUp);
+                document.addEventListener('touchend', onUp);
+                thumb.__dragBound = true;
+            }
+
+            if (!bar.__trackBound) {
+                bar.addEventListener('click', (e) => {
+                    if (e.target === thumb) return; // Drag handled separately
+                    const rect = bar.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const inner = wrap.firstElementChild;
+                    const innerW = (inner && (inner.scrollWidth || inner.offsetWidth)) || 0;
+                    const wrapW = wrap.clientWidth || 1;
+                    if (innerW <= wrapW) return;
+                    const pct = clickX / Math.max(1, rect.width);
+                    wrap.scrollLeft = pct * (innerW - wrapW);
+                });
+                bar.__trackBound = true;
+            }
+
+            // Render inicial (defer un frame para que el chart ya tenga su ancho)
+            requestAnimationFrame(update);
+        }
+
         // Renderiza un legend HTML afuera del scroll horizontal. Cada item
         // es un boton que toggle-ea la visibilidad del dataset y se marca
         // tachado cuando esta oculto.
@@ -4739,6 +4854,7 @@
                 options: _applyKpiTruncate(chartOpts('Cantidad'), _expanded, true)
             });
             _buildHtmlLegend(charts['kpiVolumen'], 'legend-kpiVolumen');
+            _attachKpiScrollbar('kpiVolumen');
 
             const dataKpiEfectividad = { labels, datasets: [{ label: 'Eficiencia P → V', data: pvs, backgroundColor: CHART_COLORS.P }] };
             destroyChart('kpiEfectividad');
@@ -4747,6 +4863,7 @@
                 options: _applyKpiTruncate(chartOptsPct(), _expanded, false)
             });
             _buildHtmlLegend(charts['kpiEfectividad'], 'legend-kpiEfectividad');
+            _attachKpiScrollbar('kpiEfectividad');
 
             // Volumen Full PECVS
             const dataP = agents.map(a => agMap[a].P);
@@ -4770,6 +4887,7 @@
                 options: _applyKpiTruncate(chartOpts('Cantidad Unidades'), _expanded, true)
             });
             _buildHtmlLegend(charts['kpiVolumeFull'], 'legend-kpiVolumeFull');
+            _attachKpiScrollbar('kpiVolumeFull');
 
             // Ratios de Embudo (en porcentaje 0-100)
             const ratios = [
@@ -4787,6 +4905,7 @@
                     options: _applyKpiTruncate(chartOptsPct(), _expanded, false)
                 });
                 _buildHtmlLegend(charts[r.id], 'legend-' + r.id);
+                _attachKpiScrollbar(r.id);
             });
 
             // Prima promedio: $/S vs $/V por agente
@@ -4805,6 +4924,7 @@
                 options: _applyKpiTruncate(chartOptsDollar(), _expanded, true)
             });
             _buildHtmlLegend(charts['kpiPrimaPromedios'], 'legend-kpiPrimaPromedios');
+            _attachKpiScrollbar('kpiPrimaPromedios');
         }
 
         // chartOpts especial para gráficas con montos en pesos $
