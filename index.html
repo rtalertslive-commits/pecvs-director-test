@@ -1046,6 +1046,39 @@
             position: relative;
         }
 
+        /* ─── KPI Charts: scroll horizontal con barra visible ─── */
+        .chart-wrap.kpi-scroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: var(--gold) rgba(255,255,255,0.06);
+        }
+        .chart-wrap.kpi-scroll::-webkit-scrollbar {
+            height: 10px;
+            display: block;
+        }
+        .chart-wrap.kpi-scroll::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.06);
+            border-radius: 5px;
+            margin: 0 4px;
+        }
+        .chart-wrap.kpi-scroll::-webkit-scrollbar-thumb {
+            background: var(--gold);
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        .chart-wrap.kpi-scroll::-webkit-scrollbar-thumb:hover {
+            background: var(--gold-l);
+            background-clip: padding-box;
+            border: 2px solid transparent;
+        }
+        .kpi-chart-inner {
+            height: 100%;
+            position: relative;
+            min-width: 100%;
+        }
+
         /* ═══ MOBILE: charts 1-col + padding reducido (override del .charts-grid de arriba) ═══ */
         @media (max-width: 767px) {
             .charts-grid { grid-template-columns: 1fr !important; gap: 12px; }
@@ -1053,6 +1086,7 @@
             .chart-card { padding: 14px; }
             .chart-card h3 { margin-bottom: 10px; }
             .chart-wrap { height: 260px; }
+            .chart-wrap.kpi-scroll::-webkit-scrollbar { height: 8px; }
             .charts-controls { flex-direction: column; gap: 8px; }
             .charts-controls > div { width: 100%; }
             .charts-controls select { width: 100%; }
@@ -1568,33 +1602,33 @@
                     <!-- 1. Volumen PECVS Completo (full width) -->
                     <div class="chart-card full">
                         <h3><i class="fa fa-arrows-to-circle"></i> Volumen PECVS Completo por Agente</h3>
-                        <div class="chart-wrap"><canvas id="kpiVolumeFull"></canvas></div>
+                        <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiVolumeFull"></canvas></div></div>
                     </div>
                     <!-- 2. Cierres V vs P -->
                     <div class="chart-card">
                         <h3><i class="fa fa-bars-progress"></i> Cierres (V) vs Contactos (P)</h3>
-                        <div class="chart-wrap"><canvas id="kpiVolumen"></canvas></div>
+                        <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiVolumen"></canvas></div></div>
                     </div>
                     <!-- 3-6. Eficiencia (P → V primero, luego embudo en orden) -->
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ V (Cierre)</h3>
-                        <div class="chart-wrap"><canvas id="kpiEfectividad"></canvas></div>
+                        <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiEfectividad"></canvas></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión P ➔ E</h3>
-                        <div class="chart-wrap"><canvas id="kpiRatioEP"></canvas></div>
+                        <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioEP"></canvas></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión E ➔ C</h3>
-                        <div class="chart-wrap"><canvas id="kpiRatioCE"></canvas></div>
+                        <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioCE"></canvas></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-bullseye"></i> Eficiencia: Conversión C ➔ V</h3>
-                        <div class="chart-wrap"><canvas id="kpiRatioVC"></canvas></div>
+                        <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiRatioVC"></canvas></div></div>
                     </div>
                     <div class="chart-card">
                         <h3><i class="fa fa-coins"></i> Prima promedio: $/S vs $/V</h3>
-                        <div class="chart-wrap"><canvas id="kpiPrimaPromedios"></canvas></div>
+                        <div class="chart-wrap kpi-scroll"><div class="kpi-chart-inner"><canvas id="kpiPrimaPromedios"></canvas></div></div>
                     </div>
                 </div>
             </div>
@@ -4417,26 +4451,16 @@
         //   - Ver todos (expanded): NO labels (se amontonan con muchos agentes).
         //     Tooltip al tocar la barra muestra nombre completo + valor.
         function _applyKpiTruncate(opts, expanded) {
+            // Siempre esconder nombres del eje X. El nombre completo aparece en
+            // el tooltip al tocar/hover la barra. (Param `expanded` se mantiene
+            // por compatibilidad pero ya no afecta el comportamiento.)
             const o = { ...opts };
             o.scales = { ...(opts.scales || {}) };
             o.scales.x = { ...(opts.scales?.x || {}) };
-            if (expanded) {
-                o.scales.x.ticks = {
-                    ...(opts.scales?.x?.ticks || {}),
-                    display: false
-                };
-            } else {
-                o.scales.x.ticks = {
-                    ...(opts.scales?.x?.ticks || {}),
-                    callback: function (value) {
-                        return truncateAgentDisplay(this.getLabelForValue(value));
-                    },
-                    autoSkip: false,
-                    maxRotation: 55,
-                    minRotation: 0,
-                    font: { size: 10 }
-                };
-            }
+            o.scales.x.ticks = {
+                ...(opts.scales?.x?.ticks || {}),
+                display: false
+            };
             o.plugins = { ...(opts.plugins || {}) };
             o.plugins.tooltip = {
                 ...(opts.plugins?.tooltip || {}),
@@ -4446,6 +4470,24 @@
                 }
             };
             return o;
+        }
+
+        // Ajusta el ancho del contenedor interno de cada KPI chart según el
+        // número de agentes, para que aparezca el scroll horizontal cuando
+        // hay muchas barras. Llamar ANTES de crear los charts.
+        function _sizeKpiInners(agentCount) {
+            const MIN_BAR_PX = 50; // ancho mínimo deseado por barra
+            const ids = ['kpiVolumeFull', 'kpiVolumen', 'kpiEfectividad', 'kpiRatioEP', 'kpiRatioCE', 'kpiRatioVC', 'kpiPrimaPromedios'];
+            ids.forEach(id => {
+                const canvas = document.getElementById(id);
+                if (!canvas) return;
+                const inner = canvas.parentElement;
+                if (!inner || !inner.classList.contains('kpi-chart-inner')) return;
+                const wrap = inner.parentElement; // .chart-wrap.kpi-scroll
+                const wrapWidth = wrap ? wrap.clientWidth : 0;
+                const needed = Math.max(wrapWidth, agentCount * MIN_BAR_PX);
+                inner.style.width = needed + 'px';
+            });
         }
 
         function renderKPIs() {
@@ -4562,9 +4604,11 @@
             // Eficiencia P → V en porcentaje (0-100)
             const pvs = agents.map(a => agMap[a].P > 0 ? parseFloat(((agMap[a].V / agMap[a].P) * 100).toFixed(1)) : 0);
 
-            // Ocultar labels del eje X cuando hay > 10 barras (se amontonan).
-            // Tooltip al tocar la barra muestra el nombre completo + valor.
-            const _expanded = agents.length > 10;
+            // Siempre escondemos los nombres del eje X en KPIs (tooltip los muestra).
+            // Ajustamos el ancho del contenedor para que aparezca scroll horizontal
+            // cuando hay muchas barras (50px por barra como mínimo).
+            const _expanded = true;
+            _sizeKpiInners(agents.length);
 
             const dataKpiVolumen = {
                 labels, datasets: [
