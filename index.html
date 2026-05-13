@@ -422,6 +422,94 @@
             border-top: none; padding-top: 4px;
         }
         .lb-team-total-sub strong { color: var(--white); font-weight: 700; }
+
+        /* ═══ Info icon (i) para metricas del Equipo Total ═══ */
+        .info-i-btn {
+            background: rgba(212,175,55,0.10);
+            border: 1px solid rgba(212,175,55,0.25);
+            color: var(--gold);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 9px;
+            cursor: pointer;
+            margin-left: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            font-family: inherit;
+            vertical-align: middle;
+            transition: background .15s, transform .1s;
+        }
+        .info-i-btn:hover {
+            background: rgba(212,175,55,0.22);
+            border-color: var(--gold);
+            transform: scale(1.15);
+        }
+        .info-i-btn i { line-height: 1; }
+
+        /* Modal compartido (reusable para cualquier info de metrica) */
+        .info-modal-box {
+            background: var(--panel);
+            border: 1.5px solid var(--gold);
+            border-radius: 14px;
+            padding: 20px;
+            width: 100%;
+            max-width: 380px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .info-modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(212,175,55,0.2);
+        }
+        .info-modal-title {
+            font-family: 'Playfair Display', serif;
+            color: var(--gold);
+            font-size: 16px;
+            font-weight: 700;
+            flex: 1;
+            line-height: 1.25;
+        }
+        .info-modal-close {
+            background: none;
+            border: none;
+            color: var(--white);
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+        }
+        .info-modal-body {
+            font-size: 13px;
+            color: var(--white);
+            line-height: 1.5;
+        }
+        .info-modal-body p { margin: 0 0 8px; }
+        .info-modal-body code {
+            background: rgba(212,175,55,0.12);
+            color: var(--gold);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+        .info-modal-body .info-label {
+            color: var(--gold);
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 4px;
+            display: block;
+        }
         .lb-mobile-row {
             background: var(--panel);
             border: 1px solid var(--border);
@@ -2605,6 +2693,17 @@
         </div>
     </div>
 
+    <!-- INFO MODAL — explicación de métricas (Equipo Total) -->
+    <div class="modal-overlay" id="metric-info-modal" onclick="if(event.target===this)closeMetricInfo()">
+        <div class="info-modal-box">
+            <div class="info-modal-header">
+                <div class="info-modal-title" id="metric-info-title">—</div>
+                <button class="info-modal-close" onclick="closeMetricInfo()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="info-modal-body" id="metric-info-body"></div>
+        </div>
+    </div>
+
     <!-- CALENDARIO DE REPORTES POR AGENTE (modal) -->
     <div class="modal-overlay" id="agent-calendar-modal" onclick="if(event.target===this)closeAgentCalendar()">
         <div class="cal-modal-box">
@@ -4258,6 +4357,52 @@
             el.classList.toggle('open');
         };
 
+        // ─── INFO MODAL para métricas del Equipo Total ─────────────────────────────
+        const METRIC_INFO = {
+            efPV: {
+                title: '📊 Eficiencia P → V',
+                body: `
+                    <span class="info-label">¿Qué mide?</span>
+                    <p>% de contactos que terminaron en cierre.</p>
+                    <span class="info-label">Fórmula</span>
+                    <p><code>(V ÷ P) × 100</code></p>
+                    <p style="color:var(--slate);font-size:12px;">Efectividad final del equipo de principio a fin del embudo.</p>
+                `
+            },
+            dolPerV: {
+                title: '💰 $/V — Prima por cierre',
+                body: `
+                    <span class="info-label">¿Qué mide?</span>
+                    <p>Prima promedio que paga cada persona que compró.</p>
+                    <span class="info-label">Fórmula</span>
+                    <p><code>Prima total ÷ V (cierres)</code></p>
+                    <p style="color:var(--slate);font-size:12px;">Indica el valor promedio de cada venta del equipo.</p>
+                `
+            },
+            dolPerInt: {
+                title: '👥 $/Integrante — Producción por persona',
+                body: `
+                    <span class="info-label">¿Qué mide?</span>
+                    <p>Prima promedio generada por cada miembro activo del equipo.</p>
+                    <span class="info-label">Fórmula</span>
+                    <p><code>Prima total ÷ # agentes</code></p>
+                    <p style="color:var(--slate);font-size:12px;">Útil para comparar productividad entre equipos de distinto tamaño.</p>
+                `
+            }
+        };
+
+        window.openMetricInfo = function (key) {
+            const info = METRIC_INFO[key];
+            if (!info) return;
+            document.getElementById('metric-info-title').textContent = info.title;
+            document.getElementById('metric-info-body').innerHTML = info.body;
+            document.getElementById('metric-info-modal').classList.add('open');
+        };
+
+        window.closeMetricInfo = function () {
+            document.getElementById('metric-info-modal').classList.remove('open');
+        };
+
         function validateDay(d) {
             const V = d.V || 0;
             if (d.P === 0 && d.E === 0 && d.C === 0 && V === 0 && d.S === 0 && d.prima === 0) return { ok: true, errors: [] };
@@ -4495,8 +4640,8 @@
                             <div class="value">$${totPrimaCompact}</div>
                         </div>
                     </div>
-                    <div class="lb-team-total-sub">Eficiencia P → V: <strong>${efPV}</strong></div>
-                    <div class="lb-team-total-sub">$/V: <strong>${dolPerV}</strong>  ·  $/Integrante: <strong>${dolPerInt}</strong></div>
+                    <div class="lb-team-total-sub">Eficiencia P → V: <strong>${efPV}</strong><button class="info-i-btn" onclick="openMetricInfo('efPV')" aria-label="Info"><i class="fa fa-info"></i></button></div>
+                    <div class="lb-team-total-sub">$/V: <strong>${dolPerV}</strong><button class="info-i-btn" onclick="openMetricInfo('dolPerV')" aria-label="Info"><i class="fa fa-info"></i></button>  ·  $/Integrante: <strong>${dolPerInt}</strong><button class="info-i-btn" onclick="openMetricInfo('dolPerInt')" aria-label="Info"><i class="fa fa-info"></i></button></div>
                 </div>
             `;
 
