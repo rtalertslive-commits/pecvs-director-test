@@ -2232,6 +2232,7 @@
                 <button id="tsub-btn-puntos"   onclick="switchTiendaSub('puntos')"    class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:700;">⚙️ Puntos</button>
                 <button id="tsub-btn-catalogo" onclick="switchTiendaSub('catalogo')"  class="btn btn-sm">🏪 Catálogos</button>
                 <button id="tsub-btn-solicitudes" onclick="switchTiendaSub('solicitudes')" class="btn btn-sm">📋 Solicitudes <span id="sol-count-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:3px;">0</span></button>
+                <button id="tsub-btn-premios" onclick="switchTiendaSub('premios')" class="btn btn-sm">📦 Premios por entregar</button>
             </div>
 
             <!-- ── PUNTOS ── -->
@@ -2324,6 +2325,59 @@
                     <p class="card-title"><i class="fa fa-clock-rotate-left"></i> Historial de Solicitudes</p>
                     <div id="solicitudes-history" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;">
                         <div class="empty-state"><i class="fa fa-inbox"></i> Sin historial.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── PREMIOS POR ENTREGAR ── -->
+            <div id="tsub-premios" style="display:none;">
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-box-open"></i> Premios por Entregar a Equipos</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:16px;">
+                        Lista de items físicos a entregar a cada equipo coach. Usá esta vista para armar los lotes de premios o saber cuánto comprar al proveedor.
+                    </p>
+
+                    <!-- Filtros -->
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+                        <div>
+                            <label class="field-label">Período</label>
+                            <select id="premios-period" onchange="renderPremiosByTeam()" style="min-width:160px;padding:8px;font-size:12px;">
+                                <option value="month" selected>Este mes</option>
+                                <option value="last-month">Último mes</option>
+                                <option value="quarter">Este trimestre</option>
+                                <option value="year">Este año</option>
+                                <option value="all">Todo el historial</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Status</label>
+                            <select id="premios-status" onchange="renderPremiosByTeam()" style="min-width:140px;padding:8px;font-size:12px;">
+                                <option value="approved" selected>Solo aprobados</option>
+                                <option value="pending">Pendientes</option>
+                                <option value="rejected">Rechazados</option>
+                                <option value="all">Todos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Promotor</label>
+                            <select id="premios-promotor" onchange="renderPremiosByTeam()" style="min-width:170px;padding:8px;font-size:12px;">
+                                <option value="">Todos los promotores</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:4px;background:rgba(255,255,255,0.04);padding:4px;border-radius:8px;">
+                            <button id="premios-view-equipo" onclick="setPremiosView('equipo')" class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:700;">Por equipo</button>
+                            <button id="premios-view-item" onclick="setPremiosView('item')" class="btn btn-sm">Por item (compra)</button>
+                        </div>
+                        <button class="btn btn-sm" onclick="exportPremiosCSV()" style="margin-left:auto;background:rgba(16,185,129,0.15);color:var(--green);border:1px solid var(--green);"><i class="fa fa-download"></i> Exportar CSV</button>
+                    </div>
+
+                    <!-- Totales arriba -->
+                    <div id="premios-totals" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:18px;">
+                    </div>
+
+                    <!-- Contenido -->
+                    <div id="premios-content" style="display:flex;flex-direction:column;gap:10px;">
+                        <div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando...</div>
                     </div>
                 </div>
             </div>
@@ -6959,13 +7013,295 @@
 
         // Sub-nav switching
         window.switchTiendaSub = function(sub) {
-            ['puntos','catalogo','solicitudes'].forEach(s => {
-                document.getElementById('tsub-' + s).style.display = s === sub ? '' : 'none';
+            ['puntos','catalogo','solicitudes','premios'].forEach(s => {
+                const el = document.getElementById('tsub-' + s);
+                if (el) el.style.display = s === sub ? '' : 'none';
                 const btn = document.getElementById('tsub-btn-' + s);
                 if (btn) { btn.style.background = s === sub ? 'var(--gold)' : ''; btn.style.color = s === sub ? '#000' : ''; btn.style.fontWeight = s === sub ? '700' : ''; }
             });
             if (sub === 'catalogo') renderCatalogItems();
             if (sub === 'solicitudes') loadSolicitudes();
+            if (sub === 'premios') loadPremiosByTeam();
+        };
+
+        // ─── PREMIOS POR ENTREGAR ────────────────────────────────────────────────────
+        // Vista agregada de canjes de AGENTES, agrupados por su coach y promotor.
+        // Sirve para que el director arme los lotes fisicos de premios a entregar.
+        let _premiosCache = [];        // Cache de redemptionRequests del director
+        let _premiosView = 'equipo';   // 'equipo' | 'item'
+
+        async function loadPremiosByTeam() {
+            const content = document.getElementById('premios-content');
+            const myDC = state.directorCode || '';
+            if (!myDC) {
+                content.innerHTML = '<div class="empty-state"><i class="fa fa-circle-info"></i> Configurá tu Código de Director primero.</div>';
+                return;
+            }
+            content.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando canjes...</div>';
+            try {
+                const snap = await getDocs(collection(db, 'redemptionRequests'));
+                _premiosCache = snap.docs.map(d => ({ _id: d.id, ...d.data() }))
+                    .filter(r => (r.directorCode || '') === myDC)
+                    // SOLO canjes de agentes — los premios fisicos van a los equipos
+                    .filter(r => (r.rol || '').toLowerCase() === 'agente');
+                _populatePremiosPromotorFilter();
+                renderPremiosByTeam();
+            } catch (err) {
+                content.innerHTML = '<div class="empty-state">Error cargando canjes: ' + (err.message || err) + '</div>';
+            }
+        }
+
+        function _populatePremiosPromotorFilter() {
+            const sel = document.getElementById('premios-promotor');
+            if (!sel) return;
+            const prev = sel.value;
+            const activePromotores = (state.promoters || [])
+                .filter(p => p.status !== 'inactive')
+                .sort((a,b) => (a.promoterName || '').localeCompare(b.promoterName || ''));
+            sel.innerHTML = '<option value="">Todos los promotores</option>' +
+                activePromotores.map(p => {
+                    const code = p.companyCode || p.promotorCode || '';
+                    return `<option value="${escapeHtml(code)}">${escapeHtml(p.promoterName || p.email)}</option>`;
+                }).join('');
+            if (activePromotores.some(p => (p.companyCode || p.promotorCode) === prev)) sel.value = prev;
+        }
+
+        window.setPremiosView = function(view) {
+            _premiosView = (view === 'item') ? 'item' : 'equipo';
+            const a = document.getElementById('premios-view-equipo');
+            const b = document.getElementById('premios-view-item');
+            [a,b].forEach(btn => { if (!btn) return; btn.style.background = ''; btn.style.color = ''; btn.style.fontWeight = ''; });
+            const active = _premiosView === 'equipo' ? a : b;
+            if (active) { active.style.background = 'var(--gold)'; active.style.color = '#000'; active.style.fontWeight = '700'; }
+            renderPremiosByTeam();
+        };
+
+        function _premiosInPeriod(r, period) {
+            if (period === 'all') return true;
+            // Para status approved: usar fechaResolucion (cuando se aprobo).
+            // Para pending: usar fechaSolicitud. Si fechaResolucion no existe usa solicitud.
+            const dateStr = r.status === 'pending' ? r.fechaSolicitud : (r.fechaResolucion || r.fechaSolicitud);
+            if (!dateStr) return false;
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return false;
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = now.getMonth(); // 0-11
+            if (period === 'month') {
+                return d.getFullYear() === y && d.getMonth() === m;
+            }
+            if (period === 'last-month') {
+                const lastY = m === 0 ? y - 1 : y;
+                const lastM = m === 0 ? 11 : m - 1;
+                return d.getFullYear() === lastY && d.getMonth() === lastM;
+            }
+            if (period === 'quarter') {
+                const qStart = Math.floor(m / 3) * 3; // 0,3,6,9
+                const qEnd = qStart + 2;
+                return d.getFullYear() === y && d.getMonth() >= qStart && d.getMonth() <= qEnd;
+            }
+            if (period === 'year') {
+                return d.getFullYear() === y;
+            }
+            return true;
+        }
+
+        window.renderPremiosByTeam = function () {
+            const content = document.getElementById('premios-content');
+            const totalsEl = document.getElementById('premios-totals');
+            if (!content || !totalsEl) return;
+            const period = document.getElementById('premios-period').value;
+            const status = document.getElementById('premios-status').value;
+            const promotorFilter = document.getElementById('premios-promotor').value;
+
+            // Filtrar
+            const filtered = _premiosCache.filter(r => {
+                if (status !== 'all' && (r.status || '') !== status) return false;
+                if (!_premiosInPeriod(r, period)) return false;
+                if (promotorFilter) {
+                    // Para agentes: el promotor se obtiene via su coach
+                    const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === r.coachTeamCode);
+                    if (!coach || String(coach.promotorTeamCode || '') !== String(promotorFilter)) return false;
+                }
+                return true;
+            });
+
+            // Totales arriba
+            const totalCanjes = filtered.length;
+            const totalItems = filtered.reduce((s, r) => s + 1, 0); // por ahora 1 por canje
+            const coachesSet = new Set(filtered.map(r => r.coachTeamCode).filter(Boolean));
+            const itemsSet = new Set(filtered.map(r => r.itemNombre).filter(Boolean));
+            totalsEl.innerHTML = `
+                <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px;">
+                    <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Total Canjes</div>
+                    <div style="font-size:22px;font-weight:800;color:var(--gold);margin-top:4px;">${totalCanjes}</div>
+                </div>
+                <div style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.25);border-radius:10px;padding:12px;">
+                    <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Equipos con canjes</div>
+                    <div style="font-size:22px;font-weight:800;color:var(--teal);margin-top:4px;">${coachesSet.size}</div>
+                </div>
+                <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.25);border-radius:10px;padding:12px;">
+                    <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Items distintos</div>
+                    <div style="font-size:22px;font-weight:800;color:#a855f7;margin-top:4px;">${itemsSet.size}</div>
+                </div>
+            `;
+
+            if (filtered.length === 0) {
+                content.innerHTML = '<div class="empty-state"><i class="fa fa-box-open"></i> Sin canjes de agentes en este período con los filtros aplicados.</div>';
+                return;
+            }
+
+            if (_premiosView === 'equipo') {
+                content.innerHTML = _renderPremiosViewEquipo(filtered);
+            } else {
+                content.innerHTML = _renderPremiosViewItem(filtered);
+            }
+        };
+
+        // Vista "Por equipo" — agrupa por coach, lista items con conteo + agentes
+        function _renderPremiosViewEquipo(canjes) {
+            // 1. Agrupar por coach (teamCode = coach.companyCode/agentTeamCode)
+            //    El agente.coachTeamCode == coach.companyCode
+            const byCoach = {};   // coachKey -> { coachName, coachKey, promotorName, items: { itemNombre: { count, byAgent: { agentName: count } } }, agentes: Set }
+            canjes.forEach(r => {
+                const coachKey = r.coachTeamCode || 'sin-coach';
+                if (!byCoach[coachKey]) {
+                    const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === coachKey);
+                    let promotorName = '—';
+                    if (coach) {
+                        const prom = (state.promoters || []).find(p => (p.companyCode || p.promotorCode) === coach.promotorTeamCode);
+                        promotorName = prom ? (prom.promoterName || prom.email) : `(clave ${coach.promotorTeamCode})`;
+                    }
+                    byCoach[coachKey] = {
+                        coachName: coach ? (coach.coachName || coach.email) : `(sin coach · clave ${coachKey})`,
+                        coachKey,
+                        promotorName,
+                        items: {},
+                        agentes: new Set()
+                    };
+                }
+                const bucket = byCoach[coachKey];
+                const item = r.itemNombre || '(sin nombre)';
+                if (!bucket.items[item]) bucket.items[item] = { count: 0, emoji: r.emoji || '🎁', byAgent: {} };
+                bucket.items[item].count += 1;
+                const agentName = r.nombreSolicitante || r.emailSolicitante || '?';
+                bucket.items[item].byAgent[agentName] = (bucket.items[item].byAgent[agentName] || 0) + 1;
+                bucket.agentes.add(agentName);
+            });
+
+            const coachList = Object.values(byCoach).sort((a,b) => (a.coachName || '').localeCompare(b.coachName || ''));
+            return coachList.map(c => {
+                const itemsHtml = Object.entries(c.items)
+                    .sort((a,b) => b[1].count - a[1].count)
+                    .map(([nombre, info]) => {
+                        const agentsStr = Object.entries(info.byAgent)
+                            .sort((a,b) => b[1] - a[1])
+                            .map(([ag, n]) => `${escapeHtml(ag)} ×${n}`)
+                            .join(' · ');
+                        return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:4px;">
+                            <div style="flex:1;">
+                                <div style="font-weight:700;">${escapeHtml(info.emoji)} ${escapeHtml(nombre)}</div>
+                                <div style="font-size:11px;color:var(--slate);margin-top:2px;">${agentsStr}</div>
+                            </div>
+                            <div style="font-size:18px;font-weight:800;color:var(--gold);">× ${info.count}</div>
+                        </div>`;
+                    }).join('');
+                const totalPremios = Object.values(c.items).reduce((s, i) => s + i.count, 0);
+                return `<div style="background:var(--panel2);border:1px solid rgba(212,175,55,0.15);border-radius:10px;padding:14px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+                        <div>
+                            <div style="font-weight:700;font-size:14px;">🧑‍🏫 ${escapeHtml(c.coachName)}</div>
+                            <div style="font-size:11px;color:var(--slate);">bajo 📊 ${escapeHtml(c.promotorName)} · ${c.agentes.size} agente${c.agentes.size === 1 ? '' : 's'} con canjes</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Premios</div>
+                            <div style="font-size:24px;font-weight:800;color:var(--gold);">${totalPremios}</div>
+                        </div>
+                    </div>
+                    ${itemsHtml}
+                </div>`;
+            }).join('');
+        }
+
+        // Vista "Por item" — agrupa por item, lista cuánto va a cada coach
+        function _renderPremiosViewItem(canjes) {
+            const byItem = {};   // item -> { count, emoji, byCoach: { coachName: count } }
+            canjes.forEach(r => {
+                const item = r.itemNombre || '(sin nombre)';
+                if (!byItem[item]) byItem[item] = { count: 0, emoji: r.emoji || '🎁', byCoach: {} };
+                byItem[item].count += 1;
+                const coachKey = r.coachTeamCode || 'sin-coach';
+                const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === coachKey);
+                const coachName = coach ? (coach.coachName || coach.email) : `(sin coach · clave ${coachKey})`;
+                byItem[item].byCoach[coachName] = (byItem[item].byCoach[coachName] || 0) + 1;
+            });
+            const itemList = Object.entries(byItem).sort((a,b) => b[1].count - a[1].count);
+            return itemList.map(([nombre, info]) => {
+                const coachesHtml = Object.entries(info.byCoach)
+                    .sort((a,b) => b[1] - a[1])
+                    .map(([cn, n]) => `<div style="display:flex;justify-content:space-between;padding:6px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:3px;">
+                        <span>🧑‍🏫 ${escapeHtml(cn)}</span>
+                        <span style="font-weight:700;color:var(--gold);">× ${n}</span>
+                    </div>`).join('');
+                return `<div style="background:var(--panel2);border:1px solid rgba(212,175,55,0.15);border-radius:10px;padding:14px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+                        <div style="font-weight:700;font-size:15px;">${escapeHtml(info.emoji)} ${escapeHtml(nombre)}</div>
+                        <div style="text-align:right;">
+                            <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Total a comprar</div>
+                            <div style="font-size:24px;font-weight:800;color:var(--gold);">${info.count} unidad${info.count === 1 ? '' : 'es'}</div>
+                        </div>
+                    </div>
+                    ${coachesHtml}
+                </div>`;
+            }).join('');
+        }
+
+        window.exportPremiosCSV = function () {
+            const period = document.getElementById('premios-period').value;
+            const status = document.getElementById('premios-status').value;
+            const promotorFilter = document.getElementById('premios-promotor').value;
+            const filtered = _premiosCache.filter(r => {
+                if (status !== 'all' && (r.status || '') !== status) return false;
+                if (!_premiosInPeriod(r, period)) return false;
+                if (promotorFilter) {
+                    const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === r.coachTeamCode);
+                    if (!coach || String(coach.promotorTeamCode || '') !== String(promotorFilter)) return false;
+                }
+                return true;
+            });
+            if (!filtered.length) { alert('Sin canjes para exportar con los filtros actuales.'); return; }
+            const rows = [['Fecha','Promotor','Coach','Agente','Item','Costo (totopos)','Status']];
+            filtered.forEach(r => {
+                const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === r.coachTeamCode);
+                const coachName = coach ? (coach.coachName || coach.email) : `(clave ${r.coachTeamCode || ''})`;
+                let promotorName = '—';
+                if (coach) {
+                    const prom = (state.promoters || []).find(p => (p.companyCode || p.promotorCode) === coach.promotorTeamCode);
+                    promotorName = prom ? (prom.promoterName || prom.email) : `(clave ${coach.promotorTeamCode || ''})`;
+                }
+                const dateStr = r.status === 'pending' ? r.fechaSolicitud : (r.fechaResolucion || r.fechaSolicitud || '');
+                rows.push([
+                    dateStr ? new Date(dateStr).toLocaleDateString('es-MX') : '',
+                    promotorName,
+                    coachName,
+                    r.nombreSolicitante || r.emailSolicitante || '',
+                    r.itemNombre || '',
+                    String(r.costo || 0),
+                    r.status || ''
+                ]);
+            });
+            const csv = rows.map(row => row.map(cell => {
+                const s = String(cell);
+                return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+            }).join(',')).join('\n');
+            const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const now = new Date();
+            const fname = `premios-${period}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
+            a.href = url; a.download = fname;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         };
 
         window.switchCatRole = function(role) {
