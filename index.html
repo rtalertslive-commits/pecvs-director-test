@@ -6437,7 +6437,11 @@
 
             container.innerHTML = filtered.map(m => {
                 const safeEmail = escapeHtml(m.email);
-                const eid = m.email.replace(/[@.+]/g, '_');
+                // eid incluye el rol porque un mismo email puede tener docs en
+                // multiples colecciones (ej. self-coach: /users/x + /coaches/x).
+                // Sin el sufijo de rol, las 2 filas tendrian IDs iguales y
+                // getElementById solo devolveria la primera → bug de role-mismatch.
+                const eid = m.email.replace(/[@.+]/g, '_') + '_' + m.role;
                 // Display id: Telegram users → @username con icono. Resto → email tal cual.
                 const displayHtml = m.telegram_username
                     ? `@${escapeHtml(m.telegram_username)} <i class="fa-brands fa-telegram" style="color:#60a5fa;font-size:10px;"></i>`
@@ -6453,7 +6457,7 @@
                             </span>
                         </div>
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                            <select id="role-sel-${eid}" onchange="updateAssignLabel('${safeEmail}')" style="font-size:12px; padding:4px 8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:var(--white); font-weight:600;">
+                            <select id="role-sel-${eid}" onchange="updateAssignLabel('${safeEmail}','${m.role}')" style="font-size:12px; padding:4px 8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; color:var(--white); font-weight:600;">
                                 <option value="promoter" ${m.role === 'promoter' ? 'selected' : ''} style="background:#1e293b;">📊 Promotor</option>
                                 <option value="coach" ${m.role === 'coach' ? 'selected' : ''} style="background:#1e293b;">🧑‍🏫 Coach</option>
                                 <option value="agent" ${m.role === 'agent' ? 'selected' : ''} style="background:#1e293b;">👤 Agente</option>
@@ -6472,8 +6476,10 @@
             }).join('');
         }
 
-        window.updateAssignLabel = function (email) {
-            const eid = email.replace(/[@.+]/g, '_');
+        window.updateAssignLabel = function (email, originalRole) {
+            // eid debe incluir el rol original para no colisionar con otra fila
+            // del mismo email pero distinto rol (ej. self-coach).
+            const eid = email.replace(/[@.+]/g, '_') + '_' + originalRole;
             const role = document.getElementById('role-sel-' + eid)?.value;
             const lblEl = document.getElementById('assign-lbl-' + eid);
             const selEl = document.getElementById('assign-inp-' + eid);
@@ -6492,7 +6498,9 @@
         };
 
         window.saveMemberChanges = async function (email, originalRole) {
-            const eid = email.replace(/[@.+]/g, '_');
+            // eid incluye el rol original para no colisionar con otra fila
+            // del mismo email pero distinto rol (ej. self-coach).
+            const eid = email.replace(/[@.+]/g, '_') + '_' + originalRole;
             const newRole    = document.getElementById('role-sel-'  + eid)?.value;
             const newName    = (document.getElementById('name-inp-' + eid)?.value || '').trim();
             const newCode    = (document.getElementById('code-inp-' + eid)?.value || '').trim();
