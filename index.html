@@ -2936,8 +2936,20 @@
                     </div>
                     <div>
                         <label class="field-label">Descripción <span style="color:var(--red);">*</span></label>
-                        <textarea id="nov-input-body" placeholder="Ya podés configurar la hora en que la app te recuerda registrar tu actividad..." maxlength="600" rows="5" style="resize:vertical; width:100%; padding:10px; background:rgba(255,255,255,0.04); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; font-family:inherit; font-size:14px;"></textarea>
+                        <textarea id="nov-input-body" placeholder="Ya podés configurar la hora en que la app te recuerda registrar tu actividad. Tocá el botón [[notif]] para entrar al menú." maxlength="600" rows="5" style="resize:vertical; width:100%; padding:10px; background:rgba(255,255,255,0.04); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; font-family:inherit; font-size:14px;"></textarea>
                         <p style="font-size:10px; color:var(--slate); margin-top:4px;"><span id="nov-body-counter">0</span>/600 caracteres · Soporta saltos de línea</p>
+
+                        <!-- Chips de inserción rápida — al click insertan [[key]] en el cursor -->
+                        <div style="margin-top:8px;">
+                            <p style="font-size:10px; color:var(--slate); margin:0 0 6px;">💡 Tocá un botón para insertarlo en el mensaje (los users lo van a ver como icono):</p>
+                            <div id="nov-insert-chips" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+                        </div>
+
+                        <!-- Preview en vivo de cómo lo verán los users -->
+                        <div style="margin-top:10px; padding:10px 12px; background:rgba(212,175,55,0.05); border:1px dashed rgba(212,175,55,0.3); border-radius:6px;">
+                            <div style="font-size:10px; color:var(--gold-l); font-weight:600; margin-bottom:6px; letter-spacing:0.5px;">👁 PREVIEW (como lo van a ver)</div>
+                            <div id="nov-body-preview" style="font-size:13px; color:rgba(255,255,255,0.9); line-height:1.5; white-space:pre-wrap; min-height:18px; opacity:0.7;"><em style="color:var(--slate);">(empezá a escribir)</em></div>
+                        </div>
                     </div>
                     <div id="nov-status" style="display:none; padding:10px; border-radius:6px; font-size:13px; font-weight:600;"></div>
                     <button id="nov-send-btn" class="btn btn-green" onclick="sendNovedad()" style="margin-top:8px;">
@@ -4360,16 +4372,94 @@
         // Diferencia con anuncios: no push notif, no targeting por role (todos las ven),
         // no scope por región (son del producto, no del equipo).
 
+        // Registro compartido de elementos UI referenciables desde el body de una novedad.
+        // Sintaxis: [[key]] en el body → se renderiza como chip con icono + label.
+        // Las apps (agente/coach/promotor) tienen este mismo objeto para resolver el render.
+        // Si agregás un elemento acá, también agregalo en los 3 consumidores para que
+        // los users lo vean igual.
+        const NOVEDAD_UI_ELEMENTS = {
+            notif:      { label: 'Notificaciones', icon: 'fa-bell' },
+            anuncios:   { label: 'Anuncios',       icon: 'fa-bullhorn' },
+            novedades:  { label: 'Novedades',      icon: 'fa-sparkles' },
+            tienda:     { label: 'Tienda',         icon: 'fa-store' },
+            perfil:     { label: 'Mi Perfil',      icon: 'fa-user' },
+            config:     { label: 'Configuración',  icon: 'fa-cog' },
+            karma:      { label: 'Totopos',        icon: 'fa-star' },
+            historial:  { label: 'Historial',      icon: 'fa-clock-rotate-left' },
+            equipo:     { label: 'Mi Equipo',      icon: 'fa-users' },
+            reportes:   { label: 'Reportes',       icon: 'fa-file-lines' },
+        };
+
+        // Renderiza el body reemplazando [[key]] por chips visuales.
+        function renderNovedadBody(text) {
+            const escaped = escapeHtml(text || '');
+            return escaped.replace(/\[\[([\w-]+)\]\]/g, (match, key) => {
+                const el = NOVEDAD_UI_ELEMENTS[key.toLowerCase()];
+                if (!el) return match; // si la key no existe, dejamos literal
+                return `<span style="display:inline-flex; align-items:center; gap:4px; padding:2px 7px; margin:0 2px; background:rgba(212,175,55,0.18); border:1px solid rgba(212,175,55,0.45); border-radius:5px; color:var(--gold-l); font-weight:600; font-size:0.92em; vertical-align:baseline; white-space:nowrap;"><i class="fa ${el.icon}" style="font-size:11px;"></i>${escapeHtml(el.label)}</span>`;
+            });
+        }
+
+        // Popular los chips de inserción rápida + live preview
+        function _initNovedadInsertChips() {
+            const container = document.getElementById('nov-insert-chips');
+            const textarea  = document.getElementById('nov-input-body');
+            const preview   = document.getElementById('nov-body-preview');
+            if (!container || !textarea) return;
+            container.innerHTML = Object.entries(NOVEDAD_UI_ELEMENTS).map(([key, el]) => {
+                return `<button type="button" onclick="insertNovedadRef('${key}')"
+                    style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:14px; color:rgba(255,255,255,0.85); font-size:11px; font-family:inherit; cursor:pointer; transition:background .15s;"
+                    onmouseover="this.style.background='rgba(212,175,55,0.18)'"
+                    onmouseout="this.style.background='rgba(255,255,255,0.06)'"
+                    title="Inserta [[${key}]] en la descripción"><i class="fa ${el.icon}" style="font-size:10px;"></i>${el.label}</button>`;
+            }).join('');
+            // Live preview en cada keyup del textarea
+            const updatePreview = () => {
+                const val = textarea.value || '';
+                if (preview) {
+                    if (!val.trim()) {
+                        preview.innerHTML = '<em style="color:var(--slate);">(empezá a escribir)</em>';
+                        preview.style.opacity = '0.7';
+                    } else {
+                        preview.innerHTML = renderNovedadBody(val);
+                        preview.style.opacity = '1';
+                    }
+                }
+            };
+            textarea.addEventListener('input', updatePreview);
+        }
+
+        // Inserta [[key]] en la posición del cursor del textarea, o al final si no hay foco
+        window.insertNovedadRef = function (key) {
+            const textarea = document.getElementById('nov-input-body');
+            if (!textarea) return;
+            const ref = `[[${key}]]`;
+            const start = textarea.selectionStart ?? textarea.value.length;
+            const end   = textarea.selectionEnd   ?? textarea.value.length;
+            const before = textarea.value.substring(0, start);
+            const after  = textarea.value.substring(end);
+            textarea.value = before + ref + after;
+            // Mover cursor después de la referencia insertada
+            const newPos = start + ref.length;
+            textarea.focus();
+            textarea.setSelectionRange(newPos, newPos);
+            // Disparar input event para actualizar preview + counter
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+
         window.openNovedadesDirectorModal = function () {
             const titleEl = document.getElementById('nov-input-title');
             const bodyEl  = document.getElementById('nov-input-body');
             const counter = document.getElementById('nov-body-counter');
             const status  = document.getElementById('nov-status');
+            const preview = document.getElementById('nov-body-preview');
             if (titleEl) titleEl.value = '';
             if (bodyEl)  bodyEl.value  = '';
             if (counter) counter.textContent = '0';
             if (status)  status.style.display = 'none';
+            if (preview) preview.innerHTML = '<em style="color:var(--slate);">(empezá a escribir)</em>';
             switchNovedadesSubtab('mandar');
+            _initNovedadInsertChips();
             document.getElementById('director-novedades-modal').classList.add('open');
         };
 
@@ -4480,7 +4570,7 @@
                             <div style="font-weight:700; color:var(--gold-l); font-size:14px;">${escapeHtml(n.title || '')}${isArchived ? ' <span style="font-size:10px; color:var(--slate); font-weight:400;">(archivada)</span>' : ''}</div>
                             <div style="font-size:11px; color:var(--slate); white-space:nowrap;">${dt}</div>
                         </div>
-                        <div style="font-size:13px; color:rgba(255,255,255,0.85); margin-bottom:10px; line-height:1.4; white-space:pre-wrap;">${escapeHtml(n.body || '')}</div>
+                        <div style="font-size:13px; color:rgba(255,255,255,0.85); margin-bottom:10px; line-height:1.4; white-space:pre-wrap;">${renderNovedadBody(n.body || '')}</div>
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
                             <span style="font-size:11px; color:var(--slate);"><i class="fa fa-check-double"></i> Leído por ${(n.readBy || []).length}</span>
                             ${archiveBtn}
