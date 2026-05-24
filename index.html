@@ -2939,6 +2939,21 @@
                         <textarea id="nov-input-body" placeholder="Ya podés configurar la hora en que la app te recuerda registrar tu actividad..." maxlength="600" rows="5" style="resize:vertical; width:100%; padding:10px; background:rgba(255,255,255,0.04); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; font-family:inherit; font-size:14px;"></textarea>
                         <p style="font-size:10px; color:var(--slate); margin-top:4px;"><span id="nov-body-counter">0</span>/600 caracteres · Soporta saltos de línea</p>
                     </div>
+                    <div>
+                        <label class="field-label">Destacar un botón (opcional)</label>
+                        <select id="nov-input-highlight" style="width:100%; padding:10px; background:rgba(255,255,255,0.04); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; font-family:inherit; font-size:14px;">
+                            <option value="">— Ninguno —</option>
+                            <option value="notif">🔔 Botón de Notificaciones</option>
+                            <option value="anuncios">📢 Botón de Anuncios</option>
+                            <option value="novedades">✨ Botón de Novedades</option>
+                            <option value="tienda">🛒 Botón de Tienda</option>
+                            <option value="perfil">👤 Botón de Mi Perfil</option>
+                            <option value="config">⚙️ Botón de Configuración</option>
+                            <option value="karma">⭐ Badge de Totopos</option>
+                            <option value="historial">🕒 Botón de Historial</option>
+                        </select>
+                        <p style="font-size:10px; color:var(--slate); margin-top:4px;">El botón elegido va a brillar (glow dorado) en la app del user hasta que lo toque. Útil para señalar features nuevas.</p>
+                    </div>
                     <div id="nov-status" style="display:none; padding:10px; border-radius:6px; font-size:13px; font-weight:600;"></div>
                     <button id="nov-send-btn" class="btn btn-green" onclick="sendNovedad()" style="margin-top:8px;">
                         <i class="fa fa-paper-plane"></i> Publicar novedad
@@ -4365,10 +4380,12 @@
             const bodyEl  = document.getElementById('nov-input-body');
             const counter = document.getElementById('nov-body-counter');
             const status  = document.getElementById('nov-status');
+            const hlEl    = document.getElementById('nov-input-highlight');
             if (titleEl) titleEl.value = '';
             if (bodyEl)  bodyEl.value  = '';
             if (counter) counter.textContent = '0';
             if (status)  status.style.display = 'none';
+            if (hlEl)    hlEl.value = '';
             switchNovedadesSubtab('mandar');
             document.getElementById('director-novedades-modal').classList.add('open');
         };
@@ -4408,6 +4425,7 @@
 
             const title = (titleEl.value || '').trim();
             const body  = (bodyEl.value  || '').trim();
+            const highlightKey = (document.getElementById('nov-input-highlight')?.value || '').trim();
 
             const showError = (msg) => {
                 statusEl.style.display = '';
@@ -4437,7 +4455,8 @@
                     createdByName: state.directorName || user.displayName || user.email,
                     archived: false,
                     readBy: [],
-                    hiddenBy: []
+                    hiddenBy: [],
+                    highlightKey: highlightKey || null  // key del botón a destacar con glow (o null)
                 });
                 statusEl.style.background = 'rgba(16,185,129,0.15)';
                 statusEl.style.color = '#6ee7b7';
@@ -4445,6 +4464,8 @@
                 statusEl.innerHTML = '✅ Novedad publicada. Va a aparecer en el botón ✨ de los users.<br><span style="font-size:11px; opacity:0.7;">ID: ' + docRef.id + '</span>';
                 titleEl.value = ''; bodyEl.value = '';
                 document.getElementById('nov-body-counter').textContent = '0';
+                const hlEl = document.getElementById('nov-input-highlight');
+                if (hlEl) hlEl.value = '';
             } catch (err) {
                 console.error('[novedades] sendNovedad error:', err);
                 showError('Error guardando: ' + (err.message || err));
@@ -4475,12 +4496,18 @@
                     const archiveBtn = isArchived
                         ? `<button class="btn btn-sm" onclick="restoreNovedad('${n.id}')" style="background:rgba(255,255,255,0.08);"><i class="fa fa-rotate-left"></i> Reactivar</button>`
                         : `<button class="btn btn-sm" onclick="archiveNovedad('${n.id}')" style="background:rgba(239,68,68,0.15); color:#fca5a5;"><i class="fa fa-box-archive"></i> Archivar</button>`;
+                    const highlightLabel = n.highlightKey ? {
+                        notif: '🔔 Notificaciones', anuncios: '📢 Anuncios', novedades: '✨ Novedades',
+                        tienda: '🛒 Tienda', perfil: '👤 Mi Perfil', config: '⚙️ Configuración',
+                        karma: '⭐ Totopos', historial: '🕒 Historial'
+                    }[n.highlightKey] : null;
                     return `<div style="padding:12px 14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; ${isArchived ? 'opacity:0.55;' : ''}">
                         <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:6px;">
                             <div style="font-weight:700; color:var(--gold-l); font-size:14px;">${escapeHtml(n.title || '')}${isArchived ? ' <span style="font-size:10px; color:var(--slate); font-weight:400;">(archivada)</span>' : ''}</div>
                             <div style="font-size:11px; color:var(--slate); white-space:nowrap;">${dt}</div>
                         </div>
                         <div style="font-size:13px; color:rgba(255,255,255,0.85); margin-bottom:10px; line-height:1.4; white-space:pre-wrap;">${escapeHtml(n.body || '')}</div>
+                        ${highlightLabel ? `<div style="font-size:11px; color:var(--gold-l); margin-bottom:8px;"><i class="fa fa-lightbulb"></i> Destaca: ${highlightLabel}</div>` : ''}
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
                             <span style="font-size:11px; color:var(--slate);"><i class="fa fa-check-double"></i> Leído por ${(n.readBy || []).length}</span>
                             ${archiveBtn}
