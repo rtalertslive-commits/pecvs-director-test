@@ -1728,6 +1728,9 @@
                 <button id="director-anuncios-btn" class="btn btn-sm" onclick="openAnunciosDirectorModal()" title="Mandar anuncio" style="position:relative;">
                     <i class="fa fa-bullhorn"></i> Anuncios
                 </button>
+                <button id="director-novedades-btn" class="btn btn-sm" onclick="openNovedadesDirectorModal()" title="Publicar novedades" style="position:relative;">
+                    <i class="fa fa-sparkles"></i> Novedades
+                </button>
                 <button class="btn btn-sm" onclick="openConfig()"><i class="fa fa-cog"></i> Configuración</button>
                 <button id="logout-btn" class="btn btn-red btn-sm" onclick="logout()"><i class="fa fa-sign-out"></i>
                     Salir</button>
@@ -2905,6 +2908,50 @@
                     <div style="text-align:center; padding:40px 20px;">
                         <div style="font-size:48px; opacity:0.3; margin-bottom:12px;">📜</div>
                         <div style="font-size:14px; color:var(--slate); font-weight:600;">Cargando historial…</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVEDADES (CHANGELOG) MODAL — solo el director publica -->
+    <div class="modal-overlay" id="director-novedades-modal">
+        <div class="modal-box" style="max-width:600px;">
+            <button class="modal-close" onclick="closeNovedadesDirectorModal()">&times;</button>
+            <h2><i class="fa fa-sparkles"></i> Novedades del sistema</h2>
+            <p style="font-size:12px; color:var(--slate); margin:0 0 16px;">Publicá novedades de la app (nuevas funciones, mejoras). Las ven todos los agentes, coaches y promotores. <b>No mandan push notification</b> — aparecen en su botón ✨.</p>
+
+            <!-- Sub-tabs: Publicar / Publicadas -->
+            <div style="display:flex; gap:6px; margin-bottom:18px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:0;">
+                <button id="nov-subtab-mandar" class="lb-subtab-btn active" onclick="switchNovedadesSubtab('mandar')" style="flex:1; padding:10px;">✨ Publicar</button>
+                <button id="nov-subtab-historial" class="lb-subtab-btn" onclick="switchNovedadesSubtab('historial')" style="flex:1; padding:10px;">📜 Publicadas</button>
+            </div>
+
+            <!-- ── SUB-VIEW: PUBLICAR ── -->
+            <div id="nov-view-mandar">
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                    <div>
+                        <label class="field-label">Título <span style="color:var(--red);">*</span></label>
+                        <input type="text" id="nov-input-title" placeholder="Ej. Nuevo recordatorio diario" maxlength="80">
+                    </div>
+                    <div>
+                        <label class="field-label">Descripción <span style="color:var(--red);">*</span></label>
+                        <textarea id="nov-input-body" placeholder="Ya podés configurar la hora en que la app te recuerda registrar tu actividad..." maxlength="600" rows="5" style="resize:vertical; width:100%; padding:10px; background:rgba(255,255,255,0.04); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; font-family:inherit; font-size:14px;"></textarea>
+                        <p style="font-size:10px; color:var(--slate); margin-top:4px;"><span id="nov-body-counter">0</span>/600 caracteres · Soporta saltos de línea</p>
+                    </div>
+                    <div id="nov-status" style="display:none; padding:10px; border-radius:6px; font-size:13px; font-weight:600;"></div>
+                    <button id="nov-send-btn" class="btn btn-green" onclick="sendNovedad()" style="margin-top:8px;">
+                        <i class="fa fa-paper-plane"></i> Publicar novedad
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── SUB-VIEW: PUBLICADAS ── -->
+            <div id="nov-view-historial" style="display:none;">
+                <div id="nov-history-list" style="display:flex; flex-direction:column; gap:10px; min-height:120px;">
+                    <div style="text-align:center; padding:40px 20px;">
+                        <div style="font-size:48px; opacity:0.3; margin-bottom:12px;">📜</div>
+                        <div style="font-size:14px; color:var(--slate); font-weight:600;">Cargando publicadas…</div>
                     </div>
                 </div>
             </div>
@@ -4307,6 +4354,165 @@
                 listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#fca5a5;">Error: ' + escapeHtml(err.message || String(err)) + '</div>';
             }
         }
+
+        // ═══════════════════════ NOVEDADES (changelog del producto) ═══════════════════════
+        // Solo el director publica. Las ven agente/coach/promotor en su botón ✨.
+        // Diferencia con anuncios: no push notif, no targeting por role (todos las ven),
+        // no scope por región (son del producto, no del equipo).
+
+        window.openNovedadesDirectorModal = function () {
+            const titleEl = document.getElementById('nov-input-title');
+            const bodyEl  = document.getElementById('nov-input-body');
+            const counter = document.getElementById('nov-body-counter');
+            const status  = document.getElementById('nov-status');
+            if (titleEl) titleEl.value = '';
+            if (bodyEl)  bodyEl.value  = '';
+            if (counter) counter.textContent = '0';
+            if (status)  status.style.display = 'none';
+            switchNovedadesSubtab('mandar');
+            document.getElementById('director-novedades-modal').classList.add('open');
+        };
+
+        window.closeNovedadesDirectorModal = function () {
+            document.getElementById('director-novedades-modal').classList.remove('open');
+        };
+
+        window.switchNovedadesSubtab = function (which) {
+            const btnM = document.getElementById('nov-subtab-mandar');
+            const btnH = document.getElementById('nov-subtab-historial');
+            const viewM = document.getElementById('nov-view-mandar');
+            const viewH = document.getElementById('nov-view-historial');
+            if (which === 'historial') {
+                btnM.classList.remove('active'); btnH.classList.add('active');
+                viewM.style.display = 'none'; viewH.style.display = '';
+                renderNovedadesHistory();
+            } else {
+                btnH.classList.remove('active'); btnM.classList.add('active');
+                viewH.style.display = 'none'; viewM.style.display = '';
+            }
+        };
+
+        // Live counter del body de novedades
+        document.addEventListener('input', (e) => {
+            if (e.target && e.target.id === 'nov-input-body') {
+                const counter = document.getElementById('nov-body-counter');
+                if (counter) counter.textContent = String(e.target.value.length);
+            }
+        });
+
+        window.sendNovedad = async function () {
+            const titleEl  = document.getElementById('nov-input-title');
+            const bodyEl   = document.getElementById('nov-input-body');
+            const statusEl = document.getElementById('nov-status');
+            const btn      = document.getElementById('nov-send-btn');
+
+            const title = (titleEl.value || '').trim();
+            const body  = (bodyEl.value  || '').trim();
+
+            const showError = (msg) => {
+                statusEl.style.display = '';
+                statusEl.style.background = 'rgba(239,68,68,0.15)';
+                statusEl.style.color = '#fca5a5';
+                statusEl.style.border = '1px solid rgba(239,68,68,0.3)';
+                statusEl.textContent = '❌ ' + msg;
+            };
+            if (!title) { showError('Falta el título.'); return; }
+            if (!body)  { showError('Falta la descripción.'); return; }
+            if (!confirm(`¿Publicar novedad "${title}"?\n\nLa van a ver todos los agentes, coaches y promotores en su botón ✨.`)) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Publicando…';
+            statusEl.style.display = '';
+            statusEl.style.background = 'rgba(59,130,246,0.15)';
+            statusEl.style.color = '#93c5fd';
+            statusEl.style.border = '1px solid rgba(59,130,246,0.3)';
+            statusEl.textContent = '⏳ Guardando…';
+
+            try {
+                const docRef = await addDoc(collection(db, 'novedades'), {
+                    title,
+                    body,
+                    createdAt: new Date().toISOString(),
+                    createdBy: user.email,
+                    createdByName: state.directorName || user.displayName || user.email,
+                    archived: false,
+                    readBy: [],
+                    hiddenBy: []
+                });
+                statusEl.style.background = 'rgba(16,185,129,0.15)';
+                statusEl.style.color = '#6ee7b7';
+                statusEl.style.border = '1px solid rgba(16,185,129,0.3)';
+                statusEl.innerHTML = '✅ Novedad publicada. Va a aparecer en el botón ✨ de los users.<br><span style="font-size:11px; opacity:0.7;">ID: ' + docRef.id + '</span>';
+                titleEl.value = ''; bodyEl.value = '';
+                document.getElementById('nov-body-counter').textContent = '0';
+            } catch (err) {
+                console.error('[novedades] sendNovedad error:', err);
+                showError('Error guardando: ' + (err.message || err));
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-paper-plane"></i> Publicar novedad';
+            }
+        };
+
+        async function renderNovedadesHistory() {
+            const listEl = document.getElementById('nov-history-list');
+            if (!listEl) return;
+            listEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--slate);">Cargando…</div>';
+            try {
+                const snap = await getDocs(collection(db, 'novedades'));
+                if (snap.empty) {
+                    listEl.innerHTML = `<div style="text-align:center; padding:40px 20px;">
+                        <div style="font-size:48px; opacity:0.3; margin-bottom:12px;">📜</div>
+                        <div style="font-size:14px; color:var(--slate); font-weight:600;">No publicaste ninguna novedad todavía</div>
+                    </div>`;
+                    return;
+                }
+                const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+                listEl.innerHTML = items.map(n => {
+                    const dt = n.createdAt ? new Date(n.createdAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                    const isArchived = !!n.archived;
+                    const archiveBtn = isArchived
+                        ? `<button class="btn btn-sm" onclick="restoreNovedad('${n.id}')" style="background:rgba(255,255,255,0.08);"><i class="fa fa-rotate-left"></i> Reactivar</button>`
+                        : `<button class="btn btn-sm" onclick="archiveNovedad('${n.id}')" style="background:rgba(239,68,68,0.15); color:#fca5a5;"><i class="fa fa-box-archive"></i> Archivar</button>`;
+                    return `<div style="padding:12px 14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; ${isArchived ? 'opacity:0.55;' : ''}">
+                        <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:6px;">
+                            <div style="font-weight:700; color:var(--gold-l); font-size:14px;">${escapeHtml(n.title || '')}${isArchived ? ' <span style="font-size:10px; color:var(--slate); font-weight:400;">(archivada)</span>' : ''}</div>
+                            <div style="font-size:11px; color:var(--slate); white-space:nowrap;">${dt}</div>
+                        </div>
+                        <div style="font-size:13px; color:rgba(255,255,255,0.85); margin-bottom:10px; line-height:1.4; white-space:pre-wrap;">${escapeHtml(n.body || '')}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <span style="font-size:11px; color:var(--slate);"><i class="fa fa-check-double"></i> Leído por ${(n.readBy || []).length}</span>
+                            ${archiveBtn}
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch (err) {
+                console.error('[novedades] renderHistory error:', err);
+                listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#fca5a5;">Error: ' + escapeHtml(err.message || String(err)) + '</div>';
+            }
+        }
+
+        window.archiveNovedad = async function (id) {
+            if (!confirm('¿Archivar esta novedad? Va a dejar de mostrarse a los users (vos la podés reactivar después).')) return;
+            try {
+                await setDoc(doc(db, 'novedades', id), { archived: true }, { merge: true });
+                renderNovedadesHistory();
+            } catch (err) {
+                console.error('[novedades] archive error:', err);
+                alert('Error: ' + (err.message || err));
+            }
+        };
+
+        window.restoreNovedad = async function (id) {
+            try {
+                await setDoc(doc(db, 'novedades', id), { archived: false }, { merge: true });
+                renderNovedadesHistory();
+            } catch (err) {
+                console.error('[novedades] restore error:', err);
+                alert('Error: ' + (err.message || err));
+            }
+        };
 
         window.openConfig = function () {
             const inpDirector = document.getElementById('inp-director');
