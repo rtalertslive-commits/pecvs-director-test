@@ -8162,9 +8162,17 @@
                     const totalNum = costoNum * cantidad;
                     const cantidadLabel = cantidad > 1 ? ` <span style="color:var(--gold-l);font-weight:700;">×${cantidad}</span>` : '';
                     const costoText = cantidad > 1 ? `${costoNum} × ${cantidad} = ${totalNum}` : String(costoNum);
+                    const statusColor = r.status === 'approved' ? 'var(--green)'
+                        : r.status === 'rejected' ? 'var(--red)'
+                        : r.status === 'cancelled' ? 'var(--slate)'
+                        : 'var(--orange)';
+                    const statusLabel = r.status === 'approved' ? '✓ Aprobado'
+                        : r.status === 'rejected' ? '✗ Rechazado'
+                        : r.status === 'cancelled' ? '⊘ Cancelado por agente'
+                        : r.status;
                     return `
-                    <div style="padding:10px 14px;background:var(--panel2);border-radius:8px;border-left:3px solid ${r.status==='approved'?'var(--green)':'var(--red)'};">
-                        <div style="font-size:13px;font-weight:600;">${eEmoji} ${eName}${cantidadLabel} &nbsp;<span style="color:${r.status==='approved'?'var(--green)':'var(--red)'};font-size:11px;">${r.status==='approved'?'✓ Aprobado':'✗ Rechazado'}</span></div>
+                    <div style="padding:10px 14px;background:var(--panel2);border-radius:8px;border-left:3px solid ${statusColor};${r.status==='cancelled'?'opacity:0.65;':''}">
+                        <div style="font-size:13px;font-weight:600;">${eEmoji} ${eName}${cantidadLabel} &nbsp;<span style="color:${statusColor};font-size:11px;">${statusLabel}</span></div>
                         <div style="font-size:11px;color:var(--slate);">${eSol} &nbsp;·&nbsp; <svg class="totopo-icon"><use href="#totopo"/></svg> ${costoText} totopos &nbsp;·&nbsp; ${new Date(r.fechaResolucion||r.fechaSolicitud).toLocaleDateString('es-MX')}</div>
                     </div>`;
                 }).join('') : '<div class="empty-state"><i class="fa fa-inbox"></i> Sin historial.</div>';
