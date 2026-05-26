@@ -2871,8 +2871,20 @@
                     </div>
                     <div>
                         <label class="field-label">Mensaje <span style="color:var(--red);">*</span></label>
-                        <textarea id="ann-input-body" placeholder="Recuerden registrar las pólizas..." maxlength="400" rows="4" style="resize:vertical; width:100%; padding:10px; background:rgba(255,255,255,0.04); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; font-family:inherit; font-size:14px;"></textarea>
+                        <textarea id="ann-input-body" placeholder="Recuerden registrar las pólizas... Tocá [[anuncios]] para ver mis mensajes." maxlength="400" rows="4" style="resize:vertical; width:100%; padding:10px; background:rgba(255,255,255,0.04); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; font-family:inherit; font-size:14px;"></textarea>
                         <p style="font-size:10px; color:var(--slate); margin-top:4px;"><span id="ann-body-counter">0</span>/400 caracteres</p>
+
+                        <!-- Chips de inserción rápida — al click insertan [[key]] en el cursor -->
+                        <div style="margin-top:8px;">
+                            <p style="font-size:10px; color:var(--slate); margin:0 0 6px;">💡 Tocá un botón para insertarlo en el mensaje (el agente/coach/promotor lo va a ver como icono):</p>
+                            <div id="ann-insert-chips" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+                        </div>
+
+                        <!-- Preview en vivo de cómo lo verán los users -->
+                        <div style="margin-top:10px; padding:10px 12px; background:rgba(212,175,55,0.05); border:1px dashed rgba(212,175,55,0.3); border-radius:6px;">
+                            <div style="font-size:10px; color:var(--gold-l); font-weight:600; margin-bottom:6px; letter-spacing:0.5px;">👁 PREVIEW (como lo van a ver)</div>
+                            <div id="ann-body-preview" style="font-size:13px; color:rgba(255,255,255,0.9); line-height:1.5; white-space:pre-wrap; min-height:18px; opacity:0.7;"><em style="color:var(--slate);">(empezá a escribir)</em></div>
+                        </div>
                     </div>
                     <div>
                         <label class="field-label">Mandar a:</label>
@@ -4159,19 +4171,94 @@
         //     targetDirectorCode, targetRoles[], sentTo, readBy[] }
         // sentTo es poblado por la Cloud Function onAnnouncementCreated.
 
+        // Registro compartido de elementos UI referenciables desde el body de un anuncio.
+        // Sintaxis: [[key]] en el body → se renderiza como chip con icono + label en
+        // la app del agente/coach/promotor. Las apps consumidoras tienen este mismo
+        // objeto para resolver el render. Si agregás un elemento, agregalo también en
+        // los 3 consumidores para que se vea igual.
+        const ANUNCIO_UI_ELEMENTS = {
+            notif:      { label: 'Notificaciones', icon: 'fa-bell' },
+            anuncios:   { label: 'Anuncios',       icon: 'fa-bullhorn' },
+            tienda:     { label: 'Tienda',         icon: 'fa-store' },
+            perfil:     { label: 'Mi Perfil',      icon: 'fa-user' },
+            config:     { label: 'Configuración',  icon: 'fa-cog' },
+            karma:      { label: 'Totopos',        icon: 'fa-star' },
+            historial:  { label: 'Historial',      icon: 'fa-clock-rotate-left' },
+            equipo:     { label: 'Mi Equipo',      icon: 'fa-users' },
+            reportes:   { label: 'Reportes',       icon: 'fa-file-lines' },
+        };
+
+        // Renderiza el body reemplazando [[key]] por chips visuales.
+        function renderAnuncioBody(text) {
+            const escaped = escapeHtml(text || '');
+            return escaped.replace(/\[\[([\w-]+)\]\]/g, (match, key) => {
+                const el = ANUNCIO_UI_ELEMENTS[key.toLowerCase()];
+                if (!el) return match; // si la key no existe, dejamos literal
+                return `<span style="display:inline-flex; align-items:center; gap:4px; padding:2px 7px; margin:0 2px; background:rgba(212,175,55,0.18); border:1px solid rgba(212,175,55,0.45); border-radius:5px; color:var(--gold-l); font-weight:600; font-size:0.92em; vertical-align:baseline; white-space:nowrap;"><i class="fa ${el.icon}" style="font-size:11px;"></i>${escapeHtml(el.label)}</span>`;
+            });
+        }
+
+        // Popular los chips de inserción rápida + live preview
+        function _initAnuncioInsertChips() {
+            const container = document.getElementById('ann-insert-chips');
+            const textarea  = document.getElementById('ann-input-body');
+            const preview   = document.getElementById('ann-body-preview');
+            if (!container || !textarea) return;
+            container.innerHTML = Object.entries(ANUNCIO_UI_ELEMENTS).map(([key, el]) => {
+                return `<button type="button" onclick="insertAnuncioRef('${key}')"
+                    style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:14px; color:rgba(255,255,255,0.85); font-size:11px; font-family:inherit; cursor:pointer; transition:background .15s;"
+                    onmouseover="this.style.background='rgba(212,175,55,0.18)'"
+                    onmouseout="this.style.background='rgba(255,255,255,0.06)'"
+                    title="Inserta [[${key}]] en el mensaje"><i class="fa ${el.icon}" style="font-size:10px;"></i>${el.label}</button>`;
+            }).join('');
+            // Live preview
+            const updatePreview = () => {
+                const val = textarea.value || '';
+                if (preview) {
+                    if (!val.trim()) {
+                        preview.innerHTML = '<em style="color:var(--slate);">(empezá a escribir)</em>';
+                        preview.style.opacity = '0.7';
+                    } else {
+                        preview.innerHTML = renderAnuncioBody(val);
+                        preview.style.opacity = '1';
+                    }
+                }
+            };
+            textarea.addEventListener('input', updatePreview);
+        }
+
+        // Inserta [[key]] en la posición del cursor del textarea, o al final si no hay foco
+        window.insertAnuncioRef = function (key) {
+            const textarea = document.getElementById('ann-input-body');
+            if (!textarea) return;
+            const ref = `[[${key}]]`;
+            const start = textarea.selectionStart ?? textarea.value.length;
+            const end   = textarea.selectionEnd   ?? textarea.value.length;
+            const before = textarea.value.substring(0, start);
+            const after  = textarea.value.substring(end);
+            textarea.value = before + ref + after;
+            const newPos = start + ref.length;
+            textarea.focus();
+            textarea.setSelectionRange(newPos, newPos);
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+
         window.openAnunciosDirectorModal = function () {
             // Reset form
             const titleEl = document.getElementById('ann-input-title');
             const bodyEl  = document.getElementById('ann-input-body');
             const counter = document.getElementById('ann-body-counter');
             const status  = document.getElementById('ann-status');
+            const preview = document.getElementById('ann-body-preview');
             if (titleEl) titleEl.value = '';
             if (bodyEl)  bodyEl.value  = '';
             if (counter) counter.textContent = '0';
             if (status)  status.style.display = 'none';
+            if (preview) preview.innerHTML = '<em style="color:var(--slate);">(empezá a escribir)</em>';
 
             // Default sub-tab: Mandar
             switchAnunciosSubtab('mandar');
+            _initAnuncioInsertChips();
             document.getElementById('director-anuncios-modal').classList.add('open');
         };
 
@@ -4294,7 +4381,7 @@
                             <div style="font-weight:700; color:var(--gold-l); font-size:14px;">${escapeHtml(a.title || '')}</div>
                             <div style="font-size:11px; color:var(--slate); white-space:nowrap;">${dt}</div>
                         </div>
-                        <div style="font-size:13px; color:rgba(255,255,255,0.85); margin-bottom:8px; line-height:1.4;">${escapeHtml(a.body || '')}</div>
+                        <div style="font-size:13px; color:rgba(255,255,255,0.85); margin-bottom:8px; line-height:1.4; white-space:pre-wrap;">${renderAnuncioBody(a.body || '')}</div>
                         <div style="font-size:11px; color:var(--slate); display:flex; gap:14px; flex-wrap:wrap;">
                             <span><i class="fa fa-users"></i> ${escapeHtml(roles)}</span>
                             <span><i class="fa fa-paper-plane"></i> Enviado a ${a.sentTo || 0}</span>
