@@ -8005,6 +8005,9 @@
                         </div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0;">
+                        <button class="btn btn-sm" onclick="editCatalogItemCosto(${idx})" title="Editar costo">
+                            <i class="fa fa-pen-to-square"></i>
+                        </button>
                         <button class="btn btn-sm" onclick="toggleCatalogItem(${idx})" title="${item.activo ? 'Desactivar' : 'Activar'}">
                             <i class="fa fa-${item.activo ? 'eye-slash' : 'eye'}"></i>
                         </button>
@@ -8056,6 +8059,30 @@
                 catalogData[currentCatRole][idx].activo = !catalogData[currentCatRole][idx].activo;
                 await saveCatalog(currentCatRole);
                 renderCatalogItems();
+            }
+        };
+
+        // Modifica el costo de un item existente. Solicitudes ya creadas mantienen
+        // el costo del momento del canje (porque se copia al doc /redemptionRequests/).
+        window.editCatalogItemCosto = async function(idx) {
+            await loadCatalog(currentCatRole);
+            const item = catalogData[currentCatRole][idx];
+            if (!item) return;
+            const current = Number(item.costo) || 0;
+            const input = prompt(`Nuevo costo en totopos para "${item.nombre}":\n(actual: ${current})`, String(current));
+            if (input === null) return; // cancelado
+            const next = parseInt(input);
+            if (isNaN(next) || next < 1) {
+                alert('El costo debe ser un número mayor o igual a 1.');
+                return;
+            }
+            if (next === current) return;
+            catalogData[currentCatRole][idx].costo = next;
+            try {
+                await saveCatalog(currentCatRole);
+                renderCatalogItems();
+            } catch (e) {
+                alert('Error al guardar el costo nuevo: ' + (e?.message || e));
             }
         };
 
