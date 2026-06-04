@@ -2449,10 +2449,15 @@
                             <select id="premios-period" onchange="renderPremiosByTeam()" style="min-width:160px;padding:8px;font-size:12px;">
                                 <option value="month" selected>Este mes</option>
                                 <option value="last-month">Último mes</option>
+                                <option value="specific">Mes específico…</option>
                                 <option value="quarter">Este trimestre</option>
                                 <option value="year">Este año</option>
                                 <option value="all">Todo el historial</option>
                             </select>
+                        </div>
+                        <div id="premios-month-wrap" style="display:none;">
+                            <label class="field-label">Mes</label>
+                            <input type="month" id="premios-specific-month" onchange="renderPremiosByTeam()" style="padding:7px;font-size:12px;">
                         </div>
                         <div>
                             <label class="field-label">Status</label>
@@ -2461,6 +2466,14 @@
                                 <option value="pending">Pendientes</option>
                                 <option value="rejected">Rechazados</option>
                                 <option value="all">Todos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Entrega</label>
+                            <select id="premios-entrega" onchange="renderPremiosByTeam()" style="min-width:170px;padding:8px;font-size:12px;">
+                                <option value="all" selected>Todas</option>
+                                <option value="pending">Pendientes de entregar</option>
+                                <option value="done">Ya entregadas</option>
                             </select>
                         </div>
                         <div>
@@ -7588,6 +7601,24 @@
             if (activePromotores.some(p => (p.companyCode || p.promotorCode) === prev)) sel.value = prev;
         }
 
+        // Marcar / desmarcar un canje como entregado. Persiste en redemptionRequests
+        // (el director tiene permiso de update por las reglas de Firestore).
+        window.toggleEntregado = async function(reqId, checked) {
+            const cached = _premiosCache.find(r => r._id === reqId);
+            const stamp = checked ? new Date().toISOString() : null;
+            try {
+                await updateDoc(doc(db, 'redemptionRequests', reqId), {
+                    entregado: checked,
+                    fechaEntrega: stamp
+                });
+                if (cached) { cached.entregado = checked; cached.fechaEntrega = stamp; }
+                renderPremiosByTeam();
+            } catch (e) {
+                alert('No se pudo actualizar la entrega:\n' + (e.message || e));
+                renderPremiosByTeam();   // revertir el checkbox visualmente
+            }
+        };
+
         window.setPremiosView = function(view) {
             _premiosView = (view === 'item') ? 'item' : 'equipo';
             const a = document.getElementById('premios-view-equipo');
@@ -7606,6 +7637,12 @@
             if (!dateStr) return false;
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return false;
+            if (period === 'specific') {
+                const mv = document.getElementById('premios-specific-month')?.value; // "YYYY-MM"
+                if (!mv) return true;   // sin mes elegido todavía → no filtra
+                const [sy, sm] = mv.split('-').map(Number);
+                return d.getFullYear() === sy && (d.getMonth() + 1) === sm;
+            }
             const now = new Date();
             const y = now.getFullYear();
             const m = now.getMonth(); // 0-11
@@ -7635,11 +7672,17 @@
             const period = document.getElementById('premios-period').value;
             const status = document.getElementById('premios-status').value;
             const promotorFilter = document.getElementById('premios-promotor').value;
+            const entregaFilter = document.getElementById('premios-entrega')?.value || 'all';
+            // El selector de mes específico solo se muestra cuando el período es "specific".
+            const monthWrap = document.getElementById('premios-month-wrap');
+            if (monthWrap) monthWrap.style.display = (period === 'specific') ? '' : 'none';
 
             // Filtrar
             const filtered = _premiosCache.filter(r => {
                 if (status !== 'all' && (r.status || '') !== status) return false;
                 if (!_premiosInPeriod(r, period)) return false;
+                if (entregaFilter === 'pending' && r.entregado) return false;
+                if (entregaFilter === 'done' && !r.entregado) return false;
                 if (promotorFilter) {
                     // Para agentes: el promotor se obtiene via su coach
                     const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === r.coachTeamCode);
@@ -7653,6 +7696,7 @@
             const totalItems = filtered.reduce((s, r) => s + 1, 0); // por ahora 1 por canje
             const coachesSet = new Set(filtered.map(r => r.coachTeamCode).filter(Boolean));
             const itemsSet = new Set(filtered.map(r => r.itemId || r.itemNombre).filter(Boolean));
+            const entregadosCount = filtered.filter(r => r.entregado).length;
             totalsEl.innerHTML = `
                 <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px;">
                     <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Total Canjes</div>
@@ -7665,6 +7709,10 @@
                 <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.25);border-radius:10px;padding:12px;">
                     <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Items distintos</div>
                     <div style="font-size:22px;font-weight:800;color:#a855f7;margin-top:4px;">${itemsSet.size}</div>
+                </div>
+                <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:12px;">
+                    <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Entregados</div>
+                    <div style="font-size:22px;font-weight:800;color:var(--green);margin-top:4px;">${entregadosCount} / ${totalCanjes}</div>
                 </div>
             `;
 
@@ -7684,7 +7732,7 @@
         function _renderPremiosViewEquipo(canjes) {
             // 1. Agrupar por coach (teamCode = coach.companyCode/agentTeamCode)
             //    El agente.coachTeamCode == coach.companyCode
-            const byCoach = {};   // coachKey -> { coachName, coachKey, promotorName, items: { itemNombre: { count, byAgent: { agentName: count } } }, agentes: Set }
+            const byCoach = {};   // coachKey -> { coachName, coachKey, promotorName, items: { itemKey: { nombre, descripcion, count, entregados, emoji, canjes: [{id, agentName, qty, entregado}] } }, agentes: Set }
             canjes.forEach(r => {
                 const coachKey = r.coachTeamCode || 'sin-coach';
                 if (!byCoach[coachKey]) {
@@ -7708,11 +7756,17 @@
                 if (!bucket.items[itemKey]) bucket.items[itemKey] = {
                     nombre: r.itemNombre || '(sin nombre)',
                     descripcion: (r.itemId != null ? (_premiosDescById[r.itemId] || '') : ''),
-                    count: 0, emoji: r.emoji || '🎁', byAgent: {}
+                    count: 0, entregados: 0, emoji: r.emoji || '🎁', canjes: []
                 };
                 bucket.items[itemKey].count += 1;
                 const agentName = r.nombreSolicitante || r.emailSolicitante || '?';
-                bucket.items[itemKey].byAgent[agentName] = (bucket.items[itemKey].byAgent[agentName] || 0) + 1;
+                if (r.entregado) bucket.items[itemKey].entregados += 1;
+                bucket.items[itemKey].canjes.push({
+                    id: r._id,
+                    agentName,
+                    qty: Number(r.cantidad) || 1,
+                    entregado: !!r.entregado
+                });
                 bucket.agentes.add(agentName);
             });
 
@@ -7721,18 +7775,33 @@
                 const itemsHtml = Object.entries(c.items)
                     .sort((a,b) => b[1].count - a[1].count)
                     .map(([key, info]) => {
-                        const agentsStr = Object.entries(info.byAgent)
-                            .sort((a,b) => b[1] - a[1])
-                            .map(([ag, n]) => `${escapeHtml(ag)} ×${n}`)
-                            .join(' · ');
                         const descHtml = info.descripcion ? `<div style="font-size:11px;color:var(--slate);margin-top:2px;font-style:italic;opacity:0.9;">${escapeHtml(info.descripcion)}</div>` : '';
-                        return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:4px;">
-                            <div style="flex:1;">
-                                <div style="font-weight:700;">${escapeHtml(info.emoji)} ${escapeHtml(info.nombre)}</div>
-                                ${descHtml}
-                                <div style="font-size:11px;color:var(--slate);margin-top:2px;">${agentsStr}</div>
+                        // Una fila por canje con checkbox para marcar como entregado (pendientes arriba).
+                        const canjesHtml = info.canjes
+                            .slice()
+                            .sort((a,b) => (Number(a.entregado) - Number(b.entregado)) || a.agentName.localeCompare(b.agentName))
+                            .map(cj => {
+                                const qtyStr = cj.qty > 1 ? ` ×${cj.qty}` : '';
+                                const doneStyle = cj.entregado ? 'text-decoration:line-through;opacity:0.55;' : '';
+                                const badge = cj.entregado ? '<span style="color:var(--green);font-size:10px;font-weight:700;margin-left:4px;">✓</span>' : '';
+                                return `<label style="display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;font-size:12px;">
+                                    <input type="checkbox" ${cj.entregado ? 'checked' : ''} onchange="toggleEntregado('${cj.id}', this.checked)" style="cursor:pointer;width:15px;height:15px;flex:none;">
+                                    <span style="${doneStyle}">${escapeHtml(cj.agentName)}${qtyStr}</span>${badge}
+                                </label>`;
+                            }).join('');
+                        const entregadosColor = info.entregados === info.count ? 'var(--green)' : 'var(--slate)';
+                        return `<div style="padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:6px;">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                                <div style="flex:1;">
+                                    <div style="font-weight:700;">${escapeHtml(info.emoji)} ${escapeHtml(info.nombre)}</div>
+                                    ${descHtml}
+                                </div>
+                                <div style="text-align:right;flex:none;">
+                                    <div style="font-size:18px;font-weight:800;color:var(--gold);">× ${info.count}</div>
+                                    <div style="font-size:10px;color:${entregadosColor};">${info.entregados}/${info.count} entregados</div>
+                                </div>
                             </div>
-                            <div style="font-size:18px;font-weight:800;color:var(--gold);">× ${info.count}</div>
+                            <div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">${canjesHtml}</div>
                         </div>`;
                     }).join('');
                 const totalPremios = Object.values(c.items).reduce((s, i) => s + i.count, 0);
@@ -7761,9 +7830,10 @@
                 if (!byItem[itemKey]) byItem[itemKey] = {
                     nombre: r.itemNombre || '(sin nombre)',
                     descripcion: (r.itemId != null ? (_premiosDescById[r.itemId] || '') : ''),
-                    count: 0, emoji: r.emoji || '🎁', byCoach: {}
+                    count: 0, entregados: 0, emoji: r.emoji || '🎁', byCoach: {}
                 };
                 byItem[itemKey].count += 1;
+                if (r.entregado) byItem[itemKey].entregados += 1;
                 const coachKey = r.coachTeamCode || 'sin-coach';
                 const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === coachKey);
                 const coachName = coach ? (coach.coachName || coach.email) : `(sin coach · clave ${coachKey})`;
@@ -7787,6 +7857,7 @@
                         <div style="text-align:right;">
                             <div style="font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;">Total a comprar</div>
                             <div style="font-size:24px;font-weight:800;color:var(--gold);">${info.count} unidad${info.count === 1 ? '' : 'es'}</div>
+                            <div style="font-size:10px;color:${info.entregados === info.count ? 'var(--green)' : 'var(--slate)'};margin-top:2px;">${info.entregados}/${info.count} entregados</div>
                         </div>
                     </div>
                     ${coachesHtml}
@@ -7798,9 +7869,12 @@
             const period = document.getElementById('premios-period').value;
             const status = document.getElementById('premios-status').value;
             const promotorFilter = document.getElementById('premios-promotor').value;
+            const entregaFilter = document.getElementById('premios-entrega')?.value || 'all';
             const filtered = _premiosCache.filter(r => {
                 if (status !== 'all' && (r.status || '') !== status) return false;
                 if (!_premiosInPeriod(r, period)) return false;
+                if (entregaFilter === 'pending' && r.entregado) return false;
+                if (entregaFilter === 'done' && !r.entregado) return false;
                 if (promotorFilter) {
                     const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === r.coachTeamCode);
                     if (!coach || String(coach.promotorTeamCode || '') !== String(promotorFilter)) return false;
@@ -7808,7 +7882,7 @@
                 return true;
             });
             if (!filtered.length) { alert('Sin canjes para exportar con los filtros actuales.'); return; }
-            const rows = [['Fecha','Promotor','Coach','Agente','Item','Descripción','Costo (totopos)','Status']];
+            const rows = [['Fecha','Promotor','Coach','Agente','Item','Descripción','Costo (totopos)','Status','Entregado','Fecha entrega']];
             filtered.forEach(r => {
                 const coach = (state.coaches || []).find(c => (c.companyCode || c.agentTeamCode) === r.coachTeamCode);
                 const coachName = coach ? (coach.coachName || coach.email) : `(clave ${r.coachTeamCode || ''})`;
@@ -7826,7 +7900,9 @@
                     r.itemNombre || '',
                     (r.itemId != null ? (_premiosDescById[r.itemId] || '') : ''),
                     String(r.costo || 0),
-                    r.status || ''
+                    r.status || '',
+                    r.entregado ? 'Sí' : 'No',
+                    r.fechaEntrega ? new Date(r.fechaEntrega).toLocaleDateString('es-MX') : ''
                 ]);
             });
             const csv = rows.map(row => row.map(cell => {
