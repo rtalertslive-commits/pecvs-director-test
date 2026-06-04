@@ -7631,9 +7631,11 @@
 
         function _premiosInPeriod(r, period) {
             if (period === 'all') return true;
-            // Para status approved: usar fechaResolucion (cuando se aprobo).
-            // Para pending: usar fechaSolicitud. Si fechaResolucion no existe usa solicitud.
-            const dateStr = r.status === 'pending' ? r.fechaSolicitud : (r.fechaResolucion || r.fechaSolicitud);
+            // Usamos siempre fechaSolicitud (cuándo el agente pidió) en vez de
+            // fechaResolucion. Antes una solicitud pedida el 31/5 pero aprobada el 1/6
+            // caía en JUNIO en el reporte, lo cual contradice "qué me compraron en
+            // mayo". El reporte ahora refleja consistentemente la fecha del pedido.
+            const dateStr = r.fechaSolicitud;
             if (!dateStr) return false;
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return false;
