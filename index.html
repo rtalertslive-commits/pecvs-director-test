@@ -2936,6 +2936,42 @@
         </div>
     </div>
 
+    <!-- EDIT CATALOG ITEM MODAL — edita todos los campos de un item existente -->
+    <div class="modal-overlay" id="edit-item-modal">
+        <div class="modal-box" style="max-width:480px;">
+            <button class="modal-close" onclick="closeEditItemModal()">&times;</button>
+            <h2><i class="fa fa-pen-to-square"></i> Editar item</h2>
+            <p style="font-size:11px; color:var(--slate); margin:0 0 14px;">Modificá los campos que necesites. Las solicitudes ya creadas mantienen el nombre/costo del momento del canje.</p>
+            <div style="display:grid; grid-template-columns:1fr 100px; gap:12px; margin-bottom:14px;">
+                <div>
+                    <label class="field-label">Nombre</label>
+                    <input type="text" id="edit-item-nombre" class="form-input" placeholder="Ej: Día libre">
+                </div>
+                <div>
+                    <label class="field-label">Emoji</label>
+                    <input type="text" id="edit-item-emoji" class="form-input" maxlength="4" placeholder="🎁">
+                </div>
+                <div style="grid-column:1/-1;">
+                    <label class="field-label">Descripción</label>
+                    <input type="text" id="edit-item-desc" class="form-input" placeholder="Detalles del item">
+                </div>
+                <div>
+                    <label class="field-label">Costo (totopos)</label>
+                    <input type="number" id="edit-item-costo" min="1" class="form-input">
+                </div>
+                <div>
+                    <label class="field-label">Stock</label>
+                    <input type="number" id="edit-item-stock" class="form-input" placeholder="-1 = ∞">
+                </div>
+            </div>
+            <p style="font-size:10px; color:var(--slate); margin:0 0 14px;">Stock: usá <b>-1</b> para ilimitado o un número entero positivo.</p>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-sm" style="flex:1;" onclick="closeEditItemModal()">Cancelar</button>
+                <button class="btn btn-green btn-sm" style="flex:1;" onclick="saveEditItem()"><i class="fa fa-floppy-disk"></i> Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+
     <!-- CONFIG MODAL -->
     <div class="modal-overlay" id="config-modal">
         <div class="modal-box">
@@ -8111,7 +8147,7 @@
                         </div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0;">
-                        <button class="btn btn-sm" onclick="editCatalogItemCosto(${idx})" title="Editar costo">
+                        <button class="btn btn-sm" onclick="openEditItemModal(${idx})" title="Editar item">
                             <i class="fa fa-pen-to-square"></i>
                         </button>
                         <button class="btn btn-sm" onclick="toggleCatalogItem(${idx})" title="${item.activo ? 'Desactivar' : 'Activar'}">
@@ -8168,27 +8204,54 @@
             }
         };
 
-        // Modifica el costo de un item existente. Solicitudes ya creadas mantienen
-        // el costo del momento del canje (porque se copia al doc /redemptionRequests/).
-        window.editCatalogItemCosto = async function(idx) {
+        // Modal de edición completa. Permite cambiar nombre, descripción, emoji,
+        // costo y stock de un item existente. Solicitudes ya creadas mantienen
+        // los valores del momento del canje (porque se copian al doc /redemptionRequests/).
+        let _editingItemIdx = null;
+
+        window.openEditItemModal = async function (idx) {
             await loadCatalog(currentCatRole);
             const item = catalogData[currentCatRole][idx];
             if (!item) return;
-            const current = Number(item.costo) || 0;
-            const input = prompt(`Nuevo costo en totopos para "${item.nombre}":\n(actual: ${current})`, String(current));
-            if (input === null) return; // cancelado
-            const next = parseInt(input);
-            if (isNaN(next) || next < 1) {
-                alert('El costo debe ser un número mayor o igual a 1.');
-                return;
-            }
-            if (next === current) return;
-            catalogData[currentCatRole][idx].costo = next;
+            _editingItemIdx = idx;
+            document.getElementById('edit-item-nombre').value = item.nombre || '';
+            document.getElementById('edit-item-desc').value   = item.descripcion || '';
+            document.getElementById('edit-item-emoji').value  = item.emoji || '🎁';
+            document.getElementById('edit-item-costo').value  = String(Number(item.costo) || 0);
+            document.getElementById('edit-item-stock').value  = String(Number(item.stock));
+            document.getElementById('edit-item-modal').classList.add('open');
+        };
+
+        window.closeEditItemModal = function () {
+            document.getElementById('edit-item-modal').classList.remove('open');
+            _editingItemIdx = null;
+        };
+
+        window.saveEditItem = async function () {
+            if (_editingItemIdx == null) return;
+            const nombre = document.getElementById('edit-item-nombre').value.trim();
+            const desc   = document.getElementById('edit-item-desc').value.trim();
+            const emoji  = document.getElementById('edit-item-emoji').value.trim() || '🎁';
+            const costo  = parseInt(document.getElementById('edit-item-costo').value);
+            const stock  = parseInt(document.getElementById('edit-item-stock').value);
+            if (!nombre) { alert('El nombre es obligatorio.'); return; }
+            if (isNaN(costo) || costo < 1) { alert('El costo debe ser un número >= 1.'); return; }
+            if (isNaN(stock)) { alert('El stock debe ser un número (usá -1 para ilimitado).'); return; }
+            await loadCatalog(currentCatRole);
+            const item = catalogData[currentCatRole][_editingItemIdx];
+            if (!item) { alert('El item ya no existe en el catálogo.'); closeEditItemModal(); return; }
+            // Mutamos in-place — saveCatalog hace overwrite con el array completo.
+            item.nombre      = nombre;
+            item.descripcion = desc;
+            item.emoji       = emoji;
+            item.costo       = costo;
+            item.stock       = stock;
             try {
                 await saveCatalog(currentCatRole);
+                closeEditItemModal();
                 renderCatalogItems();
             } catch (e) {
-                alert('Error al guardar el costo nuevo: ' + (e?.message || e));
+                alert('Error al guardar los cambios: ' + (e?.message || e));
             }
         };
 
