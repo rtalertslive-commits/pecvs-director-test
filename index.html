@@ -2249,13 +2249,13 @@
 
         <!-- ═══════════════════ TAB: GESTIÓN DE EQUIPO ═══════════════════ -->
         <div id="tab-gestion" class="tab-panel">
-            <!-- Chips compactos de agentes: registrados + activos en bitácora últimos 7 días -->
-            <div id="gestion-counters" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; font-size:12px;">
-                <span title="Agentes registrados activos en tu región (no expulsados, no pendientes)" style="display:inline-flex; align-items:center; gap:6px; background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.30); border-radius:18px; padding:6px 12px; color:#cfe1ff;">
+            <!-- Chips compactos en una sola fila: registrados + activos en bitácora últimos 7 días -->
+            <div id="gestion-counters" style="display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; margin-bottom:14px; font-size:11px; -webkit-overflow-scrolling:touch;">
+                <span title="Agentes registrados activos en tu región (no expulsados, no pendientes)" style="display:inline-flex; align-items:center; gap:5px; background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.30); border-radius:14px; padding:4px 10px; color:#cfe1ff; white-space:nowrap; flex-shrink:0;">
                     👤 Registrados: <strong id="counter-agents" style="color:#fff; font-weight:800;">—</strong>
                 </span>
-                <span title="Agentes que llenaron al menos un día con actividad o 'sin intento' en los últimos 7 días" style="display:inline-flex; align-items:center; gap:6px; background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.30); border-radius:18px; padding:6px 12px; color:#bbf3d4;">
-                    ✅ Activos (últimos 7d): <strong id="counter-active-7d" style="color:#fff; font-weight:800;">—</strong>
+                <span title="Agentes que llenaron al menos un día con actividad o 'sin intento' en los últimos 7 días" style="display:inline-flex; align-items:center; gap:5px; background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.30); border-radius:14px; padding:4px 10px; color:#bbf3d4; white-space:nowrap; flex-shrink:0;">
+                    ✅ Activos 7d: <strong id="counter-active-7d" style="color:#fff; font-weight:800;">—</strong>
                 </span>
             </div>
             <div class="card" style="margin-bottom:20px;">
