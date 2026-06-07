@@ -2249,28 +2249,14 @@
 
         <!-- ═══════════════════ TAB: GESTIÓN DE EQUIPO ═══════════════════ -->
         <div id="tab-gestion" class="tab-panel">
-            <!-- Contadores rápidos de miembros activos registrados -->
-            <div class="card" style="margin-bottom:20px;">
-                <p class="card-title"><i class="fa fa-id-badge"></i> Registrados Activos</p>
-                <p style="font-size:12px; color:var(--slate); margin-bottom:14px;">Miembros que ya se registraron y están activos en tu región (excluye expulsados y solicitudes pendientes).</p>
-                <div id="gestion-counters" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px;">
-                    <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px; padding:14px;">
-                        <div style="font-size:10px; color:var(--slate); text-transform:uppercase; letter-spacing:1px;">👤 Agentes</div>
-                        <div id="counter-agents" style="font-size:28px; font-weight:800; color:var(--blue, #3b82f6); margin-top:4px;">—</div>
-                    </div>
-                    <div style="background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.25); border-radius:10px; padding:14px;">
-                        <div style="font-size:10px; color:var(--slate); text-transform:uppercase; letter-spacing:1px;">🧑‍🏫 Coaches</div>
-                        <div id="counter-coaches" style="font-size:28px; font-weight:800; color:var(--gold); margin-top:4px;">—</div>
-                    </div>
-                    <div style="background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25); border-radius:10px; padding:14px;">
-                        <div style="font-size:10px; color:var(--slate); text-transform:uppercase; letter-spacing:1px;">📊 Promotores</div>
-                        <div id="counter-promoters" style="font-size:28px; font-weight:800; color:#a855f7; margin-top:4px;">—</div>
-                    </div>
-                    <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:10px; padding:14px;">
-                        <div style="font-size:10px; color:var(--slate); text-transform:uppercase; letter-spacing:1px;">🪙 Total</div>
-                        <div id="counter-total" style="font-size:28px; font-weight:800; color:var(--green); margin-top:4px;">—</div>
-                    </div>
-                </div>
+            <!-- Chips compactos de agentes: registrados + activos en bitácora últimos 7 días -->
+            <div id="gestion-counters" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; font-size:12px;">
+                <span title="Agentes registrados activos en tu región (no expulsados, no pendientes)" style="display:inline-flex; align-items:center; gap:6px; background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.30); border-radius:18px; padding:6px 12px; color:#cfe1ff;">
+                    👤 Registrados: <strong id="counter-agents" style="color:#fff; font-weight:800;">—</strong>
+                </span>
+                <span title="Agentes que llenaron al menos un día con actividad o 'sin intento' en los últimos 7 días" style="display:inline-flex; align-items:center; gap:6px; background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.30); border-radius:18px; padding:6px 12px; color:#bbf3d4;">
+                    ✅ Activos (últimos 7d): <strong id="counter-active-7d" style="color:#fff; font-weight:800;">—</strong>
+                </span>
             </div>
             <div class="card" style="margin-bottom:20px;">
                 <p class="card-title"><i class="fa fa-clock"></i> Solicitudes Pendientes de Aprobación</p>
@@ -6342,19 +6328,43 @@
             renderInactivosCard();
         }
 
-        // Contadores de miembros activos registrados, por rol.
-        // state.agents / coaches / promoters ya están filtrados por status !== 'inactive'
-        // en sus listeners, así que solo cuento length.
+        // Contadores compactos:
+        //  - Registrados: agentes activos en state.agents (ya filtrado por status !== 'inactive').
+        //  - Activos últimos 7d: agentes que llenaron al menos 1 día con actividad
+        //    (P+E+C+V+S > 0 OR prima > 0 OR sinActividad === true) en la última semana.
         function renderGestionCounters() {
-            const agents    = (state.agents    || []).length;
-            const coaches   = (state.coaches   || []).length;
-            const promoters = (state.promoters || []).length;
-            const total = agents + coaches + promoters;
             const $ = id => document.getElementById(id);
-            if ($('counter-agents'))    $('counter-agents').textContent    = agents;
-            if ($('counter-coaches'))   $('counter-coaches').textContent   = coaches;
-            if ($('counter-promoters')) $('counter-promoters').textContent = promoters;
-            if ($('counter-total'))     $('counter-total').textContent     = total;
+            const registered = (state.agents || []).length;
+            if ($('counter-agents')) $('counter-agents').textContent = registered;
+
+            // Calcular activos en los últimos 7 días desde state.entries.
+            const now = new Date();
+            const sevenAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+            const activeAgentIds = new Set();
+            (state.entries || []).forEach(e => {
+                if (!e || !e.mes || !e.dias) return;
+                const [mesName, yearStr] = String(e.mes).split(' ');
+                const monthIdx = MONTHS_ES.indexOf(mesName);
+                const year = parseInt(yearStr);
+                const semana = parseInt(e.semana);
+                if (monthIdx < 0 || isNaN(year) || isNaN(semana)) return;
+                // Usamos el calendario real del mes para mapear semana+dayName a la fecha
+                const weeks = getMonthCalendar(year, monthIdx + 1);
+                const weekDays = weeks[semana - 1] || [];
+                e.dias.forEach(d => {
+                    if (!d || !d.dia) return;
+                    const hasActivity = (d.P + d.E + d.C + d.V + d.S) > 0 || (parseFloat(d.prima) || 0) > 0 || d.sinActividad === true;
+                    if (!hasActivity) return;
+                    const dayInfo = weekDays.find(w => w.dayName === d.dia);
+                    if (!dayInfo) return;
+                    const date = new Date(year, monthIdx, dayInfo.date);
+                    if (date >= sevenAgo && date <= now) {
+                        const aid = e.agentId || e.agent || '?';
+                        activeAgentIds.add(aid);
+                    }
+                });
+            });
+            if ($('counter-active-7d')) $('counter-active-7d').textContent = activeAgentIds.size;
         }
 
         // Detecta jerarquía rota: usuarios activos cuyo código de asignación
