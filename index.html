@@ -2507,6 +2507,34 @@
                         <div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando...</div>
                     </div>
                 </div>
+
+                <!-- ── CHECADOR DE PRIMA (reportado en app vs ingresado en sistema) ── -->
+                <div class="card">
+                    <p class="card-title" onclick="toggleChecador()" style="cursor:pointer;user-select:none;">
+                        <i class="fa fa-magnifying-glass-dollar"></i> Checador de Prima (reportado vs ingresado)
+                        <span id="checador-caret" style="float:right;color:var(--slate);">▸</span>
+                    </p>
+                    <div id="checador-body" style="display:none;">
+                        <p style="font-size:12px;color:var(--slate);margin-bottom:16px;">
+                            Compará la prima que cada agente <strong>reportó en la app</strong> contra la <strong>realmente ingresada</strong> al sistema (columna <code>P_ING TOT</code> del CSV). Cruce exclusivo por clave de agente (<code>ASO</code> = clave). Se marca 🚩 cuando la diferencia supera ±10% sobre lo reportado. Todo se procesa en tu navegador — el CSV no se sube a ningún lado.
+                        </p>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+                            <div>
+                                <label class="field-label">Mes a corroborar</label>
+                                <select id="checador-mes" style="min-width:170px;padding:8px;font-size:12px;">
+                                    <option value="">— elegí un mes —</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label">Archivo CSV del sistema</label>
+                                <input type="file" id="checador-file" accept=".csv,text/csv" onchange="handleChecadorFile(this)" style="font-size:12px;">
+                            </div>
+                            <button class="btn btn-sm" onclick="renderChecador()" style="background:var(--gold);color:#000;font-weight:700;"><i class="fa fa-check-double"></i> Verificar</button>
+                        </div>
+                        <div id="checador-summary" style="display:none;margin-bottom:16px;"></div>
+                        <div id="checador-results"></div>
+                    </div>
+                </div>
             </div>
 
         </div><!-- /tab-tienda -->
@@ -8004,6 +8032,231 @@
             a.href = url; a.download = fname;
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        };
+
+        // ─── CHECADOR DE PRIMA (reportado en app vs ingresado en CSV del sistema) ──────
+        // Cruce EXCLUSIVO por clave de agente (companyCode == columna ASO). Sin fallback
+        // por nombre. Flag si |ingresado - reportado| > 10% de lo reportado.
+        let _checadorRows = null;   // filas parseadas del CSV: [{aso, nombre, ingresado}]
+
+        window.toggleChecador = function() {
+            const body = document.getElementById('checador-body');
+            const caret = document.getElementById('checador-caret');
+            const open = body.style.display === 'none';
+            body.style.display = open ? 'block' : 'none';
+            caret.textContent = open ? '▾' : '▸';
+            if (open) _populateChecadorMeses();
+        };
+
+        function _populateChecadorMeses() {
+            const sel = document.getElementById('checador-mes');
+            if (!sel || sel.dataset.filled === '1') return;
+            const meses = [...new Set((state.entries || []).map(e => e.mes.trim()))].sort((a, b) => {
+                const pa = a.split(' ').filter(Boolean), pb = b.split(' ').filter(Boolean);
+                const ya = parseInt(pa[pa.length - 1]) || 0, yb = parseInt(pb[pb.length - 1]) || 0;
+                if (ya !== yb) return yb - ya;
+                return MONTHS_ES.indexOf(pb[0]) - MONTHS_ES.indexOf(pa[0]);
+            });
+            sel.innerHTML = '<option value="">— elegí un mes —</option>' +
+                meses.map(m => `<option value="${m}">${m}</option>`).join('');
+            sel.dataset.filled = '1';
+        }
+
+        // Parser CSV mínimo que respeta comillas (los campos pueden venir entrecomillados).
+        function _parseCsvLine(line) {
+            const out = [];
+            let cur = '', inQ = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (inQ) {
+                    if (ch === '"') {
+                        if (line[i + 1] === '"') { cur += '"'; i++; }
+                        else inQ = false;
+                    } else cur += ch;
+                } else {
+                    if (ch === '"') inQ = true;
+                    else if (ch === ',') { out.push(cur); cur = ''; }
+                    else cur += ch;
+                }
+            }
+            out.push(cur);
+            return out;
+        }
+
+        window.handleChecadorFile = function(input) {
+            const file = input.files && input.files[0];
+            if (!file) { _checadorRows = null; return; }
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const text = String(ev.target.result || '');
+                const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+                const rows = [];
+                lines.forEach((line, idx) => {
+                    const c = _parseCsvLine(line);
+                    const pr = (c[0] || '').trim();
+                    const aso = (c[1] || '').trim();
+                    const nombre = (c[2] || '').trim();
+                    // Saltar header (PR=="PR"), fila de Totales (PR vacío) y la fila "OTROS" (9999).
+                    if (idx === 0 && pr.toUpperCase() === 'PR') return;
+                    if (!pr) return;
+                    if (aso === '9999' || nombre.toUpperCase() === 'OTROS') return;
+                    if (!aso) return;
+                    // P_ING TOT (col 3) vacío -> $0 ingresado.
+                    const ingresado = parseFloat((c[3] || '').trim()) || 0;
+                    rows.push({ aso, nombre, ingresado });
+                });
+                _checadorRows = rows;
+            };
+            reader.readAsText(file, 'UTF-8');
+        };
+
+        // Suma la prima REPORTADA (todos los días, válido + rojo) por clave de agente
+        // para el mes dado. Devuelve { byCode: {companyCode -> {name, prima}}, appAgents: [{code,name}] }
+        function _reportedPrimaByCode(mes) {
+            // agentId(email) -> companyCode, vía state.agents
+            const codeByEmail = {};
+            const appAgents = [];
+            (state.agents || []).forEach(a => {
+                const code = String(a.companyCode || '').trim();
+                if (code) { codeByEmail[a.email] = code; appAgents.push({ code, name: a.name || a.email }); }
+            });
+            const primaByEmail = {};
+            (state.entries || []).filter(e => e.mes.trim() === mes).forEach(e => {
+                (e.dias || []).forEach(d => {
+                    primaByEmail[e.agentId] = (primaByEmail[e.agentId] || 0) + (parseFloat(d.prima) || 0);
+                });
+            });
+            const byCode = {};
+            Object.keys(codeByEmail).forEach(email => {
+                const code = codeByEmail[email];
+                const name = (state.agents.find(a => a.email === email) || {}).name || email;
+                // Si un mismo code apareciera repetido, sumamos (no debería, pero por las dudas).
+                if (!byCode[code]) byCode[code] = { name, prima: 0 };
+                byCode[code].prima += (primaByEmail[email] || 0);
+            });
+            return { byCode, appAgents };
+        }
+
+        window.renderChecador = function() {
+            const mes = document.getElementById('checador-mes').value;
+            const summary = document.getElementById('checador-summary');
+            const results = document.getElementById('checador-results');
+            if (!mes) { alert('Elegí el mes a corroborar.'); return; }
+            if (!_checadorRows) { alert('Subí el archivo CSV del sistema.'); return; }
+
+            const { byCode } = _reportedPrimaByCode(mes);
+            const csvByCode = {};
+            _checadorRows.forEach(r => { csvByCode[r.aso] = r; });
+
+            const flagged = [], ok = [], reportoCero = [], appSinCsv = [], csvSinApp = [];
+
+            // Recorrer agentes del app (los que tienen clave)
+            Object.keys(byCode).forEach(code => {
+                const rep = byCode[code].prima;
+                const name = byCode[code].name;
+                const csv = csvByCode[code];
+                if (!csv) { appSinCsv.push({ code, name, rep }); return; }
+                const ing = csv.ingresado;
+                if (rep === 0) { reportoCero.push({ code, name, rep, ing }); return; }
+                const lower = rep * 0.9, upper = rep * 1.1;
+                const diffPct = ((ing - rep) / rep) * 100;
+                const row = { code, name, rep, ing, diffPct };
+                if (ing < lower || ing > upper) flagged.push(row); else ok.push(row);
+            });
+            // ASO en el CSV que no existe en el app (faltan registrarse)
+            _checadorRows.forEach(r => { if (!byCode[r.aso]) csvSinApp.push(r); });
+
+            flagged.sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct));
+
+            const money = n => '$' + (Number(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const pct = n => (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
+
+            summary.style.display = 'block';
+            summary.innerHTML = `
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
+                    <div style="background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">🚩 Flageados</div>
+                        <div style="font-size:24px;font-weight:800;color:#ef4444;">${flagged.length}</div>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">✅ OK (±10%)</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--green);">${ok.length}</div>
+                    </div>
+                    <div style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:12px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">⚠️ Reportó cero</div>
+                        <div style="font-size:24px;font-weight:800;color:#f59e0b;">${reportoCero.length}</div>
+                    </div>
+                    <div style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:12px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">🔵 En app, sin CSV</div>
+                        <div style="font-size:24px;font-weight:800;color:#3b82f6;">${appSinCsv.length}</div>
+                    </div>
+                    <div style="background:rgba(168,85,247,0.10);border:1px solid rgba(168,85,247,0.3);border-radius:10px;padding:12px;">
+                        <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">🟣 En CSV, sin registrar</div>
+                        <div style="font-size:24px;font-weight:800;color:#a855f7;">${csvSinApp.length}</div>
+                    </div>
+                </div>`;
+
+            const tbl = (rows, cols) => `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead><tr style="text-align:left;color:var(--slate);border-bottom:1px solid rgba(255,255,255,0.1);">
+                    ${cols.map(c => `<th style="padding:6px 8px;">${c}</th>`).join('')}
+                </tr></thead><tbody>${rows}</tbody></table>`;
+
+            let html = '';
+            // 🚩 Flageados
+            if (flagged.length) {
+                const body = flagged.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${r.name}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${r.code}</td>
+                    <td style="padding:6px 8px;">${money(r.rep)}</td>
+                    <td style="padding:6px 8px;">${money(r.ing)}</td>
+                    <td style="padding:6px 8px;font-weight:700;color:#ef4444;">${pct(r.diffPct)}</td>
+                </tr>`).join('');
+                html += `<h4 style="margin:18px 0 8px;color:#ef4444;">🚩 Flageados (>±10%) — ${flagged.length}</h4>` +
+                    tbl(body, ['Agente', 'Clave', 'Reportado', 'Ingresado', 'Diferencia']);
+            }
+            // ⚠️ Reportó cero
+            if (reportoCero.length) {
+                const body = reportoCero.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${r.name}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${r.code}</td>
+                    <td style="padding:6px 8px;">${money(r.ing)}</td>
+                </tr>`).join('');
+                html += `<h4 style="margin:18px 0 8px;color:#f59e0b;">⚠️ Reportó cero en la app pero tiene prima ingresada — ${reportoCero.length}</h4>` +
+                    tbl(body, ['Agente', 'Clave', 'Ingresado (CSV)']);
+            }
+            // 🟣 En CSV, sin registrar
+            if (csvSinApp.length) {
+                const body = csvSinApp.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${r.nombre || '—'}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${r.aso}</td>
+                    <td style="padding:6px 8px;">${money(r.ingresado)}</td>
+                </tr>`).join('');
+                html += `<h4 style="margin:18px 0 8px;color:#a855f7;">🟣 En el CSV pero no registrados en la app — ${csvSinApp.length}</h4>` +
+                    tbl(body, ['Nombre (CSV)', 'Clave', 'Ingresado']);
+            }
+            // 🔵 En app, sin CSV
+            if (appSinCsv.length) {
+                const body = appSinCsv.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${r.name}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${r.code}</td>
+                    <td style="padding:6px 8px;">${money(r.rep)}</td>
+                </tr>`).join('');
+                html += `<h4 style="margin:18px 0 8px;color:#3b82f6;">🔵 Registrados en la app pero ausentes del CSV — ${appSinCsv.length}</h4>` +
+                    tbl(body, ['Agente', 'Clave', 'Reportado']);
+            }
+            // ✅ OK (colapsado en <details>)
+            if (ok.length) {
+                const body = ok.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${r.name}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${r.code}</td>
+                    <td style="padding:6px 8px;">${money(r.rep)}</td>
+                    <td style="padding:6px 8px;">${money(r.ing)}</td>
+                    <td style="padding:6px 8px;color:var(--green);">${pct(r.diffPct)}</td>
+                </tr>`).join('');
+                html += `<details style="margin-top:18px;"><summary style="cursor:pointer;color:var(--green);font-weight:600;">✅ OK dentro de ±10% — ${ok.length} (click para ver)</summary>` +
+                    tbl(body, ['Agente', 'Clave', 'Reportado', 'Ingresado', 'Diferencia']) + `</details>`;
+            }
+            results.innerHTML = html || '<div class="empty-state">Sin resultados.</div>';
         };
 
         window.switchCatRole = function(role) {
