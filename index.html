@@ -2258,11 +2258,14 @@
                 <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin-bottom:8px;">
                     <div>
                         <label class="field-label">Mes</label>
-                        <select id="alertas-mes" onchange="renderAlertas()" style="min-width:130px;"></select>
+                        <select id="alertas-mes" style="min-width:130px;"></select>
                     </div>
                     <div>
                         <label class="field-label">Año</label>
-                        <input type="number" id="alertas-year" value="2026" min="2020" max="2040" onchange="renderAlertas()" style="width:100px;">
+                        <input type="number" id="alertas-year" value="2026" min="2020" max="2040" style="width:100px;">
+                    </div>
+                    <div>
+                        <button onclick="renderAlertas()" style="background:var(--gold); color:#000; border:none; border-radius:6px; padding:8px 16px; font-weight:700; cursor:pointer; font-size:12px;">🔄 Actualizar</button>
                     </div>
                 </div>
                 <div id="alertas-status" style="margin-top:12px; padding:8px 12px; background:rgba(148,163,184,0.08); border-radius:6px; font-size:11px; color:var(--slate); font-family:monospace;"></div>
@@ -2275,7 +2278,7 @@
                 </p>
                 <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px; font-size:12px; color:var(--slate);">
                     <label>Umbral:</label>
-                    <input type="number" id="alertas-umbral-moon" value="8" min="1" max="31" onchange="renderAlertas()" style="width:70px;" title="Mínimo de días 🌙 para levantar la alerta">
+                    <input type="number" id="alertas-umbral-moon" value="8" min="1" max="31" style="width:70px;" title="Mínimo de días 🌙 para levantar la alerta">
                     <span>días 🌙 en el mes</span>
                 </div>
                 <div id="alertas-rendidos-list">
@@ -2290,7 +2293,7 @@
                 </p>
                 <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px; font-size:12px; color:var(--slate);">
                     <label>Umbral:</label>
-                    <input type="number" id="alertas-umbral-verde" value="8" min="1" max="31" onchange="renderAlertas()" style="width:70px;" title="Mínimo de días 🟢 con prima = 0 para levantar la alerta">
+                    <input type="number" id="alertas-umbral-verde" value="8" min="1" max="31" style="width:70px;" title="Mínimo de días 🟢 con prima = 0 para levantar la alerta">
                     <span>días 🟢 con prima $0</span>
                 </div>
                 <div id="alertas-verdes-list">
@@ -6353,6 +6356,7 @@
         //   🌙 Rendidos: agentes con más de N días de 'sin intento de venta' en el mes.
         //   🟢 Verde sin cierre: agentes con ≥N días de semáforo verde (P>=E>=C>=V, P>0)
         //       y prima total del mes = $0.
+        let _alertasListenersBound = false;
         function initAlertasFilters() {
             const selMes = document.getElementById('alertas-mes');
             const inpYear = document.getElementById('alertas-year');
@@ -6367,6 +6371,19 @@
                 const now = new Date();
                 selMes.value = MONTHS_ES[now.getMonth()];
                 inpYear.value = now.getFullYear();
+            }
+            if (!_alertasListenersBound) {
+                // Adjuntamos con addEventListener en vez de inline onchange porque el inline
+                // no dispara siempre en algunos browsers/mobile — el user reportó que
+                // cambiaba el mes y no se re-renderizaba.
+                selMes.addEventListener('change', renderAlertas);
+                inpYear.addEventListener('change', renderAlertas);
+                inpYear.addEventListener('input', renderAlertas);
+                const uMoon = document.getElementById('alertas-umbral-moon');
+                const uVerde = document.getElementById('alertas-umbral-verde');
+                if (uMoon) { uMoon.addEventListener('change', renderAlertas); uMoon.addEventListener('input', renderAlertas); }
+                if (uVerde) { uVerde.addEventListener('change', renderAlertas); uVerde.addEventListener('input', renderAlertas); }
+                _alertasListenersBound = true;
             }
         }
 
