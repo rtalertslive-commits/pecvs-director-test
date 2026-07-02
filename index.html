@@ -1745,6 +1745,7 @@
                 Tendencias</button>
             <button class="tab-btn" data-tab="reporte" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
             <button class="tab-btn" data-tab="reporte-promotores" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
+            <button class="tab-btn" data-tab="alertas" onclick="switchTab('alertas',this)"><i class="fa fa-triangle-exclamation"></i> Alertas <span id="alertas-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="gestion" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="tienda" onclick="switchTab('tienda',this)"><i class="fa fa-store"></i> Tienda <span id="tienda-pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="tesoreria" onclick="switchTab('tesoreria',this)"><i class="fa fa-landmark"></i> Tesorería <svg class="totopo-icon"><use href="#totopo"/></svg></button>
@@ -2243,6 +2244,50 @@
                     <div id="promoter-venta-grid" style="display:flex;flex-direction:column;gap:16px;">
                         <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ TAB: ALERTAS DE EQUIPO ═══════════════════ -->
+        <div id="tab-alertas" class="tab-panel">
+            <div class="card" style="margin-bottom:20px;">
+                <p class="card-title"><i class="fa fa-triangle-exclamation"></i> Alertas de Comportamiento — Reporte Mensual</p>
+                <p style="font-size:12px; color:var(--slate); margin-bottom:16px;">
+                    Detecta patrones que merecen atención: agentes que se rinden mucho (marcan "sin intento de venta") o que trabajan sin cerrar (semáforo verde pero sin prima).
+                </p>
+                <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin-bottom:8px;">
+                    <div>
+                        <label class="field-label">Mes</label>
+                        <select id="alertas-mes" onchange="renderAlertas()" style="min-width:130px;"></select>
+                    </div>
+                    <div>
+                        <label class="field-label">Año</label>
+                        <input type="number" id="alertas-year" value="2026" min="2020" max="2040" onchange="renderAlertas()" style="width:100px;">
+                    </div>
+                    <div>
+                        <label class="field-label">Umbral (días)</label>
+                        <input type="number" id="alertas-umbral" value="8" min="1" max="31" onchange="renderAlertas()" style="width:80px;" title="Cantidad mínima de días para levantar la alerta">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px;">
+                <p class="card-title" style="color:var(--slate);"><span style="filter:none;">🌙</span> Se rinden mucho — más de <span id="alertas-rendidos-umbral">8</span> días de "sin intento de venta"</p>
+                <p style="font-size:11px; color:var(--slate); margin-bottom:12px;">
+                    Agentes que en el mes elegido registraron demasiados días marcados como 🌙 (sin intento de venta). Refleja rendimiento voluntariamente bajo.
+                </p>
+                <div id="alertas-rendidos-list">
+                    <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px;">
+                <p class="card-title" style="color:var(--slate);"><span style="filter:none;">🟢</span> Trabajan pero no cierran — mucho verde sin prima registrada</p>
+                <p style="font-size:11px; color:var(--slate); margin-bottom:12px;">
+                    Agentes con al menos el umbral en días de semáforo verde 🟢 (P ≥ E ≥ C ≥ V, con presentaciones > 0) pero prima total del mes = $0. Indica actividad sin conversión.
+                </p>
+                <div id="alertas-verdes-list">
+                    <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
                 </div>
             </div>
         </div>
@@ -4245,6 +4290,7 @@
             if (name === 'leaderboard') renderLeaderboard();
             if (name === 'reporte') renderCoachReportes();
             if (name === 'reporte-promotores') { refreshPromoterReclFilters(); renderPromoterReclSection(); }
+            if (name === 'alertas') renderAlertas();
             if (name === 'gestion') renderGestion();
             if (name === 'tienda') window.initTienda();
             if (name === 'tesoreria') loadTesoreria();
@@ -6293,6 +6339,179 @@
             if (document.getElementById('rpt-section-reclutamiento')?.style.display !== 'none') {
                 renderReclutamientoSection();
             }
+        }
+
+        // ─── ALERTAS DE EQUIPO ───────────────────────────────────────────────────────
+        // Reporte diagnóstico mensual con 2 flags:
+        //   🌙 Rendidos: agentes con más de N días de 'sin intento de venta' en el mes.
+        //   🟢 Verde sin cierre: agentes con ≥N días de semáforo verde (P>=E>=C>=V, P>0)
+        //       y prima total del mes = $0.
+        function initAlertasFilters() {
+            const selMes = document.getElementById('alertas-mes');
+            const inpYear = document.getElementById('alertas-year');
+            if (!selMes || !inpYear) return;
+            if (selMes.options.length === 0) {
+                MONTHS_ES.forEach((m, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    selMes.appendChild(opt);
+                });
+                const now = new Date();
+                selMes.value = MONTHS_ES[now.getMonth()];
+                inpYear.value = now.getFullYear();
+            }
+        }
+
+        function _alertasAgentContext(agentIdOrName) {
+            // agent en entries puede ser email (agentId) o agentName. Buscamos por ambos.
+            const a = (state.agents || []).find(x =>
+                x.email === agentIdOrName || x.agentName === agentIdOrName
+            );
+            const agentName = a?.agentName || agentIdOrName || '—';
+            const teamCode = a?.teamCode || null;
+            const coach = teamCode
+                ? (state.coaches || []).find(c => c.agentTeamCode === teamCode || c.teamCode === teamCode)
+                : null;
+            const coachName = coach?.coachName || '—';
+            const promotorCode = a?.promotorTeamCode || a?.promotorCode || coach?.promotorCode || null;
+            const promotor = promotorCode
+                ? (state.promoters || []).find(p => p.promotorCode === promotorCode)
+                : null;
+            const promotorName = promotor?.promoterName || '—';
+            return { agentName, coachName, promotorName };
+        }
+
+        function _computeAlertasStats(mesStr) {
+            // Recorre state.entries del mes y agrega por agente:
+            //   moon (🌙), green (🟢), primaTotal, daysWithData.
+            const monthEntries = (state.entries || []).filter(e => e.mes === mesStr);
+            const stats = {};
+            monthEntries.forEach(e => {
+                const key = e.agentId || e.agent;
+                if (!key) return;
+                if (!stats[key]) stats[key] = { moon: 0, green: 0, prima: 0, daysWithData: 0 };
+                (e.dias || []).forEach(d => {
+                    if (!d) return;
+                    const P = Number(d.P) || 0;
+                    const E = Number(d.E) || 0;
+                    const C = Number(d.C) || 0;
+                    const V = Number(d.V) || 0;
+                    const prima = parseFloat(d.prima) || 0;
+                    const isMoon = d.sinActividad === true;
+                    const hasAnyActivity = P > 0 || E > 0 || C > 0 || V > 0 || prima > 0 || isMoon;
+                    if (!hasAnyActivity) return;
+                    stats[key].daysWithData += 1;
+                    if (isMoon) stats[key].moon += 1;
+                    // Verde: P>=E && E>=C && C>=V && P>0 (mismo criterio que línea 4176)
+                    if (!isMoon && P > 0 && P >= E && E >= C && C >= V) stats[key].green += 1;
+                    stats[key].prima += prima;
+                });
+            });
+            return stats;
+        }
+
+        function renderAlertas() {
+            initAlertasFilters();
+            const mes = document.getElementById('alertas-mes')?.value || MONTHS_ES[new Date().getMonth()];
+            const year = document.getElementById('alertas-year')?.value || new Date().getFullYear();
+            const umbral = Math.max(1, parseInt(document.getElementById('alertas-umbral')?.value || '8'));
+            const umbralEl = document.getElementById('alertas-rendidos-umbral');
+            if (umbralEl) umbralEl.textContent = umbral;
+            const mesStr = `${mes} ${year}`;
+            const stats = _computeAlertasStats(mesStr);
+
+            const rendidos = [];
+            const verdesSinCierre = [];
+            Object.keys(stats).forEach(key => {
+                const s = stats[key];
+                const ctx = _alertasAgentContext(key);
+                if (s.moon > umbral) {
+                    rendidos.push({ key, ...ctx, moon: s.moon, days: s.daysWithData });
+                }
+                // Alerta B: al menos umbral días verdes, prima=0, y al menos umbral días registrados
+                // (evita falsos positivos de agentes recién ingresados)
+                if (s.green >= umbral && s.prima === 0 && s.daysWithData >= umbral) {
+                    verdesSinCierre.push({ key, ...ctx, green: s.green, days: s.daysWithData });
+                }
+            });
+
+            rendidos.sort((a, b) => b.moon - a.moon);
+            verdesSinCierre.sort((a, b) => b.green - a.green);
+
+            _renderAlertasTable('alertas-rendidos-list', rendidos, mesStr, {
+                emptyMsg: `Nadie superó ${umbral} días de 🌙 en ${mesStr}. ¡Bien!`,
+                valueCol: 'Días 🌙',
+                valueKey: 'moon',
+                valueColor: 'var(--slate)'
+            });
+            _renderAlertasTable('alertas-verdes-list', verdesSinCierre, mesStr, {
+                emptyMsg: `Nadie con ≥${umbral} días verdes sin prima en ${mesStr}.`,
+                valueCol: 'Días 🟢',
+                valueKey: 'green',
+                valueColor: 'var(--green)'
+            });
+
+            // Badge total en tab
+            const badge = document.getElementById('alertas-badge');
+            if (badge) {
+                const total = rendidos.length + verdesSinCierre.length;
+                if (total > 0) { badge.textContent = total; badge.style.display = 'inline-block'; }
+                else badge.style.display = 'none';
+            }
+        }
+
+        function _renderAlertasTable(containerId, rows, mesStr, cfg) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            if (rows.length === 0) {
+                el.innerHTML = `<div class="empty-state" style="color:var(--green);"><i class="fa fa-check-circle"></i>${cfg.emptyMsg}</div>`;
+                return;
+            }
+            const escapeAttr = s => String(s || '').replace(/"/g, '&quot;');
+            el.innerHTML = `
+                <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.04); color:var(--slate); text-align:left;">
+                            <th style="padding:8px;">Agente</th>
+                            <th style="padding:8px;">Coach</th>
+                            <th style="padding:8px;">Promotor</th>
+                            <th style="padding:8px; text-align:center; color:${cfg.valueColor};">${cfg.valueCol}</th>
+                            <th style="padding:8px; text-align:center;">Días con datos</th>
+                            <th style="padding:8px; text-align:center;">Ver</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                        <tr style="border-top:1px solid rgba(255,255,255,0.06);">
+                            <td style="padding:8px; font-weight:600;">${escapeHtml(r.agentName)}</td>
+                            <td style="padding:8px; color:var(--slate);">${escapeHtml(r.coachName)}</td>
+                            <td style="padding:8px; color:var(--slate);">${escapeHtml(r.promotorName)}</td>
+                            <td style="padding:8px; text-align:center; font-weight:800; color:${cfg.valueColor};">${r[cfg.valueKey]}</td>
+                            <td style="padding:8px; text-align:center; color:var(--slate);">${r.days}</td>
+                            <td style="padding:8px; text-align:center;">
+                                <button onclick="_alertasVerBitacora('${escapeAttr(r.agentName)}', '${escapeAttr(mesStr)}')" style="background:var(--gold); color:#000; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">🔍</button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                </div>`;
+        }
+
+        function _alertasVerBitacora(agentName, mesStr) {
+            // Cambia a bitácora y pre-popula filtros de agente/mes/año
+            switchTab('bitacora', document.querySelector('[data-tab="bitacora"]'));
+            const [mesName, yearStr] = mesStr.split(' ');
+            setTimeout(() => {
+                const selAgent = document.getElementById('bit-agent');
+                const selMonth = document.getElementById('bit-month');
+                const inpYear = document.getElementById('bit-year');
+                if (selAgent) selAgent.value = agentName;
+                if (selMonth) selMonth.value = mesName;
+                if (inpYear) inpYear.value = yearStr;
+                if (typeof autoLoadBit === 'function') autoLoadBit();
+            }, 50);
         }
 
         // ─── GESTIÓN DE EQUIPO ───────────────────────────────────────────────────────
