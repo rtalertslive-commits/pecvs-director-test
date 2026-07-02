@@ -2265,6 +2265,7 @@
                         <input type="number" id="alertas-year" value="2026" min="2020" max="2040" onchange="renderAlertas()" style="width:100px;">
                     </div>
                 </div>
+                <div id="alertas-status" style="margin-top:12px; padding:8px 12px; background:rgba(148,163,184,0.08); border-radius:6px; font-size:11px; color:var(--slate); font-family:monospace;"></div>
             </div>
 
             <div class="card" style="margin-bottom:20px;">
@@ -6429,6 +6430,27 @@
             if (verdeLabel) verdeLabel.textContent = umbralVerde;
             const mesStr = `${mes} ${year}`;
             const stats = _computeAlertasStats(mesStr);
+
+            // Diagnóstico visible + console para poder debuggear cuando "no muestra nada"
+            const totalEntries = (state.entries || []).length;
+            const entriesDelMes = (state.entries || []).filter(e => e.mes === mesStr).length;
+            const mesesDisponibles = [...new Set((state.entries || []).map(e => e.mes))].sort();
+            const statusEl = document.getElementById('alertas-status');
+            if (statusEl) {
+                statusEl.innerHTML =
+                    `📊 state.entries total: <b>${totalEntries}</b> · ` +
+                    `Entries de <b>${mesStr}</b>: <b>${entriesDelMes}</b> · ` +
+                    `Agentes con actividad: <b>${Object.keys(stats).length}</b> · ` +
+                    `state.agents: <b>${(state.agents || []).length}</b>` +
+                    (mesesDisponibles.length && entriesDelMes === 0
+                        ? `<br>⚠️ Meses con data disponibles: ${mesesDisponibles.map(m => `<span style="color:var(--gold-l)">${m}</span>`).join(', ')}`
+                        : '');
+            }
+            console.log('[Alertas] Diagnóstico', {
+                mesStr, totalEntries, entriesDelMes, statsKeys: Object.keys(stats).length,
+                mesesDisponibles, sampleStats: Object.entries(stats).slice(0, 3),
+                sampleEntry: (state.entries || []).find(e => e.mes === mesStr)
+            });
 
             const rendidos = [];
             const verdesSinCierre = [];
