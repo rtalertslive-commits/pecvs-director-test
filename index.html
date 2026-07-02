@@ -6403,7 +6403,7 @@
                 ? (state.promoters || []).find(p => p.promotorCode === promotorCode)
                 : null;
             const promotorName = promotor?.promoterName || '—';
-            return { agentName, coachName, promotorName };
+            return { agentName, agentClave: teamCode || '—', coachName, promotorName, promotorCode: promotorCode || '—' };
         }
 
         function _computeAlertasStats(mesStr) {
@@ -6529,23 +6529,27 @@
                     <thead>
                         <tr style="background:rgba(255,255,255,0.04); color:var(--slate); text-align:left;">
                             <th style="padding:8px;">Agente</th>
+                            <th style="padding:8px;">Clave</th>
                             <th style="padding:8px;">Coach</th>
                             <th style="padding:8px;">Promotor</th>
+                            <th style="padding:8px;">Cód. Prom.</th>
                             <th style="padding:8px; text-align:center; color:${cfg.valueColor};">${cfg.valueCol}</th>
                             <th style="padding:8px; text-align:center;">Días con datos</th>
-                            <th style="padding:8px; text-align:center;">Ver</th>
+                            <th style="padding:8px; text-align:center;">Calendario</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${rows.map(r => `
                         <tr style="border-top:1px solid rgba(255,255,255,0.06);">
                             <td style="padding:8px; font-weight:600;">${escapeHtml(r.agentName)}</td>
+                            <td style="padding:8px; color:var(--gold-l); font-family:monospace; font-size:11px;">${escapeHtml(r.agentClave)}</td>
                             <td style="padding:8px; color:var(--slate);">${escapeHtml(r.coachName)}</td>
                             <td style="padding:8px; color:var(--slate);">${escapeHtml(r.promotorName)}</td>
+                            <td style="padding:8px; color:var(--slate); font-family:monospace; font-size:11px;">${escapeHtml(r.promotorCode)}</td>
                             <td style="padding:8px; text-align:center; font-weight:800; color:${cfg.valueColor};">${r[cfg.valueKey]}</td>
                             <td style="padding:8px; text-align:center; color:var(--slate);">${r.days}</td>
                             <td style="padding:8px; text-align:center;">
-                                <button onclick="_alertasVerBitacora('${escapeAttr(r.key)}', '${escapeAttr(mesStr)}')" style="background:var(--gold); color:#000; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">🔍</button>
+                                <button onclick="_alertasVerBitacora('${escapeAttr(r.agentName)}', '${escapeAttr(mesStr)}')" style="background:var(--gold); color:#000; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;" title="Abrir calendario del agente en ${escapeAttr(mesStr)}">📅</button>
                             </td>
                         </tr>`).join('')}
                     </tbody>
@@ -6553,34 +6557,20 @@
                 </div>`;
         }
 
-        function _alertasVerBitacora(agentId, mesStr) {
-            // El select #bit-agent guarda agentId (email) como value, no nombre.
-            switchTab('bitacora', document.querySelector('[data-tab="bitacora"]'));
+        function _alertasVerBitacora(agentName, mesStr) {
+            // Abre el modal de calendario del agente en el mes de la alerta.
+            // openAgentCalendar setea el mes actual — lo sobrescribimos al mes elegido.
+            if (typeof openAgentCalendar !== 'function') {
+                console.warn('[Alertas] openAgentCalendar no disponible');
+                return;
+            }
+            openAgentCalendar(agentName);
             const [mesName, yearStr] = mesStr.split(' ');
-            setTimeout(() => {
-                const selAgent = document.getElementById('bit-agent');
-                const selMonth = document.getElementById('bit-month');
-                const inpYear = document.getElementById('bit-year');
-                if (inpYear) inpYear.value = yearStr;
-                if (selMonth) selMonth.value = mesName;
-                if (selAgent) {
-                    let match = Array.from(selAgent.options).some(o => o.value === agentId);
-                    if (!match) {
-                        const coachF = document.getElementById('bit-coach-filter');
-                        if (coachF && coachF.value) {
-                            coachF.value = '';
-                            if (typeof refreshBitAgentSelect === 'function') refreshBitAgentSelect();
-                            match = Array.from(selAgent.options).some(o => o.value === agentId);
-                        }
-                    }
-                    if (match) {
-                        selAgent.value = agentId;
-                    } else {
-                        console.warn('[Alertas] agentId no encontrado en #bit-agent:', agentId);
-                    }
-                }
-                if (typeof autoLoadBit === 'function') autoLoadBit();
-            }, 100);
+            const monthIdx = MONTHS_ES.indexOf(mesName);
+            if (monthIdx < 0) return;
+            _calCurrentYear = parseInt(yearStr);
+            _calCurrentMonth = monthIdx + 1;
+            if (typeof _renderAgentCalendar === 'function') _renderAgentCalendar();
         }
 
         // ─── GESTIÓN DE EQUIPO ───────────────────────────────────────────────────────
