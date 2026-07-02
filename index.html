@@ -6388,22 +6388,23 @@
         }
 
         function _alertasAgentContext(agentIdOrName) {
-            // agent en entries puede ser email (agentId) o agentName. Buscamos por ambos.
+            // state.agents item = { name, teamCode, email, companyCode }  (NO agentName!)
             const a = (state.agents || []).find(x =>
-                x.email === agentIdOrName || x.agentName === agentIdOrName
+                x.email === agentIdOrName || x.name === agentIdOrName
             );
-            const agentName = a?.agentName || agentIdOrName || '—';
+            const agentName = a?.name || agentIdOrName || '—';
             const teamCode = a?.teamCode || null;
             const coach = teamCode
-                ? (state.coaches || []).find(c => c.agentTeamCode === teamCode || c.teamCode === teamCode)
+                ? (state.coaches || []).find(c => c.agentTeamCode === teamCode)
                 : null;
             const coachName = coach?.coachName || '—';
-            const promotorCode = a?.promotorTeamCode || a?.promotorCode || coach?.promotorCode || null;
-            const promotor = promotorCode
-                ? (state.promoters || []).find(p => p.promotorCode === promotorCode)
+            // Coach.promotorTeamCode matchea con promoter.promotorCode
+            const promotorTeamCode = coach?.promotorTeamCode || null;
+            const promotor = promotorTeamCode
+                ? (state.promoters || []).find(p => p.promotorCode === promotorTeamCode)
                 : null;
             const promotorName = promotor?.promoterName || '—';
-            return { agentName, agentClave: teamCode || '—', coachName, promotorName, promotorCode: promotorCode || '—' };
+            return { agentName, agentClave: teamCode || '—', coachName, promotorName };
         }
 
         function _computeAlertasStats(mesStr) {
@@ -6532,7 +6533,6 @@
                             <th style="padding:8px;">Clave</th>
                             <th style="padding:8px;">Coach</th>
                             <th style="padding:8px;">Promotor</th>
-                            <th style="padding:8px;">Cód. Prom.</th>
                             <th style="padding:8px; text-align:center; color:${cfg.valueColor};">${cfg.valueCol}</th>
                             <th style="padding:8px; text-align:center;">Días con datos</th>
                             <th style="padding:8px; text-align:center;">Calendario</th>
@@ -6545,7 +6545,6 @@
                             <td style="padding:8px; color:var(--gold-l); font-family:monospace; font-size:11px;">${escapeHtml(r.agentClave)}</td>
                             <td style="padding:8px; color:var(--slate);">${escapeHtml(r.coachName)}</td>
                             <td style="padding:8px; color:var(--slate);">${escapeHtml(r.promotorName)}</td>
-                            <td style="padding:8px; color:var(--slate); font-family:monospace; font-size:11px;">${escapeHtml(r.promotorCode)}</td>
                             <td style="padding:8px; text-align:center; font-weight:800; color:${cfg.valueColor};">${r[cfg.valueKey]}</td>
                             <td style="padding:8px; text-align:center; color:var(--slate);">${r.days}</td>
                             <td style="padding:8px; text-align:center;">
@@ -9049,6 +9048,8 @@
         window.renderPromoterVentaSection = renderPromoterVentaSection;
         window.renderGestion = renderGestion;
         window.renderGestionAll = renderGestionAll;
+        window.renderAlertas = renderAlertas;
+        window._alertasVerBitacora = _alertasVerBitacora;
         window.startListeningPending = startListeningPending;
         window.updateApprovalFields = updateApprovalFields;
         window.saveMemberChanges = saveMemberChanges;
