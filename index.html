@@ -6545,7 +6545,7 @@
                             <td style="padding:8px; text-align:center; font-weight:800; color:${cfg.valueColor};">${r[cfg.valueKey]}</td>
                             <td style="padding:8px; text-align:center; color:var(--slate);">${r.days}</td>
                             <td style="padding:8px; text-align:center;">
-                                <button onclick="_alertasVerBitacora('${escapeAttr(r.agentName)}', '${escapeAttr(mesStr)}')" style="background:var(--gold); color:#000; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">🔍</button>
+                                <button onclick="_alertasVerBitacora('${escapeAttr(r.key)}', '${escapeAttr(mesStr)}')" style="background:var(--gold); color:#000; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">🔍</button>
                             </td>
                         </tr>`).join('')}
                     </tbody>
@@ -6553,19 +6553,34 @@
                 </div>`;
         }
 
-        function _alertasVerBitacora(agentName, mesStr) {
-            // Cambia a bitácora y pre-popula filtros de agente/mes/año
+        function _alertasVerBitacora(agentId, mesStr) {
+            // El select #bit-agent guarda agentId (email) como value, no nombre.
             switchTab('bitacora', document.querySelector('[data-tab="bitacora"]'));
             const [mesName, yearStr] = mesStr.split(' ');
             setTimeout(() => {
                 const selAgent = document.getElementById('bit-agent');
                 const selMonth = document.getElementById('bit-month');
                 const inpYear = document.getElementById('bit-year');
-                if (selAgent) selAgent.value = agentName;
-                if (selMonth) selMonth.value = mesName;
                 if (inpYear) inpYear.value = yearStr;
+                if (selMonth) selMonth.value = mesName;
+                if (selAgent) {
+                    let match = Array.from(selAgent.options).some(o => o.value === agentId);
+                    if (!match) {
+                        const coachF = document.getElementById('bit-coach-filter');
+                        if (coachF && coachF.value) {
+                            coachF.value = '';
+                            if (typeof refreshBitAgentSelect === 'function') refreshBitAgentSelect();
+                            match = Array.from(selAgent.options).some(o => o.value === agentId);
+                        }
+                    }
+                    if (match) {
+                        selAgent.value = agentId;
+                    } else {
+                        console.warn('[Alertas] agentId no encontrado en #bit-agent:', agentId);
+                    }
+                }
                 if (typeof autoLoadBit === 'function') autoLoadBit();
-            }, 50);
+            }, 100);
         }
 
         // ─── GESTIÓN DE EQUIPO ───────────────────────────────────────────────────────
