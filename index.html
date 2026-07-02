@@ -2272,7 +2272,7 @@
             </div>
 
             <div class="card" style="margin-bottom:20px;">
-                <p class="card-title" style="color:var(--slate);"><span style="filter:none;">🌙</span> Se rinden mucho — más de <span id="alertas-rendidos-umbral">8</span> días de "sin intento de venta"</p>
+                <p class="card-title" style="color:var(--slate);"><span style="filter:none;">🌙</span> Se rinden mucho — <span id="alertas-rendidos-umbral">8</span> o más días de "sin intento de venta"</p>
                 <p style="font-size:11px; color:var(--slate); margin-bottom:12px;">
                     Agentes que en el mes elegido registraron demasiados días marcados como 🌙 (sin intento de venta). Refleja rendimiento voluntariamente bajo.
                 </p>
@@ -6423,10 +6423,11 @@
 
             const rendidos = [];
             const verdesSinCierre = [];
+            const totalAgentesConData = Object.keys(stats).length;
             Object.keys(stats).forEach(key => {
                 const s = stats[key];
                 const ctx = _alertasAgentContext(key);
-                if (s.moon > umbral) {
+                if (s.moon >= umbral) {
                     rendidos.push({ key, ...ctx, moon: s.moon, days: s.daysWithData });
                 }
                 // Alerta B: al menos umbral días verdes, prima=0, y al menos umbral días registrados
@@ -6439,14 +6440,19 @@
             rendidos.sort((a, b) => b.moon - a.moon);
             verdesSinCierre.sort((a, b) => b.green - a.green);
 
+            const noData = totalAgentesConData === 0;
             _renderAlertasTable('alertas-rendidos-list', rendidos, mesStr, {
-                emptyMsg: `Nadie superó ${umbral} días de 🌙 en ${mesStr}. ¡Bien!`,
+                emptyMsg: noData
+                    ? `No hay bitácoras cargadas para ${mesStr}. Elegí otro mes.`
+                    : `Nadie con ≥${umbral} días de 🌙 en ${mesStr} (${totalAgentesConData} agentes con actividad). ¡Bien!`,
                 valueCol: 'Días 🌙',
                 valueKey: 'moon',
                 valueColor: 'var(--slate)'
             });
             _renderAlertasTable('alertas-verdes-list', verdesSinCierre, mesStr, {
-                emptyMsg: `Nadie con ≥${umbral} días verdes sin prima en ${mesStr}.`,
+                emptyMsg: noData
+                    ? `No hay bitácoras cargadas para ${mesStr}. Elegí otro mes.`
+                    : `Nadie con ≥${umbral} días verdes sin prima en ${mesStr} (${totalAgentesConData} agentes con actividad).`,
                 valueCol: 'Días 🟢',
                 valueKey: 'green',
                 valueColor: 'var(--green)'
