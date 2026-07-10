@@ -585,6 +585,7 @@
             #tab-reporte .card,
             #tab-reporte-promotores .card,
             #tab-tesoreria .card,
+            #tab-buzon .card,
             #tab-conceptos .card { display: none; }
 
             /* ═══ Gestión de Equipo Activo: layout stack en mobile ═══ */
@@ -1746,6 +1747,7 @@
             <button class="tab-btn" data-tab="reporte" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
             <button class="tab-btn" data-tab="reporte-promotores" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
             <button class="tab-btn" data-tab="alertas" onclick="switchTab('alertas',this)"><i class="fa fa-triangle-exclamation"></i> Alertas <span id="alertas-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
+            <button class="tab-btn" data-tab="buzon" onclick="switchTab('buzon',this)"><i class="fa fa-inbox"></i> Buzón <span id="buzon-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="gestion" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="tienda" onclick="switchTab('tienda',this)"><i class="fa fa-store"></i> Tienda <span id="tienda-pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="tesoreria" onclick="switchTab('tesoreria',this)"><i class="fa fa-landmark"></i> Tesorería <svg class="totopo-icon"><use href="#totopo"/></svg></button>
@@ -2297,6 +2299,51 @@
                     <span>días 🟢 con prima $0</span>
                 </div>
                 <div id="alertas-verdes-list">
+                    <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════ TAB: BUZÓN DE QUEJAS Y SUGERENCIAS ═══════════════════ -->
+        <div id="tab-buzon" class="tab-panel">
+            <div class="desktop-only-msg">
+                <i class="fa fa-desktop"></i>
+                <strong>Solo en computadora</strong>
+                El buzón de quejas y sugerencias está optimizado para pantalla grande.<br>Abrí esta sección desde tu PC.
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+                <p class="card-title"><i class="fa fa-inbox"></i> Buzón de Quejas y Sugerencias</p>
+                <p style="font-size:12px; color:var(--slate); margin-bottom:16px;">
+                    Mensajes que tu equipo te mandó. Es un buzón unidireccional — ellos no esperan respuesta acá. Si querés responder a algo puntual, escribiles fuera del sistema o esperá al chat en una próxima versión.
+                </p>
+                <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+                    <div>
+                        <label class="field-label">Estado</label>
+                        <select id="buzon-filter-status" onchange="renderBuzon()">
+                            <option value="pending">Pendientes</option>
+                            <option value="seen">Vistos</option>
+                            <option value="archived">Archivados</option>
+                            <option value="all">Todos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Tipo</label>
+                        <select id="buzon-filter-tipo" onchange="renderBuzon()">
+                            <option value="">Todos los tipos</option>
+                            <option value="queja">😤 Quejas</option>
+                            <option value="sugerencia">💡 Sugerencias</option>
+                            <option value="reconocimiento">🙌 Reconocimientos</option>
+                            <option value="otro">💬 Otros</option>
+                        </select>
+                    </div>
+                    <div style="margin-left:auto; font-size:11px; color:var(--slate); align-self:center;">
+                        <span id="buzon-counts-label">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div id="buzon-list" style="display:flex; flex-direction:column; gap:12px;">
                     <div class="empty-state"><i class="fa fa-inbox"></i>Cargando...</div>
                 </div>
             </div>
@@ -3129,7 +3176,7 @@
         // --- IMPORT FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, deleteDoc, getDocs, addDoc, updateDoc, collection, query, where, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, getDocs, addDoc, updateDoc, collection, query, where, orderBy, onSnapshot, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         // Initialize
@@ -3319,6 +3366,7 @@
                     document.getElementById('login-overlay').classList.add('hidden');
                     await loadDirectorData();
                     startListeningPending();
+                    startBuzonListener();
                     init();
                 } else if (status === 'inactive') {
                     document.getElementById('login-overlay').classList.add('hidden');
@@ -4301,6 +4349,7 @@
             if (name === 'reporte') renderCoachReportes();
             if (name === 'reporte-promotores') { refreshPromoterReclFilters(); renderPromoterReclSection(); }
             if (name === 'alertas') renderAlertas();
+            if (name === 'buzon') { startBuzonListener(); renderBuzon(); }
             if (name === 'gestion') renderGestion();
             if (name === 'tienda') window.initTienda();
             if (name === 'tesoreria') loadTesoreria();
@@ -6434,6 +6483,101 @@
                 });
             });
             return stats;
+        }
+
+        // ═══ BUZÓN DE QUEJAS Y SUGERENCIAS ═══════════════════════════════════
+        // Feed unidireccional: recibe mensajes de agentes de la región. Sin respuesta.
+        // Solo mostramos los que matcheen state.directorCode (tenant filter).
+        let _buzonCache = [];
+        let _buzonUnsub = null;
+        function startBuzonListener() {
+            if (_buzonUnsub) return; // ya activo
+            if (!state.directorCode) return;
+            const q = query(collection(db, 'feedback'), where('directorCode', '==', state.directorCode));
+            _buzonUnsub = onSnapshot(q, snap => {
+                _buzonCache = [];
+                snap.forEach(d => _buzonCache.push({ id: d.id, ...d.data() }));
+                _buzonCache.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                _updateBuzonBadge();
+                if (document.getElementById('tab-buzon')?.classList.contains('active')) renderBuzon();
+            }, err => console.error('[buzon] listener err:', err));
+        }
+
+        function _updateBuzonBadge() {
+            const pending = _buzonCache.filter(f => (f.status || 'pending') === 'pending').length;
+            const badge = document.getElementById('buzon-badge');
+            if (badge) {
+                if (pending > 0) { badge.textContent = pending; badge.style.display = 'inline-block'; }
+                else badge.style.display = 'none';
+            }
+        }
+
+        function renderBuzon() {
+            const listEl = document.getElementById('buzon-list');
+            const countLbl = document.getElementById('buzon-counts-label');
+            if (!listEl) return;
+            const statusFilter = document.getElementById('buzon-filter-status')?.value || 'pending';
+            const tipoFilter = document.getElementById('buzon-filter-tipo')?.value || '';
+            const totalCount = _buzonCache.length;
+            const pendCount = _buzonCache.filter(f => (f.status || 'pending') === 'pending').length;
+            if (countLbl) countLbl.textContent = `${pendCount} pendientes · ${totalCount} en total`;
+
+            const items = _buzonCache.filter(f => {
+                const st = f.status || 'pending';
+                if (statusFilter !== 'all' && st !== statusFilter) return false;
+                if (tipoFilter && f.tipo !== tipoFilter) return false;
+                return true;
+            });
+
+            if (items.length === 0) {
+                listEl.innerHTML = `<div class="empty-state" style="color:var(--green);"><i class="fa fa-check-circle"></i>No hay mensajes ${statusFilter === 'pending' ? 'pendientes' : ''} con esos filtros.</div>`;
+                return;
+            }
+
+            const tipoEmoji = { queja: '😤', sugerencia: '💡', reconocimiento: '🙌', otro: '💬' };
+            const tipoLabel = { queja: 'Queja', sugerencia: 'Sugerencia', reconocimiento: 'Reconocimiento', otro: 'Otro' };
+            const tipoColor = { queja: 'var(--red)', sugerencia: 'var(--gold-l)', reconocimiento: 'var(--green)', otro: 'var(--slate)' };
+            const statusPill = st => {
+                if (st === 'seen') return `<span style="font-size:10px; background:rgba(148,163,184,0.2); color:var(--slate); padding:2px 8px; border-radius:10px; font-weight:600;">✓ Visto</span>`;
+                if (st === 'archived') return `<span style="font-size:10px; background:rgba(148,163,184,0.15); color:var(--slate); padding:2px 8px; border-radius:10px; font-weight:600;">📦 Archivado</span>`;
+                return `<span style="font-size:10px; background:var(--red); color:#fff; padding:2px 8px; border-radius:10px; font-weight:700;">Pendiente</span>`;
+            };
+
+            listEl.innerHTML = items.map(f => {
+                const st = f.status || 'pending';
+                const fecha = f.createdAt?.toDate?.().toLocaleString?.('es-MX', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) || '—';
+                const nombreDisplay = f.isAnonymous ? '👤 Anónimo' : escapeHtml(f.fromName || f.from || '—');
+                const roleLabel = f.fromRole === 'agente' ? 'Agente' : (f.fromRole || '');
+                return `
+                    <div style="padding:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; border-left:4px solid ${tipoColor[f.tipo] || 'var(--slate)'};">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
+                            <div>
+                                <div style="font-size:12px; font-weight:800; color:${tipoColor[f.tipo] || 'var(--slate)'}; margin-bottom:2px;">${tipoEmoji[f.tipo] || '💬'} ${tipoLabel[f.tipo] || f.tipo}</div>
+                                <div style="font-size:11px; color:var(--slate);">${nombreDisplay}${roleLabel ? ` · <span style="opacity:0.7;">${escapeHtml(roleLabel)}</span>` : ''}${f.teamCode ? ` · clave <span style="font-family:monospace; color:var(--gold-l);">${escapeHtml(f.teamCode)}</span>` : ''}</div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                ${statusPill(st)}
+                                <span style="font-size:10px; color:var(--slate);">${escapeHtml(fecha)}</span>
+                            </div>
+                        </div>
+                        <div style="font-size:13px; color:var(--white); white-space:pre-wrap; line-height:1.6; padding:10px 12px; background:rgba(15,23,42,0.4); border-radius:6px;">${escapeHtml(f.texto || '')}</div>
+                        <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
+                            ${st === 'pending' ? `<button onclick="markBuzonSeen('${f.id}')" style="padding:6px 12px; background:rgba(59,130,246,0.15); color:#93c5fd; border:1px solid rgba(59,130,246,0.4); border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;"><i class="fa fa-check"></i> Marcar visto</button>` : ''}
+                            ${st !== 'archived' ? `<button onclick="markBuzonArchived('${f.id}')" style="padding:6px 12px; background:rgba(148,163,184,0.15); color:var(--slate); border:1px solid rgba(148,163,184,0.3); border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;"><i class="fa fa-box-archive"></i> Archivar</button>` : ''}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        async function markBuzonSeen(id) {
+            try {
+                await updateDoc(doc(db, 'feedback', id), { status: 'seen', viewedAt: serverTimestamp() });
+            } catch (e) { console.error('[buzon] seen err:', e); alert('No se pudo marcar como visto.'); }
+        }
+        async function markBuzonArchived(id) {
+            try {
+                await updateDoc(doc(db, 'feedback', id), { status: 'archived', archivedAt: serverTimestamp() });
+            } catch (e) { console.error('[buzon] archive err:', e); alert('No se pudo archivar.'); }
         }
 
         function renderAlertas() {
@@ -9050,6 +9194,10 @@
         window.renderGestionAll = renderGestionAll;
         window.renderAlertas = renderAlertas;
         window._alertasVerBitacora = _alertasVerBitacora;
+        window.renderBuzon = renderBuzon;
+        window.startBuzonListener = startBuzonListener;
+        window.markBuzonSeen = markBuzonSeen;
+        window.markBuzonArchived = markBuzonArchived;
         window.startListeningPending = startListeningPending;
         window.updateApprovalFields = updateApprovalFields;
         window.saveMemberChanges = saveMemberChanges;
