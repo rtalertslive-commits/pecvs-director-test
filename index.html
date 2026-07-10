@@ -2330,9 +2330,8 @@
                         <label class="field-label">Tipo</label>
                         <select id="buzon-filter-tipo" onchange="renderBuzon()">
                             <option value="">Todos los tipos</option>
-                            <option value="queja">😤 Quejas</option>
                             <option value="sugerencia">💡 Sugerencias</option>
-                            <option value="reconocimiento">🙌 Reconocimientos</option>
+                            <option value="bug">🐞 Errores en la app</option>
                             <option value="otro">💬 Otros</option>
                         </select>
                     </div>
@@ -6534,9 +6533,9 @@
                 return;
             }
 
-            const tipoEmoji = { queja: '😤', sugerencia: '💡', reconocimiento: '🙌', otro: '💬' };
-            const tipoLabel = { queja: 'Queja', sugerencia: 'Sugerencia', reconocimiento: 'Reconocimiento', otro: 'Otro' };
-            const tipoColor = { queja: 'var(--red)', sugerencia: 'var(--gold-l)', reconocimiento: 'var(--green)', otro: 'var(--slate)' };
+            const tipoEmoji = { sugerencia: '💡', bug: '🐞', otro: '💬' };
+            const tipoLabel = { sugerencia: 'Sugerencia', bug: 'Errores en la app', otro: 'Otro' };
+            const tipoColor = { sugerencia: 'var(--gold-l)', bug: 'var(--red)', otro: 'var(--slate)' };
             const statusPill = st => {
                 if (st === 'seen') return `<span style="font-size:10px; background:rgba(148,163,184,0.2); color:var(--slate); padding:2px 8px; border-radius:10px; font-weight:600;">✓ Visto</span>`;
                 if (st === 'archived') return `<span style="font-size:10px; background:rgba(148,163,184,0.15); color:var(--slate); padding:2px 8px; border-radius:10px; font-weight:600;">📦 Archivado</span>`;
@@ -6546,7 +6545,7 @@
             listEl.innerHTML = items.map(f => {
                 const st = f.status || 'pending';
                 const fecha = f.createdAt?.toDate?.().toLocaleString?.('es-MX', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) || '—';
-                const nombreDisplay = f.isAnonymous ? '👤 Anónimo' : escapeHtml(f.fromName || f.from || '—');
+                const nombreDisplay = escapeHtml(f.fromName || f.from || '—');
                 const roleLabel = f.fromRole === 'agente' ? 'Agente' : (f.fromRole || '');
                 return `
                     <div style="padding:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; border-left:4px solid ${tipoColor[f.tipo] || 'var(--slate)'};">
