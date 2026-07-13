@@ -2897,7 +2897,7 @@
             </div>
             <div class="cal-grid-body" id="cal-grid-body"></div>
             <div class="cal-legend">
-                <div class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(16,185,129,0.5)"></span> 🟢 Actividad con cierre</div>
+                <div class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(16,185,129,0.5)"></span> 💪 Actividad con cierre</div>
                 <div class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(16,185,129,0.5)"></span> 🌱 Actividad sin cierre</div>
                 <div class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(245,158,11,0.5)"></span> 🌙 Sin intento</div>
                 <div class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(239,68,68,0.5)"></span> 🔴 Con errores</div>
@@ -4231,7 +4231,7 @@
                 const d = diasMap[dayName] || { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
                 const P = d.P || 0, E = d.E || 0, C = d.C || 0, V = d.V || 0, S = d.S || 0, pr = parseFloat(d.prima) || 0;
                 semP += P; semE += E; semC += C; semV += V; semS += S; semPrima += pr;
-                const funnel = d.sinActividad === true ? '🌙' : (P >= E && E >= C && C >= V ? (P > 0 ? '🟢' : '⚪') : '🔴');
+                const funnel = d.sinActividad === true ? '🌙' : (P >= E && E >= C && C >= V ? (P > 0 ? '💪' : '⚪') : '🔴');
                 return `<tr>
                   <td class="day-label">${dayName} <span style="font-size:10px;color:var(--slate);">${date}</span></td>
                   <td style="text-align:center;">${P}</td><td style="text-align:center;">${E}</td>
@@ -5345,7 +5345,7 @@
                     continue;
                 }
                 const info = dayStatusMap[d] || { status: 'none' };
-                const icon = info.status === 'ok' ? '🟢'
+                const icon = info.status === 'ok' ? '💪'
                     : info.status === 'ok-no-close' ? '🌱'
                     : info.status === 'red' ? '🔴'
                     : info.status === 'sin-actividad' ? '🌙'
@@ -5386,9 +5386,9 @@
             }
             const d = info.dia || {};
             const statusLabel = info.status === 'ok'
-                ? '🟢 Actividad con cierre'
+                ? '💪 Actividad con cierre'
                 : info.status === 'ok-no-close'
-                ? '🌱 Actividad sin cierre'
+                ? '🌱 Sin venta pero sembró, el cierre está en camino'
                 : '🔴 Errores en el reporte';
             const primaFmt = (Number(d.prima)||0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             detail.innerHTML = `
