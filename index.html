@@ -2629,12 +2629,19 @@
                                 </select>
                             </div>
                             <div>
+                                <label class="field-label">Promotor</label>
+                                <select id="checador-promotor" onchange="renderChecador()" style="min-width:190px;padding:8px;font-size:12px;">
+                                    <option value="">Todos los promotores</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label class="field-label">Archivo CSV del sistema</label>
                                 <input type="file" id="checador-file" accept=".csv,text/csv" onchange="handleChecadorFile(this)" style="font-size:12px;">
                             </div>
                             <button class="btn btn-sm" onclick="renderChecador()" style="background:var(--gold);color:#000;font-weight:700;"><i class="fa fa-check-double"></i> Verificar</button>
                         </div>
                         <div id="checador-summary" style="display:none;margin-bottom:16px;"></div>
+                        <div id="checador-by-promotor" style="display:none;margin-bottom:16px;"></div>
                         <div id="checador-results"></div>
                     </div>
                 </div>
@@ -8491,6 +8498,16 @@
             sel.innerHTML = '<option value="">— elegí un mes —</option>' +
                 meses.map(m => `<option value="${m}">${m}</option>`).join('');
             sel.dataset.filled = '1';
+            // Poblar dropdown de promotor con los promotores de la región
+            const selP = document.getElementById('checador-promotor');
+            if (selP && selP.dataset.filled !== '1') {
+                const promotores = (state.promoters || []).slice()
+                    .sort((a, b) => (a.promoterName || a.email || '').localeCompare(b.promoterName || b.email || ''));
+                selP.innerHTML = '<option value="">Todos los promotores</option>'
+                    + promotores.map(p => `<option value="${escapeHtml(p.promotorCode || '')}">${escapeHtml(p.promoterName || p.email)}</option>`).join('')
+                    + '<option value="__none__">— Sin promotor asignado —</option>';
+                selP.dataset.filled = '1';
+            }
         }
 
         // Parser CSV mínimo que respeta comillas (los campos pueden venir entrecomillados).
@@ -8560,9 +8577,17 @@
             const byCode = {};
             Object.keys(codeByEmail).forEach(email => {
                 const code = codeByEmail[email];
-                const name = (state.agents.find(a => a.email === email) || {}).name || email;
+                const agent = state.agents.find(a => a.email === email);
+                const name = agent?.name || email;
+                // Resolver promotor: agent.teamCode → coach.agentTeamCode → coach.promotorTeamCode → promoter
+                const teamCode = agent?.teamCode || null;
+                const coach = teamCode ? (state.coaches || []).find(c => c.agentTeamCode === teamCode) : null;
+                const promotorTeamCode = coach?.promotorTeamCode || null;
+                const promotor = promotorTeamCode ? (state.promoters || []).find(p => p.promotorCode === promotorTeamCode) : null;
+                const promotorName = promotor?.promoterName || '';
+                const promotorCode = promotorTeamCode || '';
                 // Si un mismo code apareciera repetido, sumamos (no debería, pero por las dudas).
-                if (!byCode[code]) byCode[code] = { name, prima: 0 };
+                if (!byCode[code]) byCode[code] = { name, prima: 0, promotorName, promotorCode };
                 byCode[code].prima += (primaByEmail[email] || 0);
             });
             return { byCode, appAgents };
@@ -8572,8 +8597,11 @@
             const mes = document.getElementById('checador-mes').value;
             const summary = document.getElementById('checador-summary');
             const results = document.getElementById('checador-results');
+            const byPromotorEl = document.getElementById('checador-by-promotor');
             if (!mes) { alert('Elegí el mes a corroborar.'); return; }
             if (!_checadorRows) { alert('Subí el archivo CSV del sistema.'); return; }
+
+            const promotorFilter = document.getElementById('checador-promotor')?.value || '';
 
             const { byCode } = _reportedPrimaByCode(mes);
             const csvByCode = {};
@@ -8581,111 +8609,217 @@
 
             const flagged = [], ok = [], reportoCero = [], appSinCsv = [], csvSinApp = [];
 
-            // Recorrer agentes del app (los que tienen clave)
+            // Recorrer agentes del app (los que tienen clave). Cada row lleva promotorName/Code.
             Object.keys(byCode).forEach(code => {
                 const rep = byCode[code].prima;
                 const name = byCode[code].name;
+                const promotorName = byCode[code].promotorName || '';
+                const promotorCode = byCode[code].promotorCode || '';
                 const csv = csvByCode[code];
-                if (!csv) { appSinCsv.push({ code, name, rep }); return; }
+                if (!csv) { appSinCsv.push({ code, name, rep, promotorName, promotorCode }); return; }
                 const ing = csv.ingresado;
-                if (rep === 0) { reportoCero.push({ code, name, rep, ing }); return; }
+                if (rep === 0) { reportoCero.push({ code, name, rep, ing, promotorName, promotorCode }); return; }
                 const lower = rep * 0.9, upper = rep * 1.1;
                 const diffPct = ((ing - rep) / rep) * 100;
-                const row = { code, name, rep, ing, diffPct };
+                const row = { code, name, rep, ing, diffPct, promotorName, promotorCode };
                 if (ing < lower || ing > upper) flagged.push(row); else ok.push(row);
             });
-            // ASO en el CSV que no existe en el app (faltan registrarse)
-            _checadorRows.forEach(r => { if (!byCode[r.aso]) csvSinApp.push(r); });
+            // ASO en el CSV que no existe en el app — no tenemos promotor conocido para estos.
+            _checadorRows.forEach(r => { if (!byCode[r.aso]) csvSinApp.push({ ...r, promotorName: '', promotorCode: '' }); });
 
             flagged.sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct));
 
             const money = n => '$' + (Number(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const pct = n => (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
 
+            // Filtro por promotor: '' = todos, '__none__' = sin promotor asignado.
+            // Se aplica ANTES del summary y del render de secciones, para que todo
+            // (contadores, cards, tablas) refleje solo el subconjunto elegido.
+            const matchPromotor = (row) => {
+                if (!promotorFilter) return true;
+                if (promotorFilter === '__none__') return !row.promotorCode;
+                return row.promotorCode === promotorFilter;
+            };
+            const fFlagged     = flagged.filter(matchPromotor);
+            const fOk          = ok.filter(matchPromotor);
+            const fReportoCero = reportoCero.filter(matchPromotor);
+            const fAppSinCsv   = appSinCsv.filter(matchPromotor);
+            // csvSinApp no tiene promotor (no está en la app). Ocultarlo si hay filtro activo.
+            const fCsvSinApp   = promotorFilter ? [] : csvSinApp;
+
             summary.style.display = 'block';
             summary.innerHTML = `
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
                     <div style="background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">🚩 Flageados</div>
-                        <div style="font-size:24px;font-weight:800;color:#ef4444;">${flagged.length}</div>
+                        <div style="font-size:24px;font-weight:800;color:#ef4444;">${fFlagged.length}</div>
                     </div>
                     <div style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">✅ OK (±10%)</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--green);">${ok.length}</div>
+                        <div style="font-size:24px;font-weight:800;color:var(--green);">${fOk.length}</div>
                     </div>
                     <div style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:12px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">⚠️ Reportó cero</div>
-                        <div style="font-size:24px;font-weight:800;color:#f59e0b;">${reportoCero.length}</div>
+                        <div style="font-size:24px;font-weight:800;color:#f59e0b;">${fReportoCero.length}</div>
                     </div>
                     <div style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:12px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">🔵 En app, sin CSV</div>
-                        <div style="font-size:24px;font-weight:800;color:#3b82f6;">${appSinCsv.length}</div>
+                        <div style="font-size:24px;font-weight:800;color:#3b82f6;">${fAppSinCsv.length}</div>
                     </div>
                     <div style="background:rgba(168,85,247,0.10);border:1px solid rgba(168,85,247,0.3);border-radius:10px;padding:12px;">
                         <div style="font-size:10px;color:var(--slate);text-transform:uppercase;">🟣 En CSV, sin registrar</div>
-                        <div style="font-size:24px;font-weight:800;color:#a855f7;">${csvSinApp.length}</div>
+                        <div style="font-size:24px;font-weight:800;color:#a855f7;">${fCsvSinApp.length}</div>
                     </div>
                 </div>`;
 
+            // ═══ RESUMEN POR PROMOTOR (Card C) ═══
+            // Solo visible cuando NO hay filtro activo (si el user filtró por 1
+            // promotor, la tabla per-promotor sería redundante).
+            if (byPromotorEl) {
+                if (promotorFilter) {
+                    byPromotorEl.style.display = 'none';
+                    byPromotorEl.innerHTML = '';
+                } else {
+                    const promMap = {}; // promotorCode/name → stats
+                    const bucket = (row, key) => {
+                        const pKey = row.promotorCode || '__none__';
+                        if (!promMap[pKey]) promMap[pKey] = {
+                            promotorName: row.promotorName || '— Sin promotor —',
+                            promotorCode: row.promotorCode || '',
+                            agentes: new Set(),
+                            flagged: 0, ok: 0, cero: 0, appSinCsv: 0,
+                            sumDiff: 0
+                        };
+                        promMap[pKey].agentes.add(row.code);
+                        promMap[pKey][key]++;
+                        if (typeof row.diffPct === 'number') promMap[pKey].sumDiff += (row.ing - row.rep);
+                    };
+                    flagged.forEach(r => bucket(r, 'flagged'));
+                    ok.forEach(r => bucket(r, 'ok'));
+                    reportoCero.forEach(r => bucket(r, 'cero'));
+                    appSinCsv.forEach(r => bucket(r, 'appSinCsv'));
+
+                    const rows = Object.values(promMap)
+                        .sort((a, b) => b.flagged - a.flagged || a.promotorName.localeCompare(b.promotorName));
+                    if (rows.length === 0) {
+                        byPromotorEl.style.display = 'none';
+                    } else {
+                        byPromotorEl.style.display = 'block';
+                        byPromotorEl.innerHTML = `
+                            <div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:14px;">
+                                <div style="font-size:13px;font-weight:700;color:var(--gold-l);margin-bottom:10px;"><i class="fa fa-chart-bar"></i> Resumen por promotor</div>
+                                <div style="overflow-x:auto;">
+                                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                                    <thead><tr style="text-align:left;color:var(--slate);border-bottom:1px solid rgba(255,255,255,0.12);">
+                                        <th style="padding:6px 8px;">Promotor</th>
+                                        <th style="padding:6px 8px;text-align:center;">Agentes</th>
+                                        <th style="padding:6px 8px;text-align:center;color:#ef4444;">🚩 Flag</th>
+                                        <th style="padding:6px 8px;text-align:center;color:var(--green);">✅ OK</th>
+                                        <th style="padding:6px 8px;text-align:center;color:#f59e0b;">⚠️ Cero</th>
+                                        <th style="padding:6px 8px;text-align:center;color:#3b82f6;">🔵 SinCSV</th>
+                                        <th style="padding:6px 8px;text-align:right;">Suma dif ($)</th>
+                                    </tr></thead>
+                                    <tbody>
+                                        ${rows.map(p => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                                            <td style="padding:6px 8px;font-weight:600;">${escapeHtml(p.promotorName)}</td>
+                                            <td style="padding:6px 8px;text-align:center;color:var(--slate);">${p.agentes.size}</td>
+                                            <td style="padding:6px 8px;text-align:center;font-weight:700;color:${p.flagged ? '#ef4444' : 'var(--slate)'};">${p.flagged}</td>
+                                            <td style="padding:6px 8px;text-align:center;color:${p.ok ? 'var(--green)' : 'var(--slate)'};">${p.ok}</td>
+                                            <td style="padding:6px 8px;text-align:center;color:${p.cero ? '#f59e0b' : 'var(--slate)'};">${p.cero}</td>
+                                            <td style="padding:6px 8px;text-align:center;color:${p.appSinCsv ? '#3b82f6' : 'var(--slate)'};">${p.appSinCsv}</td>
+                                            <td style="padding:6px 8px;text-align:right;font-family:monospace;color:${p.sumDiff < 0 ? '#ef4444' : p.sumDiff > 0 ? 'var(--green)' : 'var(--slate)'};">${money(p.sumDiff)}</td>
+                                        </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                                </div>
+                            </div>`;
+                    }
+                }
+            }
+
+            // ═══ TABLAS DETALLE AGRUPADAS POR PROMOTOR (B) ═══
+            // Cada sección ahora se divide en subheaders por promotor.
             const tbl = (rows, cols) => `<table style="width:100%;border-collapse:collapse;font-size:12px;">
                 <thead><tr style="text-align:left;color:var(--slate);border-bottom:1px solid rgba(255,255,255,0.1);">
                     ${cols.map(c => `<th style="padding:6px 8px;">${c}</th>`).join('')}
                 </tr></thead><tbody>${rows}</tbody></table>`;
 
+            // Agrupa rows por promotor y devuelve HTML con subheaders.
+            const groupByPromotor = (rows, buildRow, cols, subHeaderColor) => {
+                const groups = {};
+                rows.forEach(r => {
+                    const k = r.promotorCode || '__none__';
+                    if (!groups[k]) groups[k] = { promotorName: r.promotorName || '— Sin promotor —', rows: [] };
+                    groups[k].rows.push(r);
+                });
+                const groupList = Object.values(groups).sort((a, b) =>
+                    b.rows.length - a.rows.length || a.promotorName.localeCompare(b.promotorName));
+                return groupList.map(g => `
+                    <div style="margin:10px 0 6px;padding:6px 10px;background:rgba(255,255,255,0.03);border-left:3px solid ${subHeaderColor};border-radius:4px;font-size:11px;font-weight:700;color:${subHeaderColor};">
+                        ${escapeHtml(g.promotorName)} <span style="color:var(--slate);font-weight:500;">(${g.rows.length})</span>
+                    </div>
+                    ${tbl(g.rows.map(buildRow).join(''), cols)}
+                `).join('');
+            };
+
             let html = '';
             // 🚩 Flageados
-            if (flagged.length) {
-                const body = flagged.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:6px 8px;font-weight:600;">${r.name}</td>
-                    <td style="padding:6px 8px;color:var(--slate);">${r.code}</td>
+            if (fFlagged.length) {
+                const buildRow = r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${escapeHtml(r.name)}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${escapeHtml(r.code)}</td>
                     <td style="padding:6px 8px;">${money(r.rep)}</td>
                     <td style="padding:6px 8px;">${money(r.ing)}</td>
                     <td style="padding:6px 8px;font-weight:700;color:#ef4444;">${pct(r.diffPct)}</td>
-                </tr>`).join('');
-                html += `<h4 style="margin:18px 0 8px;color:#ef4444;">🚩 Flageados (>±10%) — ${flagged.length}</h4>` +
-                    tbl(body, ['Agente', 'Clave', 'Reportado', 'Ingresado', 'Diferencia']);
+                </tr>`;
+                const cols = ['Agente', 'Clave', 'Reportado', 'Ingresado', 'Diferencia'];
+                html += `<h4 style="margin:18px 0 8px;color:#ef4444;">🚩 Flageados (>±10%) — ${fFlagged.length}</h4>` +
+                    (promotorFilter ? tbl(fFlagged.map(buildRow).join(''), cols) : groupByPromotor(fFlagged, buildRow, cols, '#ef4444'));
             }
             // ⚠️ Reportó cero
-            if (reportoCero.length) {
-                const body = reportoCero.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:6px 8px;font-weight:600;">${r.name}</td>
-                    <td style="padding:6px 8px;color:var(--slate);">${r.code}</td>
+            if (fReportoCero.length) {
+                const buildRow = r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${escapeHtml(r.name)}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${escapeHtml(r.code)}</td>
                     <td style="padding:6px 8px;">${money(r.ing)}</td>
-                </tr>`).join('');
-                html += `<h4 style="margin:18px 0 8px;color:#f59e0b;">⚠️ Reportó cero en la app pero tiene prima ingresada — ${reportoCero.length}</h4>` +
-                    tbl(body, ['Agente', 'Clave', 'Ingresado (CSV)']);
+                </tr>`;
+                const cols = ['Agente', 'Clave', 'Ingresado (CSV)'];
+                html += `<h4 style="margin:18px 0 8px;color:#f59e0b;">⚠️ Reportó cero en la app pero tiene prima ingresada — ${fReportoCero.length}</h4>` +
+                    (promotorFilter ? tbl(fReportoCero.map(buildRow).join(''), cols) : groupByPromotor(fReportoCero, buildRow, cols, '#f59e0b'));
             }
-            // 🟣 En CSV, sin registrar
-            if (csvSinApp.length) {
-                const body = csvSinApp.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:6px 8px;font-weight:600;">${r.nombre || '—'}</td>
-                    <td style="padding:6px 8px;color:var(--slate);">${r.aso}</td>
+            // 🟣 En CSV, sin registrar (no tiene promotor conocido — no se agrupa)
+            if (fCsvSinApp.length) {
+                const body = fCsvSinApp.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${escapeHtml(r.nombre || '—')}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${escapeHtml(r.aso)}</td>
                     <td style="padding:6px 8px;">${money(r.ingresado)}</td>
                 </tr>`).join('');
-                html += `<h4 style="margin:18px 0 8px;color:#a855f7;">🟣 En el CSV pero no registrados en la app — ${csvSinApp.length}</h4>` +
+                html += `<h4 style="margin:18px 0 8px;color:#a855f7;">🟣 En el CSV pero no registrados en la app — ${fCsvSinApp.length}</h4>` +
                     tbl(body, ['Nombre (CSV)', 'Clave', 'Ingresado']);
             }
             // 🔵 En app, sin CSV
-            if (appSinCsv.length) {
-                const body = appSinCsv.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:6px 8px;font-weight:600;">${r.name}</td>
-                    <td style="padding:6px 8px;color:var(--slate);">${r.code}</td>
+            if (fAppSinCsv.length) {
+                const buildRow = r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${escapeHtml(r.name)}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${escapeHtml(r.code)}</td>
                     <td style="padding:6px 8px;">${money(r.rep)}</td>
-                </tr>`).join('');
-                html += `<h4 style="margin:18px 0 8px;color:#3b82f6;">🔵 Registrados en la app pero ausentes del CSV — ${appSinCsv.length}</h4>` +
-                    tbl(body, ['Agente', 'Clave', 'Reportado']);
+                </tr>`;
+                const cols = ['Agente', 'Clave', 'Reportado'];
+                html += `<h4 style="margin:18px 0 8px;color:#3b82f6;">🔵 Registrados en la app pero ausentes del CSV — ${fAppSinCsv.length}</h4>` +
+                    (promotorFilter ? tbl(fAppSinCsv.map(buildRow).join(''), cols) : groupByPromotor(fAppSinCsv, buildRow, cols, '#3b82f6'));
             }
             // ✅ OK (colapsado en <details>)
-            if (ok.length) {
-                const body = ok.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:6px 8px;font-weight:600;">${r.name}</td>
-                    <td style="padding:6px 8px;color:var(--slate);">${r.code}</td>
+            if (fOk.length) {
+                const buildRow = r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${escapeHtml(r.name)}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${escapeHtml(r.code)}</td>
                     <td style="padding:6px 8px;">${money(r.rep)}</td>
                     <td style="padding:6px 8px;">${money(r.ing)}</td>
                     <td style="padding:6px 8px;color:var(--green);">${pct(r.diffPct)}</td>
-                </tr>`).join('');
-                html += `<details style="margin-top:18px;"><summary style="cursor:pointer;color:var(--green);font-weight:600;">✅ OK dentro de ±10% — ${ok.length} (click para ver)</summary>` +
-                    tbl(body, ['Agente', 'Clave', 'Reportado', 'Ingresado', 'Diferencia']) + `</details>`;
+                </tr>`;
+                const cols = ['Agente', 'Clave', 'Reportado', 'Ingresado', 'Diferencia'];
+                const inner = promotorFilter ? tbl(fOk.map(buildRow).join(''), cols) : groupByPromotor(fOk, buildRow, cols, '#10b981');
+                html += `<details style="margin-top:18px;"><summary style="cursor:pointer;color:var(--green);font-weight:600;">✅ OK dentro de ±10% — ${fOk.length} (click para ver)</summary>${inner}</details>`;
             }
             results.innerHTML = html || '<div class="empty-state">Sin resultados.</div>';
         };
