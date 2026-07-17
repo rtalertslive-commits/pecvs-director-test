@@ -2641,7 +2641,6 @@
                             <button class="btn btn-sm" onclick="renderChecador()" style="background:var(--gold);color:#000;font-weight:700;"><i class="fa fa-check-double"></i> Verificar</button>
                         </div>
                         <div id="checador-summary" style="display:none;margin-bottom:16px;"></div>
-                        <div id="checador-by-promotor" style="display:none;margin-bottom:16px;"></div>
                         <div id="checador-results"></div>
                     </div>
                 </div>
@@ -8597,7 +8596,6 @@
             const mes = document.getElementById('checador-mes').value;
             const summary = document.getElementById('checador-summary');
             const results = document.getElementById('checador-results');
-            const byPromotorEl = document.getElementById('checador-by-promotor');
             if (!mes) { alert('Elegí el mes a corroborar.'); return; }
             if (!_checadorRows) { alert('Subí el archivo CSV del sistema.'); return; }
 
@@ -8672,70 +8670,17 @@
                     </div>
                 </div>`;
 
-            // ═══ RESUMEN POR PROMOTOR (Card C) ═══
-            // Solo visible cuando NO hay filtro activo (si el user filtró por 1
-            // promotor, la tabla per-promotor sería redundante).
-            if (byPromotorEl) {
-                if (promotorFilter) {
-                    byPromotorEl.style.display = 'none';
-                    byPromotorEl.innerHTML = '';
-                } else {
-                    const promMap = {}; // promotorCode/name → stats
-                    const bucket = (row, key) => {
-                        const pKey = row.promotorCode || '__none__';
-                        if (!promMap[pKey]) promMap[pKey] = {
-                            promotorName: row.promotorName || '— Sin promotor —',
-                            promotorCode: row.promotorCode || '',
-                            agentes: new Set(),
-                            flagged: 0, ok: 0, cero: 0, appSinCsv: 0,
-                            sumDiff: 0
-                        };
-                        promMap[pKey].agentes.add(row.code);
-                        promMap[pKey][key]++;
-                        if (typeof row.diffPct === 'number') promMap[pKey].sumDiff += (row.ing - row.rep);
-                    };
-                    flagged.forEach(r => bucket(r, 'flagged'));
-                    ok.forEach(r => bucket(r, 'ok'));
-                    reportoCero.forEach(r => bucket(r, 'cero'));
-                    appSinCsv.forEach(r => bucket(r, 'appSinCsv'));
-
-                    const rows = Object.values(promMap)
-                        .sort((a, b) => b.flagged - a.flagged || a.promotorName.localeCompare(b.promotorName));
-                    if (rows.length === 0) {
-                        byPromotorEl.style.display = 'none';
-                    } else {
-                        byPromotorEl.style.display = 'block';
-                        byPromotorEl.innerHTML = `
-                            <div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:14px;">
-                                <div style="font-size:13px;font-weight:700;color:var(--gold-l);margin-bottom:10px;"><i class="fa fa-chart-bar"></i> Resumen por promotor</div>
-                                <div style="overflow-x:auto;">
-                                <table style="width:100%;border-collapse:collapse;font-size:12px;">
-                                    <thead><tr style="text-align:left;color:var(--slate);border-bottom:1px solid rgba(255,255,255,0.12);">
-                                        <th style="padding:6px 8px;">Promotor</th>
-                                        <th style="padding:6px 8px;text-align:center;">Agentes</th>
-                                        <th style="padding:6px 8px;text-align:center;color:#ef4444;">🚩 Flag</th>
-                                        <th style="padding:6px 8px;text-align:center;color:var(--green);">✅ OK</th>
-                                        <th style="padding:6px 8px;text-align:center;color:#f59e0b;">⚠️ Cero</th>
-                                        <th style="padding:6px 8px;text-align:center;color:#3b82f6;">🔵 SinCSV</th>
-                                        <th style="padding:6px 8px;text-align:right;">Suma dif ($)</th>
-                                    </tr></thead>
-                                    <tbody>
-                                        ${rows.map(p => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                                            <td style="padding:6px 8px;font-weight:600;">${escapeHtml(p.promotorName)}</td>
-                                            <td style="padding:6px 8px;text-align:center;color:var(--slate);">${p.agentes.size}</td>
-                                            <td style="padding:6px 8px;text-align:center;font-weight:700;color:${p.flagged ? '#ef4444' : 'var(--slate)'};">${p.flagged}</td>
-                                            <td style="padding:6px 8px;text-align:center;color:${p.ok ? 'var(--green)' : 'var(--slate)'};">${p.ok}</td>
-                                            <td style="padding:6px 8px;text-align:center;color:${p.cero ? '#f59e0b' : 'var(--slate)'};">${p.cero}</td>
-                                            <td style="padding:6px 8px;text-align:center;color:${p.appSinCsv ? '#3b82f6' : 'var(--slate)'};">${p.appSinCsv}</td>
-                                            <td style="padding:6px 8px;text-align:right;font-family:monospace;color:${p.sumDiff < 0 ? '#ef4444' : p.sumDiff > 0 ? 'var(--green)' : 'var(--slate)'};">${money(p.sumDiff)}</td>
-                                        </tr>`).join('')}
-                                    </tbody>
-                                </table>
-                                </div>
-                            </div>`;
-                    }
-                }
-            }
+            // ═══ SOBRE-REPORTADO — reportaron en app > ingresado en CSV ═══
+            // Deriva de datos existentes: flagged con ing<rep + appSinCsv con rep>0.
+            // Sin threshold (cualquier exceso reportado califica). Los mismos rows
+            // también aparecen abajo en sus secciones originales (Flagged/AppSinCsv)
+            // — esta sección solo los junta para acción inmediata del promotor.
+            const sobreReportado = [
+                ...flagged.filter(r => r.ing < r.rep),
+                ...appSinCsv.filter(r => r.rep > 0).map(r => ({ ...r, ing: 0, diffPct: -100 }))
+            ]
+                .filter(matchPromotor)
+                .sort((a, b) => (b.rep - b.ing) - (a.rep - a.ing));
 
             // ═══ TABLAS DETALLE AGRUPADAS POR PROMOTOR (B) ═══
             // Cada sección ahora se divide en subheaders por promotor.
@@ -8763,6 +8708,22 @@
             };
 
             let html = '';
+            // 📤 SOBRE-REPORTADO — acción del promotor
+            if (sobreReportado.length) {
+                const buildRow = r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 8px;font-weight:600;">${escapeHtml(r.name)}</td>
+                    <td style="padding:6px 8px;color:var(--slate);">${escapeHtml(r.code)}</td>
+                    <td style="padding:6px 8px;">${money(r.rep)}</td>
+                    <td style="padding:6px 8px;">${money(r.ing)}</td>
+                    <td style="padding:6px 8px;font-weight:700;color:#f97316;">${money(r.rep - r.ing)}</td>
+                </tr>`;
+                const cols = ['Agente', 'Clave', 'Reportado', 'Ingresado', 'Falta ingresar'];
+                html += `<div style="margin:6px 0 8px;padding:12px 14px;background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.35);border-radius:8px;">
+                    <div style="font-size:14px;font-weight:700;color:#f97316;margin-bottom:2px;">📤 Reportaron pero no han ingresado — ${sobreReportado.length}</div>
+                    <div style="font-size:11px;color:var(--slate);">Producción que el agente declaró en la app pero que aún no aparece (o aparece por menos) en el CSV del sistema. Manda al promotor a corregir.</div>
+                </div>` +
+                    (promotorFilter ? tbl(sobreReportado.map(buildRow).join(''), cols) : groupByPromotor(sobreReportado, buildRow, cols, '#f97316'));
+            }
             // 🚩 Flageados
             if (fFlagged.length) {
                 const buildRow = r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
