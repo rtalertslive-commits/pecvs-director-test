@@ -3198,17 +3198,17 @@
                 <div>
                     <label class="field-label">Nombre del Director</label>
                     <input type="text" id="inp-director" placeholder="Tu nombre" readonly style="opacity:0.6; cursor:not-allowed; background:rgba(255,255,255,0.03);">
-                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">🔒 Bloqueado por seguridad. Si necesitás cambiarlo contactá al admin.</p>
+                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">🔒 Bloqueado por seguridad. Si necesitas cambiarlo contacta al admin.</p>
                 </div>
                 <div>
                     <label class="field-label">Tu Código de Director (compártelo con tus promotores)</label>
                     <input type="text" id="inp-teamcode" placeholder="Ej. TEAM-DIRECTOR" readonly style="opacity:0.6; cursor:not-allowed; background:rgba(255,255,255,0.03);">
-                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">🔒 Bloqueado por seguridad. Si necesitás cambiarlo contactá al admin.</p>
+                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">🔒 Bloqueado por seguridad. Si necesitas cambiarlo contacta al admin.</p>
                 </div>
                 <div>
                     <label class="field-label">Tu Región / Estado</label>
                     <input type="text" id="inp-region" placeholder="Ej. Tamaulipas" readonly style="opacity:0.6; cursor:not-allowed; background:rgba(255,255,255,0.03);">
-                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">🔒 Bloqueado por seguridad. Si necesitás cambiarlo contactá al admin.</p>
+                    <p style="font-size:10px; color:var(--slate); margin-top:5px;">🔒 Bloqueado por seguridad. Si necesitas cambiarlo contacta al admin.</p>
                 </div>
                 <div>
                     <p class="section-label">Promotores en tu Equipo</p>
@@ -7694,7 +7694,7 @@
                 // 1) Email duplicado (doc.id global)
                 const _existingByEmail = await getDoc(doc(db, _targetCol, email));
                 if (_existingByEmail.exists() && _existingByEmail.data().status === 'active') {
-                    alert(`⚠️ ${name || email} ya está aprobado como ${_roleLabelMap[role]}.\n\nNo se permiten duplicados del mismo rol. Si necesitás reasignarlo a otro equipo, hacelo desde la pestaña Gestión.`);
+                    alert(`⚠️ ${name || email} ya está aprobado como ${_roleLabelMap[role]}.\n\nNo se permiten duplicados del mismo rol. Si necesitas reasignarlo a otro equipo, hazlo desde la pestaña Gestión.`);
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fa fa-check"></i> Aprobar y Asignar';
                     return;
