@@ -9162,11 +9162,39 @@
             const el = document.getElementById('mult-preview-cfg');
             if (!el) return;
             const cfg = _multCfg();
-            const rows = cfg.tiers.slice().reverse().map(t =>
-                `Desde <b>$${t.min.toLocaleString('es-MX')}</b> → <b>+${t.pct}%</b> · el día vale <b style="color:var(--gold);">${Math.round(cfg.base * (1 + t.pct/100))}</b> totopos`
-            ).join('<br>');
-            el.innerHTML = `<b style="color:var(--white);">Con cobertura del 100%:</b><br>${rows}
-                <br><span style="opacity:0.75;">Sin multiplicador el día vale ${cfg.base}.</span>`;
+            const money = n => '$' + Math.round(n).toLocaleString('es-MX');
+            // Ascendente y con rangos, igual que la tabla que ve el agente.
+            // La primera fila es "menos del piso": sin ella no se entiende que
+            // la base son 10 y que el escalón es lo que se le suma encima.
+            const asc = cfg.tiers.slice().reverse();
+            const escala = [{ min: 0, max: asc[0].min - 1, pct: 0 }].concat(
+                asc.map((t, i) => ({ min: t.min, max: asc[i + 1] ? asc[i + 1].min - 1 : null, pct: t.pct }))
+            );
+            const rows = escala.map(t => {
+                const off = t.pct === 0;
+                const rango = off ? `menos de ${money(asc[0].min)}`
+                    : (t.max === null ? `${money(t.min)} o más` : `${money(t.min)} — ${money(t.max)}`);
+                return `<tr style="${off ? 'opacity:0.6;' : ''}">
+                    <td style="padding:7px 10px; border-bottom:1px solid rgba(255,255,255,0.06);">${rango}</td>
+                    <td style="padding:7px 10px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.06); font-variant-numeric:tabular-nums;">${off ? '—' : '+' + t.pct + ' %'}</td>
+                    <td style="padding:7px 10px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.06); font-weight:800; font-size:14px; font-variant-numeric:tabular-nums; color:${off ? 'var(--slate)' : 'var(--gold)'};">${Math.round(cfg.base * (1 + t.pct / 100))}</td>
+                </tr>`;
+            }).join('');
+            el.innerHTML = `
+                <div style="font-size:10.5px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Escalones — según lo ingresado en el mes</div>
+                <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.14);color:var(--slate);">
+                    <th style="text-align:left;padding:0 10px 7px;font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:500;">Prima ingresada en el mes</th>
+                    <th style="text-align:right;padding:0 10px 7px;font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:500;">Bonus</th>
+                    <th style="text-align:right;padding:0 10px 7px;font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:500;">Vale el día</th>
+                  </tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+                </div>
+                <div style="margin-top:9px;font-size:11.5px;opacity:0.8;">
+                    Asume que el agente reportó el mes completo. Con menos días, el bonus se reduce en proporción.
+                </div>`;
         }
 
         // Catalog CRUD
