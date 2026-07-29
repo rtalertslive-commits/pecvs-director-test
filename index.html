@@ -2522,6 +2522,50 @@
                     <button class="btn btn-green" onclick="savePuntosConfig()"><i class="fa fa-floppy-disk"></i> Guardar configuración</button>
                     <span id="mult-msg" style="display:none;font-size:12px;color:var(--green);margin-left:10px;"><i class="fa fa-check"></i> Guardado</span>
                 </div>
+
+                <!-- ── CHECADOR DE PRIMA + OTORGAMIENTO ──
+                     Vive acá, debajo de la config: los escalones que se configuran
+                     arriba son los que este cálculo aplica. Tenerlos separados
+                     obligaba a cambiar de pestaña para entender un resultado. -->
+                <div class="card">
+                    <p class="card-title" onclick="toggleChecador()" style="cursor:pointer;user-select:none;">
+                        <i class="fa fa-magnifying-glass-dollar"></i> Checador de Prima — reportado vs ingresado
+                        <span id="checador-caret" style="float:right;color:var(--slate);">▸</span>
+                    </p>
+                    <div id="checador-body" style="display:none;">
+                        <p style="font-size:12px;color:var(--slate);margin-bottom:16px;">
+                            Compará la prima que cada agente <strong>reportó en la app</strong> contra la <strong>realmente ingresada</strong> al sistema (columna <code>P_ING TOT</code> del CSV). Cruce exclusivo por clave de agente (<code>ASO</code> = clave). Se marca 🚩 cuando la diferencia supera ±10% sobre lo reportado. Todo se procesa en tu navegador — el CSV no se sube a ningún lado.
+                        </p>
+                        <p style="font-size:12px;color:var(--slate);margin-bottom:16px;line-height:1.55;">
+                            <b style="color:var(--gold);">Acá también se otorgan los multiplicadores.</b>
+                            Subí el CSV del mes que cerró, elegí ese mes y tocá <b>Calcular multiplicadores</b>:
+                            vas a ver quién califica antes de guardar nada. Lo que se otorgue aplica al <b>mes siguiente</b>.
+                        </p>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+                            <div>
+                                <label class="field-label">Mes a corroborar</label>
+                                <select id="checador-mes" style="min-width:170px;padding:8px;font-size:12px;">
+                                    <option value="">— elegí un mes —</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label">Promotor</label>
+                                <select id="checador-promotor" onchange="renderChecador()" style="min-width:190px;padding:8px;font-size:12px;">
+                                    <option value="">Todos los promotores</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label">Archivo CSV del sistema</label>
+                                <input type="file" id="checador-file" accept=".csv,text/csv" onchange="handleChecadorFile(this)" style="font-size:12px;">
+                            </div>
+                            <button class="btn btn-sm" onclick="renderChecador()" style="background:var(--gold);color:#000;font-weight:700;"><i class="fa fa-check-double"></i> Verificar</button>
+                            <button class="btn btn-sm" onclick="previewMultipliers()" style="background:rgba(16,185,129,0.9);color:#000;font-weight:700;"><i class="fa fa-bolt"></i> Calcular multiplicadores</button>
+                        </div>
+                        <div id="mult-grant-box" style="display:none;margin-bottom:16px;"></div>
+                        <div id="checador-summary" style="display:none;margin-bottom:16px;"></div>
+                        <div id="checador-results"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- ── CATÁLOGOS ── -->
@@ -2659,41 +2703,6 @@
                     </div>
                 </div>
 
-                <!-- ── CHECADOR DE PRIMA (reportado en app vs ingresado en sistema) ── -->
-                <div class="card">
-                    <p class="card-title" onclick="toggleChecador()" style="cursor:pointer;user-select:none;">
-                        <i class="fa fa-magnifying-glass-dollar"></i> Checador de Prima (reportado vs ingresado)
-                        <span id="checador-caret" style="float:right;color:var(--slate);">▸</span>
-                    </p>
-                    <div id="checador-body" style="display:none;">
-                        <p style="font-size:12px;color:var(--slate);margin-bottom:16px;">
-                            Compará la prima que cada agente <strong>reportó en la app</strong> contra la <strong>realmente ingresada</strong> al sistema (columna <code>P_ING TOT</code> del CSV). Cruce exclusivo por clave de agente (<code>ASO</code> = clave). Se marca 🚩 cuando la diferencia supera ±10% sobre lo reportado. Todo se procesa en tu navegador — el CSV no se sube a ningún lado.
-                        </p>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
-                            <div>
-                                <label class="field-label">Mes a corroborar</label>
-                                <select id="checador-mes" style="min-width:170px;padding:8px;font-size:12px;">
-                                    <option value="">— elegí un mes —</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label">Promotor</label>
-                                <select id="checador-promotor" onchange="renderChecador()" style="min-width:190px;padding:8px;font-size:12px;">
-                                    <option value="">Todos los promotores</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label">Archivo CSV del sistema</label>
-                                <input type="file" id="checador-file" accept=".csv,text/csv" onchange="handleChecadorFile(this)" style="font-size:12px;">
-                            </div>
-                            <button class="btn btn-sm" onclick="renderChecador()" style="background:var(--gold);color:#000;font-weight:700;"><i class="fa fa-check-double"></i> Verificar</button>
-                            <button class="btn btn-sm" onclick="previewMultipliers()" style="background:rgba(16,185,129,0.9);color:#000;font-weight:700;"><i class="fa fa-bolt"></i> Calcular multiplicadores</button>
-                        </div>
-                        <div id="mult-grant-box" style="display:none;margin-bottom:16px;"></div>
-                        <div id="checador-summary" style="display:none;margin-bottom:16px;"></div>
-                        <div id="checador-results"></div>
-                    </div>
-                </div>
             </div>
 
         </div><!-- /tab-tienda -->
