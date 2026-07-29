@@ -2474,6 +2474,54 @@
                     <button class="btn btn-green" onclick="savePuntosConfig()"><i class="fa fa-floppy-disk"></i> Guardar configuración</button>
                     <span id="pts-msg" style="display:none;font-size:12px;color:var(--green);margin-left:10px;"><i class="fa fa-check"></i> Guardado</span>
                 </div>
+
+                <!-- ── MULTIPLICADOR POR COINCIDENCIA ── -->
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-bolt"></i> Multiplicador por Coincidencia</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:6px;line-height:1.55;">
+                        Se gana en un mes y se cobra en el siguiente. Para activarlo el agente necesita que
+                        lo <b>reportado en la app coincida</b> con lo ingresado según el corporativo, y alcanzar
+                        un escalón de producción.
+                    </p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:18px;line-height:1.55;">
+                        La fuerza del escalón se escala por los días que reportó:
+                        <code style="background:rgba(212,175,55,0.12);padding:2px 6px;border-radius:3px;">bonus × (días reportados ÷ días del mes)</code>
+                    </p>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;">
+                        <div>
+                            <label class="field-label">Margen de error permitido (%)</label>
+                            <input type="number" id="mult-margin" min="0" max="100" class="form-input" value="10">
+                        </div>
+                    </div>
+
+                    <p style="font-size:11px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Escalones por prima ingresada en el mes</p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:20px;">
+                        <div>
+                            <label class="field-label">Escalón 1 — desde $</label>
+                            <input type="number" id="mult-t1-min" min="0" class="form-input" value="2500">
+                            <label class="field-label" style="margin-top:8px;">Bonus (%)</label>
+                            <input type="number" id="mult-t1-pct" min="0" class="form-input" value="100">
+                        </div>
+                        <div>
+                            <label class="field-label">Escalón 2 — desde $</label>
+                            <input type="number" id="mult-t2-min" min="0" class="form-input" value="5000">
+                            <label class="field-label" style="margin-top:8px;">Bonus (%)</label>
+                            <input type="number" id="mult-t2-pct" min="0" class="form-input" value="150">
+                        </div>
+                        <div>
+                            <label class="field-label">Escalón 3 — desde $</label>
+                            <input type="number" id="mult-t3-min" min="0" class="form-input" value="8000">
+                            <label class="field-label" style="margin-top:8px;">Bonus (%)</label>
+                            <input type="number" id="mult-t3-pct" min="0" class="form-input" value="200">
+                        </div>
+                    </div>
+
+                    <div id="mult-preview-cfg" style="background:rgba(212,175,55,0.07);border:1px solid rgba(212,175,55,0.22);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--slate);line-height:1.7;"></div>
+
+                    <button class="btn btn-green" onclick="savePuntosConfig()"><i class="fa fa-floppy-disk"></i> Guardar configuración</button>
+                    <span id="mult-msg" style="display:none;font-size:12px;color:var(--green);margin-left:10px;"><i class="fa fa-check"></i> Guardado</span>
+                </div>
             </div>
 
             <!-- ── CATÁLOGOS ── -->
@@ -2639,7 +2687,9 @@
                                 <input type="file" id="checador-file" accept=".csv,text/csv" onchange="handleChecadorFile(this)" style="font-size:12px;">
                             </div>
                             <button class="btn btn-sm" onclick="renderChecador()" style="background:var(--gold);color:#000;font-weight:700;"><i class="fa fa-check-double"></i> Verificar</button>
+                            <button class="btn btn-sm" onclick="previewMultipliers()" style="background:rgba(16,185,129,0.9);color:#000;font-weight:700;"><i class="fa fa-bolt"></i> Calcular multiplicadores</button>
                         </div>
+                        <div id="mult-grant-box" style="display:none;margin-bottom:16px;"></div>
                         <div id="checador-summary" style="display:none;margin-bottom:16px;"></div>
                         <div id="checador-results"></div>
                     </div>
@@ -8592,6 +8642,207 @@
             return { byCode, appAgents };
         }
 
+        // ═══ MULTIPLICADOR POR COINCIDENCIA ══════════════════════════════════════════
+        // Se calcula sobre el mes evaluado y se otorga para el mes SIGUIENTE.
+        // El karma del agente se otorga al día siguiente de cada día, así que
+        // corriendo esto el día 1 cada día del mes nuevo ya nace sabiendo su valor.
+        let _multRows = null;
+
+        function _nextMonthKey(mes) {
+            const parts = String(mes).trim().split(' ');
+            const m = MONTHS_ES.indexOf(parts[0]) + 1;
+            const y = parseInt(parts[1]);
+            if (!m || !y) return null;
+            return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+        }
+
+        // Días del mes que ganaron totopos, por agente. Misma regla que usa el
+        // karma en la app del agente: 🌙 cuenta, 🔴 y ⚪ no. Set sobre el día del
+        // mes para que un día repetido en dos semanas no se cuente dos veces.
+        function _coverageByEmail(mes) {
+            const parts = String(mes).trim().split(' ');
+            const m = MONTHS_ES.indexOf(parts[0]) + 1;
+            const y = parseInt(parts[1]);
+            const cal = getMonthCalendar(y, m);
+            const sets = {};
+            (state.entries || []).forEach(e => {
+                if ((e.mes || '').trim() !== String(mes).trim()) return;
+                const weekDays = cal[parseInt(e.semana) - 1] || [];
+                if (!sets[e.agentId]) sets[e.agentId] = new Set();
+                (e.dias || []).forEach(d => {
+                    const info = weekDays.find(w => w.dayName === d.dia);
+                    if (!info) return;
+                    const sum = (Number(d.P)||0)+(Number(d.E)||0)+(Number(d.C)||0)+(Number(d.V)||0)+(Number(d.S)||0);
+                    const hasData = sum > 0 || (parseFloat(d.prima) || 0) > 0;
+                    const ok = d.sinActividad === true || (hasData && validateDay(d).ok);
+                    if (ok) sets[e.agentId].add(info.date);
+                });
+            });
+            const days = {};
+            Object.keys(sets).forEach(k => { days[k] = sets[k].size; });
+            return { days, daysInMonth: new Date(y, m, 0).getDate() };
+        }
+
+        function _computeMultipliers(mes) {
+            const cfg = _multCfg();
+            const { byCode } = _reportedPrimaByCode(mes);
+            const csvByCode = {};
+            (_checadorRows || []).forEach(r => { csvByCode[r.aso] = r; });
+            const cov = _coverageByEmail(mes);
+            const monthKey = _nextMonthKey(mes);
+            const minTier = cfg.tiers[cfg.tiers.length - 1].min;
+
+            const emailByCode = {};
+            (state.agents || []).forEach(a => {
+                const c = String(a.companyCode || '').trim();
+                if (c) emailByCode[c] = a.email;
+            });
+
+            const rows = [];
+            Object.keys(byCode).forEach(code => {
+                const email = emailByCode[code];
+                if (!email) return;
+                const rep = byCode[code].prima;
+                const csv = csvByCode[code];
+                const daysReported = cov.days[email] || 0;
+                const daysInMonth  = cov.daysInMonth;
+                const coverage     = daysInMonth ? daysReported / daysInMonth : 0;
+                const b = {
+                    code, email, name: byCode[code].name,
+                    promotorName: byCode[code].promotorName || '',
+                    promotorCode: byCode[code].promotorCode || '',
+                    reportado: rep, daysReported, daysInMonth, coverage,
+                    month: monthKey, basedOn: String(mes).trim()
+                };
+                if (!csv) { rows.push({ ...b, ingresado: 0, earned: false, reason: 'sin-csv' }); return; }
+                const ing = csv.ingresado;
+                // El desvío se mide contra lo INGRESADO: el número del corporativo
+                // es el ancla, no lo que el agente escribió.
+                const desvio = ing > 0 ? Math.abs(rep - ing) / ing : (rep > 0 ? 1 : 0);
+                const tier = _tierFor(ing, cfg);
+                if (!tier) { rows.push({ ...b, ingresado: ing, desvio, earned: false, reason: 'escalon', tierMin: minTier }); return; }
+                if (desvio > cfg.margin) { rows.push({ ...b, ingresado: ing, desvio, tierPct: tier.pct, earned: false, reason: 'coincidencia' }); return; }
+                const bonusPct = Math.round(tier.pct * coverage);
+                rows.push({ ...b, ingresado: ing, desvio, tierPct: tier.pct, bonusPct, earned: true,
+                            dayValue: Math.round(cfg.base * (1 + bonusPct / 100)) });
+            });
+            rows.sort((a, b2) => (b2.bonusPct || 0) - (a.bonusPct || 0));
+            return { rows, cfg, monthKey };
+        }
+
+        // Preview obligatorio: esto escribe en decenas de docs de agentes.
+        // Nunca se otorga sin que el director vea antes quién gana y quién no.
+        window.previewMultipliers = function() {
+            const mes = document.getElementById('checador-mes').value;
+            const box = document.getElementById('mult-grant-box');
+            if (!mes) { alert('Elegí el mes a evaluar.'); return; }
+            if (!_checadorRows) { alert('Subí primero el archivo CSV del sistema.'); return; }
+
+            const { rows, cfg, monthKey } = _computeMultipliers(mes);
+            _multRows = rows;
+            if (!rows.length) {
+                box.style.display = 'block';
+                box.innerHTML = `<div class="card" style="border-color:var(--red);"><p style="color:var(--slate);font-size:13px;margin:0;">No hay agentes con clave para evaluar en ${mes}.</p></div>`;
+                return;
+            }
+
+            const ganan = rows.filter(r => r.earned);
+            const money = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-MX');
+            const mesSig = (() => {
+                const p = String(mes).trim().split(' ');
+                const m = MONTHS_ES.indexOf(p[0]) + 1;
+                return (m === 12 ? MONTHS_ES[0] : MONTHS_ES[m]) || '';
+            })();
+
+            const motivo = r => {
+                if (r.reason === 'sin-csv')      return '<span style="color:var(--slate);">No aparece en el CSV</span>';
+                if (r.reason === 'escalon')      return `<span style="color:var(--orange);">No alcanzó el escalón</span> <span style="color:var(--slate);">(mín ${money(r.tierMin)})</span>`;
+                if (r.reason === 'coincidencia') return `<span style="color:var(--red);">No coincidió</span> <span style="color:var(--slate);">(${Math.round(r.desvio*100)}% de desvío)</span>`;
+                return '';
+            };
+
+            box.style.display = 'block';
+            box.innerHTML = `
+              <div class="card" style="border-color:rgba(16,185,129,0.4);">
+                <p class="card-title"><i class="fa fa-bolt"></i> Multiplicadores de ${mesSig} — vista previa</p>
+                <p style="font-size:12px;color:var(--slate);margin-bottom:14px;">
+                  Evaluando <b>${mes}</b> · margen ${Math.round(cfg.margin*100)}% ·
+                  <b style="color:var(--green);">${ganan.length}</b> de ${rows.length} agentes obtienen multiplicador.
+                  Todavía no se guardó nada.
+                </p>
+                <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead><tr style="text-align:left;color:var(--slate);border-bottom:1px solid rgba(255,255,255,0.12);">
+                    <th style="padding:7px 8px;">Agente</th>
+                    <th style="padding:7px 8px;">Promotor</th>
+                    <th style="padding:7px 8px;text-align:right;">Reportado</th>
+                    <th style="padding:7px 8px;text-align:right;">Ingresado</th>
+                    <th style="padding:7px 8px;text-align:right;">Días</th>
+                    <th style="padding:7px 8px;text-align:right;">Resultado</th>
+                  </tr></thead>
+                  <tbody>
+                  ${rows.map(r => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);${r.earned ? '' : 'opacity:0.72;'}">
+                      <td style="padding:7px 8px;"><b>${r.name}</b><br><span style="color:var(--slate);font-size:10px;">${r.code}</span></td>
+                      <td style="padding:7px 8px;color:var(--slate);">${r.promotorName || '—'}</td>
+                      <td style="padding:7px 8px;text-align:right;">${money(r.reportado)}</td>
+                      <td style="padding:7px 8px;text-align:right;">${money(r.ingresado)}</td>
+                      <td style="padding:7px 8px;text-align:right;">${r.daysReported}/${r.daysInMonth}<br><span style="color:var(--slate);font-size:10px;">${Math.round(r.coverage*100)}%</span></td>
+                      <td style="padding:7px 8px;text-align:right;">
+                        ${r.earned
+                          ? `<b style="color:var(--green);">+${r.bonusPct}%</b><br><span style="color:var(--slate);font-size:10px;">día vale ${r.dayValue}</span>`
+                          : motivo(r)}
+                      </td>
+                    </tr>`).join('')}
+                  </tbody>
+                </table>
+                </div>
+                <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                  <button class="btn btn-green" onclick="grantMultipliers()"><i class="fa fa-check"></i> Otorgar a los ${rows.length} agentes</button>
+                  <button class="btn btn-sm" onclick="document.getElementById('mult-grant-box').style.display='none';">Cancelar</button>
+                  <span id="mult-grant-msg" style="font-size:12px;color:var(--slate);"></span>
+                </div>
+              </div>`;
+        };
+
+        window.grantMultipliers = function() {
+            if (!_multRows || !_multRows.length) { alert('Calculá primero la vista previa.'); return; }
+            const rows = _multRows;
+            const msg = document.getElementById('mult-grant-msg');
+            const ganan = rows.filter(r => r.earned).length;
+            if (!confirm(`Se van a escribir ${rows.length} multiplicadores (${ganan} activos).\n\nEsto reemplaza el multiplicador anterior de cada agente. ¿Continuar?`)) return;
+
+            (async () => {
+                let okCount = 0, errCount = 0;
+                for (const r of rows) {
+                    const mult = {
+                        month: r.month, basedOn: r.basedOn,
+                        earned: !!r.earned,
+                        reason: r.earned ? null : (r.reason || null),
+                        tierPct: r.tierPct || 0,
+                        bonusPct: r.earned ? r.bonusPct : 0,
+                        tierMin: r.tierMin || 0,
+                        coverage: Number((r.coverage || 0).toFixed(4)),
+                        daysReported: r.daysReported || 0,
+                        daysInMonth: r.daysInMonth || 0,
+                        reportado: Math.round(r.reportado || 0),
+                        ingresado: Math.round(r.ingresado || 0),
+                        desvio: Number((r.desvio || 0).toFixed(4)),
+                        grantedAt: new Date().toISOString(),
+                        grantedBy: (auth.currentUser && auth.currentUser.email) || 'director'
+                    };
+                    try {
+                        await setDoc(doc(db, 'users', r.email), { multiplier: mult }, { merge: true });
+                        okCount++;
+                    } catch (e) { console.error('[mult] grant', r.email, e); errCount++; }
+                    if (msg) msg.textContent = `Guardando… ${okCount + errCount}/${rows.length}`;
+                }
+                if (msg) msg.innerHTML = errCount
+                    ? `<span style="color:var(--red);">Listo con ${errCount} error(es). ${okCount} guardados.</span>`
+                    : `<span style="color:var(--green);"><i class="fa fa-check"></i> ${okCount} multiplicadores otorgados.</span>`;
+            })();
+        };
+
         window.renderChecador = function() {
             const mes = document.getElementById('checador-mes').value;
             const summary = document.getElementById('checador-summary');
@@ -8801,28 +9052,112 @@
             loadCatalog(role).then(renderCatalogItems);
         };
 
-        // Puntos config
+        // ─── PUNTOS CONFIG (multi-tenant) ─────────────────────────────────────────────
+        // Antes vivía en config/pointsConfig, un doc GLOBAL compartido por todos los
+        // directores — el que lo tocaba se lo cambiaba a los demás. Ahora cada
+        // director escribe en config/{dc}_pointsConfig; el doc viejo queda solo como
+        // fallback de lectura para no dejar a nadie en los defaults del código.
+        const _pointsDocId = () => {
+            const dc = state.directorCode || '';
+            return dc ? `${dc}_pointsConfig` : 'pointsConfig';
+        };
+        const _numVal = (id, def) => {
+            const el = document.getElementById(id);
+            const n = el ? parseInt(el.value) : NaN;
+            return Number.isFinite(n) && n >= 0 ? n : def;
+        };
+
         window.savePuntosConfig = async function() {
             const cfg = {
-                agentDailyPoints:    parseInt(document.getElementById('pts-agent').value)   || 10,
-                coachReportPoints:   parseInt(document.getElementById('pts-coach').value)   || 500,
-                promotorReportPoints:parseInt(document.getElementById('pts-promotor').value)|| 1000
+                agentDailyPoints:    _numVal('pts-agent', 10),
+                coachReportPoints:   _numVal('pts-coach', 500),
+                promotorReportPoints:_numVal('pts-promotor', 1000),
+                // Multiplicador por coincidencia
+                multMargin:   _numVal('mult-margin', 10),
+                multTier1Min: _numVal('mult-t1-min', 2500),
+                multTier1Pct: _numVal('mult-t1-pct', 100),
+                multTier2Min: _numVal('mult-t2-min', 5000),
+                multTier2Pct: _numVal('mult-t2-pct', 150),
+                multTier3Min: _numVal('mult-t3-min', 8000),
+                multTier3Pct: _numVal('mult-t3-pct', 200)
             };
-            await setDoc(doc(db, 'config', 'pointsConfig'), cfg, { merge: true });
-            const msg = document.getElementById('pts-msg');
-            msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+            await setDoc(doc(db, 'config', _pointsDocId()), cfg, { merge: true });
+            ['pts-msg','mult-msg'].forEach(id => {
+                const m = document.getElementById(id);
+                if (m) { m.style.display = 'inline'; setTimeout(() => m.style.display = 'none', 2500); }
+            });
+            _renderMultCfgPreview();
         };
 
         async function loadPuntosConfig() {
             try {
-                const snap = await getDoc(doc(db, 'config', 'pointsConfig'));
+                let snap = await getDoc(doc(db, 'config', _pointsDocId()));
+                if (!snap.exists() && _pointsDocId() !== 'pointsConfig') {
+                    snap = await getDoc(doc(db, 'config', 'pointsConfig'));   // fallback legacy
+                }
                 if (snap.exists()) {
                     const d = snap.data();
-                    const a = document.getElementById('pts-agent');   if (a) a.value = d.agentDailyPoints    || 10;
-                    const c = document.getElementById('pts-coach');   if (c) c.value = d.coachReportPoints   || 500;
-                    const p = document.getElementById('pts-promotor');if (p) p.value = d.promotorReportPoints|| 1000;
+                    const set = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; };
+                    set('pts-agent',    d.agentDailyPoints     ?? 10);
+                    set('pts-coach',    d.coachReportPoints    ?? 500);
+                    set('pts-promotor', d.promotorReportPoints ?? 1000);
+                    set('mult-margin',  d.multMargin   ?? 10);
+                    set('mult-t1-min',  d.multTier1Min ?? 2500);
+                    set('mult-t1-pct',  d.multTier1Pct ?? 100);
+                    set('mult-t2-min',  d.multTier2Min ?? 5000);
+                    set('mult-t2-pct',  d.multTier2Pct ?? 150);
+                    set('mult-t3-min',  d.multTier3Min ?? 8000);
+                    set('mult-t3-pct',  d.multTier3Pct ?? 200);
                 }
-            } catch(e) {}
+            } catch(e) { console.warn('[puntos] load:', e); }
+            _bindMultCfgInputs();
+            _renderMultCfgPreview();
+        }
+
+        // El script es type="module": un oninput inline no ve estas funciones.
+        // Listeners reales, con guard para no duplicarlos en cada initTienda.
+        let _multCfgBound = false;
+        function _bindMultCfgInputs() {
+            if (_multCfgBound) return;
+            const ids = ['pts-agent','mult-margin','mult-t1-min','mult-t1-pct',
+                         'mult-t2-min','mult-t2-pct','mult-t3-min','mult-t3-pct'];
+            let found = 0;
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                found++;
+                el.addEventListener('input',  _renderMultCfgPreview);
+                el.addEventListener('change', _renderMultCfgPreview);
+            });
+            if (found === ids.length) _multCfgBound = true;
+        }
+
+        // Lee la config desde los inputs (fuente de verdad de la pantalla).
+        function _multCfg() {
+            return {
+                base:   _numVal('pts-agent', 10),
+                margin: _numVal('mult-margin', 10) / 100,
+                tiers: [
+                    { min: _numVal('mult-t3-min', 8000), pct: _numVal('mult-t3-pct', 200) },
+                    { min: _numVal('mult-t2-min', 5000), pct: _numVal('mult-t2-pct', 150) },
+                    { min: _numVal('mult-t1-min', 2500), pct: _numVal('mult-t1-pct', 100) }
+                ]   // de mayor a menor: el primero que cumpla gana
+            };
+        }
+        function _tierFor(ingresado, cfg) {
+            return (cfg.tiers.find(t => ingresado >= t.min) || null);
+        }
+
+        // Traduce la config a totopos por día, que es la unidad que entiende el agente.
+        function _renderMultCfgPreview() {
+            const el = document.getElementById('mult-preview-cfg');
+            if (!el) return;
+            const cfg = _multCfg();
+            const rows = cfg.tiers.slice().reverse().map(t =>
+                `Desde <b>$${t.min.toLocaleString('es-MX')}</b> → <b>+${t.pct}%</b> · el día vale <b style="color:var(--gold);">${Math.round(cfg.base * (1 + t.pct/100))}</b> totopos`
+            ).join('<br>');
+            el.innerHTML = `<b style="color:var(--white);">Con cobertura del 100%:</b><br>${rows}
+                <br><span style="opacity:0.75;">Sin multiplicador el día vale ${cfg.base}.</span>`;
         }
 
         // Catalog CRUD
