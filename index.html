@@ -2497,34 +2497,35 @@
 
                     <p style="font-size:11px;color:var(--slate);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Escalones por prima ingresada en el mes</p>
                     <p style="font-size:11.5px;color:var(--slate);margin-bottom:12px;line-height:1.55;">
-                        Los escalones 2, 3 y 4 caen sobre los bonos reales de Promessa ($6,000 / $8,000 / $10,000)
-                        para que el agente persiga un solo objetivo. El escalón 1 cubre el rango donde
-                        la empresa todavía no paga bono.
+                        Debajo del primer escalón el día vale la base y no hay multiplicador. Los escalones
+                        2 y 3 caen sobre bonos reales de Promessa ($8,000 y $10,000) para que el agente
+                        persiga un solo objetivo.
+                        <b>Un escalón en 0 queda apagado</b> — el 4º está libre por si más adelante quieren otro tramo.
                     </p>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;">
                         <div>
                             <label class="field-label">Escalón 1 — desde $</label>
-                            <input type="number" id="mult-t1-min" min="0" class="form-input" value="2500">
+                            <input type="number" id="mult-t1-min" min="0" class="form-input" value="5000">
                             <label class="field-label" style="margin-top:8px;">Bonus (%)</label>
                             <input type="number" id="mult-t1-pct" min="0" class="form-input" value="50">
                         </div>
                         <div>
                             <label class="field-label">Escalón 2 — desde $</label>
-                            <input type="number" id="mult-t2-min" min="0" class="form-input" value="6000">
+                            <input type="number" id="mult-t2-min" min="0" class="form-input" value="8000">
                             <label class="field-label" style="margin-top:8px;">Bonus (%)</label>
                             <input type="number" id="mult-t2-pct" min="0" class="form-input" value="100">
                         </div>
                         <div>
                             <label class="field-label">Escalón 3 — desde $</label>
-                            <input type="number" id="mult-t3-min" min="0" class="form-input" value="8000">
+                            <input type="number" id="mult-t3-min" min="0" class="form-input" value="10000">
                             <label class="field-label" style="margin-top:8px;">Bonus (%)</label>
-                            <input type="number" id="mult-t3-pct" min="0" class="form-input" value="150">
+                            <input type="number" id="mult-t3-pct" min="0" class="form-input" value="200">
                         </div>
                         <div>
-                            <label class="field-label">Escalón 4 — desde $</label>
-                            <input type="number" id="mult-t4-min" min="0" class="form-input" value="10000">
+                            <label class="field-label">Escalón 4 — desde $ <span style="opacity:0.6;font-weight:400;">(libre)</span></label>
+                            <input type="number" id="mult-t4-min" min="0" class="form-input" value="0">
                             <label class="field-label" style="margin-top:8px;">Bonus (%)</label>
-                            <input type="number" id="mult-t4-pct" min="0" class="form-input" value="200">
+                            <input type="number" id="mult-t4-pct" min="0" class="form-input" value="0">
                         </div>
                     </div>
 
@@ -9094,14 +9095,14 @@
                 promotorReportPoints:_numVal('pts-promotor', 1000),
                 // Multiplicador por coincidencia
                 multMargin:   _numVal('mult-margin', 10),
-                multTier1Min: _numVal('mult-t1-min', 2500),
+                multTier1Min: _numVal('mult-t1-min', 5000),
                 multTier1Pct: _numVal('mult-t1-pct', 50),
-                multTier2Min: _numVal('mult-t2-min', 6000),
+                multTier2Min: _numVal('mult-t2-min', 8000),
                 multTier2Pct: _numVal('mult-t2-pct', 100),
-                multTier3Min: _numVal('mult-t3-min', 8000),
-                multTier3Pct: _numVal('mult-t3-pct', 150),
-                multTier4Min: _numVal('mult-t4-min', 10000),
-                multTier4Pct: _numVal('mult-t4-pct', 200)
+                multTier3Min: _numVal('mult-t3-min', 10000),
+                multTier3Pct: _numVal('mult-t3-pct', 200),
+                multTier4Min: _numVal('mult-t4-min', 0),
+                multTier4Pct: _numVal('mult-t4-pct', 0)
             };
             await setDoc(doc(db, 'config', _pointsDocId()), cfg, { merge: true });
             ['pts-msg','mult-msg'].forEach(id => {
@@ -9124,14 +9125,14 @@
                     set('pts-coach',    d.coachReportPoints    ?? 500);
                     set('pts-promotor', d.promotorReportPoints ?? 1000);
                     set('mult-margin',  d.multMargin   ?? 10);
-                    set('mult-t1-min',  d.multTier1Min ?? 2500);
+                    set('mult-t1-min',  d.multTier1Min ?? 5000);
                     set('mult-t1-pct',  d.multTier1Pct ?? 50);
-                    set('mult-t2-min',  d.multTier2Min ?? 6000);
+                    set('mult-t2-min',  d.multTier2Min ?? 8000);
                     set('mult-t2-pct',  d.multTier2Pct ?? 100);
-                    set('mult-t3-min',  d.multTier3Min ?? 8000);
-                    set('mult-t3-pct',  d.multTier3Pct ?? 150);
-                    set('mult-t4-min',  d.multTier4Min ?? 10000);
-                    set('mult-t4-pct',  d.multTier4Pct ?? 200);
+                    set('mult-t3-min',  d.multTier3Min ?? 10000);
+                    set('mult-t3-pct',  d.multTier3Pct ?? 200);
+                    set('mult-t4-min',  d.multTier4Min ?? 0);
+                    set('mult-t4-pct',  d.multTier4Pct ?? 0);
                 }
             } catch(e) { console.warn('[puntos] load:', e); }
             _bindMultCfgInputs();
@@ -9159,15 +9160,21 @@
 
         // Lee la config desde los inputs (fuente de verdad de la pantalla).
         function _multCfg() {
+            // Un escalón en 0 está APAGADO. Filtrarlo es obligatorio, no cosmético:
+            // _tierFor busca el primero cuyo min se cumpla, y un min=0 haría match
+            // con cualquier producción — le daría a todos el pct de ese escalón
+            // (normalmente 0) y rompería el cálculo entero.
+            const tiers = [
+                { min: _numVal('mult-t1-min', 0), pct: _numVal('mult-t1-pct', 0) },
+                { min: _numVal('mult-t2-min', 0), pct: _numVal('mult-t2-pct', 0) },
+                { min: _numVal('mult-t3-min', 0), pct: _numVal('mult-t3-pct', 0) },
+                { min: _numVal('mult-t4-min', 0), pct: _numVal('mult-t4-pct', 0) }
+            ].filter(t => t.min > 0 && t.pct > 0)
+             .sort((a, b) => b.min - a.min);   // de mayor a menor: el primero que cumpla gana
             return {
                 base:   _numVal('pts-agent', 10),
                 margin: _numVal('mult-margin', 10) / 100,
-                tiers: [
-                    { min: _numVal('mult-t4-min', 10000), pct: _numVal('mult-t4-pct', 200) },
-                    { min: _numVal('mult-t3-min', 8000),  pct: _numVal('mult-t3-pct', 150) },
-                    { min: _numVal('mult-t2-min', 6000),  pct: _numVal('mult-t2-pct', 100) },
-                    { min: _numVal('mult-t1-min', 2500),  pct: _numVal('mult-t1-pct', 50) }
-                ]   // de mayor a menor: el primero que cumpla gana
+                tiers
             };
         }
         function _tierFor(ingresado, cfg) {
