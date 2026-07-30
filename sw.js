@@ -1,5 +1,5 @@
 // Versión sincronizada con index.html (era 'director-hub-v2.2.1' inconsistente con v1.0.0 del HTML)
-const CACHE_NAME = 'pecvs-director-v2.35.0';
+const CACHE_NAME = 'pecvs-director-v2.36.0';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -25,6 +25,7 @@ self.addEventListener('activate', (event) => {
 // queda en pantalla hasta que el browser aborta solo (30-120s).
 // Con 4s servimos cache y la app abre al instante; la próxima carga trae fresh.
 const NAV_TIMEOUT_MS = 4000;
+const LAST_RESORT_MS = 15000;
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
@@ -64,7 +65,11 @@ self.addEventListener('fetch', (event) => {
             if (cached) return cached;
             // Sin cache: reintento sin timeout para que el browser muestre
             // su error de red real en vez de colgarse indefinidamente.
-            return fetch(event.request);
+            return await Promise.race([
+                fetch(event.request),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('sw-last-resort-timeout')), LAST_RESORT_MS))
+            ]);
         }
     })());
 });
