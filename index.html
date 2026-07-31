@@ -2982,6 +2982,15 @@
             <span>Tienda</span>
             <span id="tienda-pending-badge-mobile" class="bn-badge" style="display:none;">0</span>
         </button>
+        <!-- El Foro va acá porque en mobile .tab-nav se esconde por completo
+             (media query max-width:767px). Sin esto, la pestaña del Foro existe
+             en el DOM pero es inalcanzable desde el telefono, que es justo donde
+             la direccion necesita poder moderar. Alertas y Buzon siguen siendo
+             solo de escritorio, como estaban. -->
+        <button class="bn-btn" data-tab="foro" onclick="switchTab('foro',this)">
+            <i class="fa fa-comments"></i>
+            <span>Foro</span>
+        </button>
     </nav>
 
     <!-- IMAGE PREVIEW (zoom) MODAL — para items de tienda con foto -->
@@ -3283,7 +3292,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.39.0';
+        window.APP_HTML_VERSION = 'v2.40.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
