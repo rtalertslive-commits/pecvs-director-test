@@ -10,7 +10,11 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- defer: sin esto bloquea el parseo del HTML y si el CDN se cuelga la app
+         abre en NEGRO hasta que el sistema aborte la peticion. Chart solo se usa
+         dentro de renderCharts(), nunca al evaluar el modulo, asi que diferirlo
+         no rompe nada. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 
     <!-- PWA manifest + icon (gold radial bg + serif "D") -->
     <link rel="manifest" href="manifest.json">
@@ -1648,6 +1652,40 @@
         .lb-ghost-tier-label { font-size: 11px; margin-top: 2px; font-weight: 600; }
         .lb-ghost-second-line { font-size: 10px; color: var(--slate); margin-top: 2px; }
         .lb-ghost-coach { font-size: 10px; color: var(--slate); margin-top: 2px; opacity: 0.75; }
+            /* ═══ FORO (director) ═══ Mismo lenguaje visual que la app del agente. */
+        .foro-tabs { display: flex; gap: 6px; overflow-x: auto; }
+        .foro-tab {
+            flex: 0 0 auto; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+            color: var(--slate); border-radius: 20px; padding: 6px 14px; font-size: 12px;
+            font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit;
+        }
+        .foro-tab.on { background: var(--gold); border-color: var(--gold); color: #000; }
+        .rol-badge {
+            display: inline-block; font-size: 9px; font-weight: 900; letter-spacing: 0.6px;
+            text-transform: uppercase; padding: 2px 7px; border-radius: 4px; vertical-align: middle; white-space: nowrap;
+        }
+        .foro-hilo-item {
+            width: 100%; text-align: left; background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+            padding: 12px 13px; margin-bottom: 9px; cursor: pointer; font-family: inherit; display: block;
+        }
+        .foro-hilo-item:hover { background: rgba(255,255,255,0.06); border-color: rgba(212,175,55,0.35); }
+        .foro-hilo-titulo { font-size: 13.5px; font-weight: 700; color: var(--white); line-height: 1.35; margin-bottom: 5px; }
+        .foro-meta { font-size: 11px; color: var(--slate); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+        .foro-post { border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 14px; margin-bottom: 14px; }
+        .foro-post:last-child { border-bottom: none; }
+        .foro-texto { font-size: 13px; color: var(--white); line-height: 1.6; white-space: pre-wrap; word-break: break-word; margin: 7px 0; }
+        .foro-imgs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .foro-imgs img { width: 84px; height: 84px; object-fit: cover; border-radius: 7px; border: 1px solid rgba(255,255,255,0.12); cursor: pointer; }
+        .foro-oculto { opacity: 0.5; font-style: italic; }
+        .foro-area {
+            width: 100%; background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px; color: var(--white); font-size: 13px; font-family: inherit;
+            padding: 10px; margin-bottom: 10px; resize: vertical; min-height: 90px;
+        }
+        .foro-empty { text-align: center; color: var(--slate); font-size: 13px; padding: 26px 12px; line-height: 1.6; }
+        .foro-empty i { display: block; font-size: 26px; opacity: 0.35; margin-bottom: 8px; }
+        .foro-link { background: none; border: none; color: var(--gold); font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; font-family: inherit; }
     </style>
 </head>
 
@@ -1749,7 +1787,8 @@
             <button class="tab-btn" data-tab="reporte" onclick="switchTab('reporte',this)"><i class="fa fa-file-lines"></i> Reportes de Coaches</button>
             <button class="tab-btn" data-tab="reporte-promotores" onclick="switchTab('reporte-promotores',this)"><i class="fa fa-clipboard-list"></i> Reportes de Promotores</button>
             <button class="tab-btn" data-tab="alertas" onclick="switchTab('alertas',this)"><i class="fa fa-triangle-exclamation"></i> Alertas <span id="alertas-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
-            <button class="tab-btn" data-tab="buzon" onclick="switchTab('buzon',this)"><i class="fa fa-inbox"></i> Buzón <span id="buzon-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
+            <button class="tab-btn" data-tab="foro" onclick="switchTab('foro',this)"><i class="fa fa-comments"></i> Foro</button>
+                <button class="tab-btn" data-tab="buzon" onclick="switchTab('buzon',this)"><i class="fa fa-inbox"></i> Buzón <span id="buzon-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="gestion" onclick="switchTab('gestion',this)"><i class="fa fa-users-gear"></i> Gestión de Equipo <span id="pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="tienda" onclick="switchTab('tienda',this)"><i class="fa fa-store"></i> Tienda <span id="tienda-pending-badge" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px;">0</span></button>
             <button class="tab-btn" data-tab="tesoreria" onclick="switchTab('tesoreria',this)"><i class="fa fa-landmark"></i> Tesorería <svg class="totopo-icon"><use href="#totopo"/></svg></button>
@@ -2307,6 +2346,19 @@
         </div>
 
         <!-- ═══════════════════ TAB: BUZÓN DE QUEJAS Y SUGERENCIAS ═══════════════════ -->
+        <div id="tab-foro" class="tab-panel">
+            <div class="card">
+                <p class="card-title"><i class="fa fa-comments"></i> Foro</p>
+                <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
+                    Los hilos públicos los ve todo tu equipo. Los marcados con
+                    <i class="fa fa-lock" style="color:var(--orange);"></i> son privados —
+                    solo los ven su autor y vos. Podés ocultar cualquier hilo o respuesta.
+                </p>
+                <div class="foro-tabs" id="dforo-tabs" style="padding:0 0 12px;"></div>
+                <div id="dforo-body"></div>
+            </div>
+        </div>
+
         <div id="tab-buzon" class="tab-panel">
             <div class="desktop-only-msg">
                 <i class="fa fa-desktop"></i>
@@ -3255,7 +3307,7 @@
         // --- IMPORT FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, deleteDoc, getDocs, addDoc, updateDoc, collection, query, where, orderBy, onSnapshot, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, getDocs, addDoc, updateDoc, collection, query, where, orderBy, onSnapshot, runTransaction, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         // Initialize
@@ -4428,6 +4480,7 @@
             if (name === 'reporte') renderCoachReportes();
             if (name === 'reporte-promotores') { refreshPromoterReclFilters(); renderPromoterReclSection(); }
             if (name === 'alertas') renderAlertas();
+            if (name === 'foro') dforoCargarLista();
             if (name === 'buzon') { startBuzonListener(); renderBuzon(); }
             if (name === 'gestion') renderGestion();
             if (name === 'tienda') window.initTienda();
@@ -6571,6 +6624,235 @@
             });
             return stats;
         }
+
+        // ═══ FORO (director) ═════════════════════════════════════════════════
+        // Misma coleccion /forum que la app del agente. La diferencia es el
+        // alcance: el director es MODERADOR, asi que las reglas le dejan leer
+        // todo su directorCode sin filtro de visibilidad — incluidos los hilos
+        // privados — y ocultar cualquier hilo o respuesta, no solo lo suyo.
+        const DFORO_CATS = [
+            { id: 'general',     label: 'General' },
+            { id: 'ayuda',       label: 'Ayuda' },
+            { id: 'totopos',     label: 'Totopos' },
+            { id: 'sugerencias', label: 'Sugerencias' }
+        ];
+        const DFORO_ROLES = {
+            agente:        { label: 'Agente',        bg: 'rgba(59,130,246,0.20)',  fg: '#93c5fd' },
+            coach:         { label: 'Coach',         bg: 'rgba(6,182,212,0.20)',   fg: '#67e8f9' },
+            promotor:      { label: 'Promotor',      bg: 'rgba(245,158,11,0.20)',  fg: '#fcd34d' },
+            director:      { label: 'Director',      bg: 'rgba(212,175,55,0.22)',  fg: '#f0d67a' },
+            superdirector: { label: 'Superdirector', bg: 'rgba(239,68,68,0.20)',   fg: '#fca5a5' }
+        };
+
+        let _dforoCat = 'general';
+        let _dforoHilos = [];
+        let _dforoHilo = null;
+        let _dforoResps = [];
+        let _dforoUnsub = null;
+        let _dforoOcupado = false;
+        // El director ve TODO, incluidos los hilos ya ocultos, para poder
+        // auditarlos. Este toggle controla si se muestran.
+        let _dforoVerOcultos = false;
+
+        function _dforoYo() { return (auth.currentUser && auth.currentUser.email) || ''; }
+        function _dforoBadge(rol) {
+            const r = DFORO_ROLES[rol] || DFORO_ROLES.agente;
+            return '<span class="rol-badge" style="background:' + r.bg + '; color:' + r.fg + ';">' + r.label + '</span>';
+        }
+        function _dforoFecha(ts) {
+            if (!ts) return '';
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            if (isNaN(d.getTime())) return '';
+            const min = Math.floor((new Date() - d) / 60000);
+            if (min < 1) return 'ahora';
+            if (min < 60) return 'hace ' + min + ' min';
+            if (min < 1440) return 'hace ' + Math.floor(min / 60) + ' h';
+            if (min < 10080) return 'hace ' + Math.floor(min / 1440) + ' d';
+            return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+        }
+
+        function _dforoRenderTabs() {
+            const el = document.getElementById('dforo-tabs');
+            if (!el) return;
+            el.innerHTML = DFORO_CATS.map(c =>
+                '<button class="foro-tab' + (c.id === _dforoCat ? ' on' : '') + '" data-cat="' + c.id + '">' + c.label + '</button>'
+            ).join('');
+            el.querySelectorAll('.foro-tab').forEach(b => {
+                b.onclick = () => { _dforoCat = b.dataset.cat; _dforoRenderTabs(); dforoCargarLista(); };
+            });
+        }
+
+        // Una sola consulta, sin filtro de visibilidad: las reglas se lo permiten
+        // por ser moderador. La app del agente necesita dos consultas justamente
+        // porque NO puede hacer esta.
+        window.dforoCargarLista = async function () {
+            _dforoHilo = null;
+            if (_dforoUnsub) { try { _dforoUnsub(); } catch (e) {} _dforoUnsub = null; }
+            _dforoRenderTabs();
+            const body = document.getElementById('dforo-body');
+            if (!body) return;
+            body.innerHTML = '<div class="foro-empty"><i class="fa fa-spinner fa-spin"></i>Cargando…</div>';
+            try {
+                const dc = state.directorCode || '';
+                const snap = await getDocs(query(collection(db, 'forum'),
+                    where('directorCode', '==', dc),
+                    where('categoria', '==', _dforoCat),
+                    orderBy('ultimaRespuestaEn', 'desc'), limit(80)));
+                _dforoHilos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                _dforoPintarLista();
+            } catch (e) {
+                console.error('[dforo] lista:', e);
+                body.innerHTML = '<div class="foro-empty" style="color:var(--red);">No se pudo cargar el foro.<br>'
+                    + '<span style="font-size:11px;">' + escapeHtml(e.message || '') + '</span></div>';
+            }
+        };
+
+        function _dforoPintarLista() {
+            const body = document.getElementById('dforo-body');
+            if (!body) return;
+            const visibles = _dforoHilos.filter(h => _dforoVerOcultos || !h.oculto);
+            const nOcultos = _dforoHilos.filter(h => h.oculto).length;
+            const items = visibles.map(h => {
+                const priv = h.visibilidad === 'privado'
+                    ? '<i class="fa fa-lock" style="color:var(--orange);" title="Privado"></i> ' : '';
+                const n = h.numRespuestas || 0;
+                return '<button class="foro-hilo-item' + (h.oculto ? ' foro-oculto' : '') + '" data-id="' + escapeHtml(h.id) + '">'
+                    + '<div class="foro-hilo-titulo">' + priv + escapeHtml(h.titulo || '') + (h.oculto ? ' <span style="color:var(--red);font-size:11px;">(oculto)</span>' : '') + '</div>'
+                    + '<div class="foro-meta">' + _dforoBadge(h.autorRol)
+                    + '<span>' + escapeHtml(h.autorNombre || '') + '</span><span>·</span>'
+                    + '<span>' + _dforoFecha(h.ultimaRespuestaEn || h.creadoEn) + '</span><span>·</span>'
+                    + '<span>' + n + (n === 1 ? ' respuesta' : ' respuestas') + '</span></div></button>';
+            }).join('');
+            body.innerHTML =
+                '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">'
+                + '<button class="btn btn-sm" onclick="dforoCargarLista()"><i class="fa fa-rotate"></i> Actualizar</button>'
+                + (nOcultos ? '<label style="font-size:12px;color:var(--slate);display:flex;align-items:center;gap:6px;cursor:pointer;">'
+                    + '<input type="checkbox" ' + (_dforoVerOcultos ? 'checked' : '') + ' onchange="dforoToggleOcultos(this.checked)"> '
+                    + 'Ver ' + nOcultos + ' oculto' + (nOcultos === 1 ? '' : 's') + '</label>' : '')
+                + '</div>'
+                + (items || '<div class="foro-empty"><i class="fa fa-comments"></i>Todavía no hay temas en esta sección.</div>');
+            body.querySelectorAll('.foro-hilo-item').forEach(b => { b.onclick = () => dforoAbrirHilo(b.dataset.id); });
+        }
+
+        window.dforoToggleOcultos = function (v) { _dforoVerOcultos = !!v; _dforoPintarLista(); };
+
+        window.dforoAbrirHilo = async function (id) {
+            const body = document.getElementById('dforo-body');
+            body.innerHTML = '<div class="foro-empty"><i class="fa fa-spinner fa-spin"></i>Cargando…</div>';
+            try {
+                const snap = await getDoc(doc(db, 'forum', id));
+                if (!snap.exists()) { body.innerHTML = '<div class="foro-empty">Ese tema ya no está.</div>'; return; }
+                _dforoHilo = { id: snap.id, ...snap.data() };
+                if (_dforoUnsub) { try { _dforoUnsub(); } catch (e) {} }
+                _dforoUnsub = onSnapshot(
+                    query(collection(db, 'forum', id, 'respuestas'), orderBy('creadoEn', 'asc')),
+                    s => { _dforoResps = s.docs.map(d => ({ id: d.id, ...d.data() })); _dforoPintarHilo(); },
+                    err => { console.error('[dforo] respuestas:', err); _dforoPintarHilo(); }
+                );
+                _dforoPintarHilo();
+            } catch (e) {
+                console.error('[dforo] hilo:', e);
+                body.innerHTML = '<div class="foro-empty" style="color:var(--red);">No se pudo abrir el tema.</div>';
+            }
+        };
+
+        function _dforoPost(d, esHilo) {
+            const imgs = (d.imagenes || []).map(im =>
+                '<img src="' + escapeHtml(im.url) + '" alt="adjunto" onclick="window.open(\'' + escapeHtml(im.url) + '\',\'_blank\')">').join('');
+            // El moderador puede ocultar cualquier cosa, y tambien restaurar lo que
+            // se oculto — util cuando alguien borra en caliente algo que hacia falta.
+            const accion = d.oculto
+                ? '<button class="foro-link" style="margin-left:auto;color:var(--green);" onclick="dforoOcultar(\''
+                    + (esHilo ? 'hilo' : 'resp') + '\',\'' + escapeHtml(d.id || '') + '\',false)">Restaurar</button>'
+                : '<button class="foro-link" style="margin-left:auto;color:var(--red);" onclick="dforoOcultar(\''
+                    + (esHilo ? 'hilo' : 'resp') + '\',\'' + escapeHtml(d.id || '') + '\',true)">Ocultar</button>';
+            return '<div class="foro-post' + (d.oculto ? ' foro-oculto' : '') + '">'
+                + '<div class="foro-meta">' + _dforoBadge(d.autorRol)
+                + '<span style="color:var(--white);font-weight:700;">' + escapeHtml(d.autorNombre || '') + '</span>'
+                + '<span>·</span><span>' + _dforoFecha(d.creadoEn) + '</span>'
+                + (d.oculto ? '<span style="color:var(--red);">· oculto</span>' : '')
+                + accion + '</div>'
+                + (esHilo ? '<div style="font-size:16px;font-weight:800;color:var(--white);margin-top:7px;">' + escapeHtml(d.titulo || '') + '</div>' : '')
+                + '<div class="foro-texto">' + escapeHtml(d.texto || '') + '</div>'
+                + (imgs ? '<div class="foro-imgs">' + imgs + '</div>' : '')
+                + '</div>';
+        }
+
+        function _dforoPintarHilo() {
+            const body = document.getElementById('dforo-body');
+            if (!body || !_dforoHilo) return;
+            const priv = _dforoHilo.visibilidad === 'privado'
+                ? '<div style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.35);border-radius:8px;'
+                  + 'padding:9px 11px;font-size:11.5px;color:var(--orange);margin-bottom:12px;">'
+                  + '<i class="fa fa-lock"></i> Tema privado — solo lo ven su autor y la dirección.</div>' : '';
+            body.innerHTML =
+                '<button class="btn btn-sm" style="margin-bottom:12px;" onclick="dforoCargarLista()">&larr; Volver al listado</button>'
+                + priv
+                + _dforoPost({ ..._dforoHilo, id: _dforoHilo.id }, true)
+                + (_dforoResps.length
+                    ? _dforoResps.map(r => _dforoPost(r, false)).join('')
+                    : '<div style="font-size:12px;color:var(--slate);padding:8px 0;">Sin respuestas todavía.</div>')
+                + '<div style="border-top:1px solid rgba(255,255,255,0.10);padding-top:14px;margin-top:6px;">'
+                + '<textarea id="dforo-resp" class="foro-area" placeholder="Responder como Dirección…" maxlength="4000"></textarea>'
+                + '<button class="btn btn-green" id="dforo-resp-btn" onclick="dforoResponder()">Responder</button></div>';
+        }
+
+        window.dforoResponder = async function () {
+            if (_dforoOcupado || !_dforoHilo) return;
+            const txt = (document.getElementById('dforo-resp').value || '').trim();
+            if (!txt) { alert('Escribe tu respuesta.'); return; }
+            const btn = document.getElementById('dforo-resp-btn');
+            _dforoOcupado = true; btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Enviando…';
+            try {
+                await setDoc(doc(collection(db, 'forum', _dforoHilo.id, 'respuestas')), {
+                    autor: _dforoYo(),
+                    autorNombre: state.directorName || 'Dirección',
+                    autorRol: 'director',
+                    texto: txt, imagenes: [], oculto: false,
+                    // Denormalizados: sin esto las reglas harian un get() del hilo
+                    // padre por cada respuesta leida.
+                    visibilidad: _dforoHilo.visibilidad,
+                    hiloAutor: _dforoHilo.autor,
+                    directorCode: _dforoHilo.directorCode || state.directorCode || '',
+                    creadoEn: serverTimestamp()
+                });
+                try {
+                    await updateDoc(doc(db, 'forum', _dforoHilo.id), {
+                        numRespuestas: (_dforoHilo.numRespuestas || 0) + 1,
+                        ultimaRespuestaEn: serverTimestamp()
+                    });
+                    _dforoHilo.numRespuestas = (_dforoHilo.numRespuestas || 0) + 1;
+                } catch (e) { console.warn('[dforo] contador:', e); }
+                document.getElementById('dforo-resp').value = '';
+            } catch (e) {
+                console.error('[dforo] responder:', e);
+                alert('No se pudo enviar: ' + (e.message || e));
+            } finally {
+                _dforoOcupado = false;
+                const b = document.getElementById('dforo-resp-btn');
+                if (b) { b.disabled = false; b.innerHTML = 'Responder'; }
+            }
+        };
+
+        // Borrado suave, reversible. Nada se elimina de Firestore.
+        window.dforoOcultar = async function (tipo, id, ocultar) {
+            if (ocultar && !confirm('¿Ocultar esto? Deja de verse para el equipo, pero queda guardado y lo podés restaurar.')) return;
+            try {
+                const ref = tipo === 'hilo'
+                    ? doc(db, 'forum', id)
+                    : doc(db, 'forum', _dforoHilo.id, 'respuestas', id);
+                await updateDoc(ref, ocultar
+                    ? { oculto: true, ocultoPor: _dforoYo(), ocultoEn: new Date().toISOString() }
+                    : { oculto: false, ocultoPor: null, ocultoEn: null });
+                if (tipo === 'hilo') {
+                    if (_dforoHilo && _dforoHilo.id === id) { _dforoHilo.oculto = ocultar; _dforoPintarHilo(); }
+                    else dforoCargarLista();
+                }
+            } catch (e) {
+                console.error('[dforo] ocultar:', e);
+                alert('No se pudo: ' + (e.message || e));
+            }
+        };
 
         // ═══ BUZÓN DE QUEJAS Y SUGERENCIAS ═══════════════════════════════════
         // Feed unidireccional: recibe mensajes de agentes de la región. Sin respuesta.
