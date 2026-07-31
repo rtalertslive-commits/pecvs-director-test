@@ -3277,19 +3277,69 @@
 
 
     <script>
-        // Sync versión de la app desde sw.js (single source of truth).
-        (async () => {
+        // Versión HORNEADA en este archivo. Tiene que coincidir con CACHE_NAME en sw.js.
+        //
+        // Antes esto leía la versión desde ./sw.js por red, así que mostraba la
+        // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
+        // cache, el header decía v2.38.0 mientras corría uno anterior sin la
+        // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
+        window.APP_HTML_VERSION = 'v2.39.0';
+
+        // Escape hatch manual: tocar el número de versión fuerza la actualización.
+        // Borra SOLO las entradas de navegación del cache, no todo — purgar el
+        // cache completo dejaba la app en pantalla negra si la red estaba lenta.
+        window.forzarActualizacion = async function () {
+            document.querySelectorAll('[data-app-version]').forEach(el => { el.textContent = 'buscando…'; });
             try {
-                const r = await fetch('./sw.js', { cache: 'no-cache' });
-                const text = await r.text();
-                const match = text.match(/CACHE_NAME\s*=\s*['"`][^'"`]*?v(\d+\.\d+\.\d+)['"`]/);
-                if (!match) return;
-                const v = 'v' + match[1];
-                document.title = 'PECVS$ — Director Analytics ' + v;
+                if (window.caches) {
+                    for (const n of await caches.keys()) {
+                        const c = await caches.open(n);
+                        await c.delete('./');
+                        await c.delete('./index.html');
+                        await c.delete(location.href.split('#')[0].split('?')[0]);
+                    }
+                }
+            } catch (e) { console.warn('[version] cache:', e); }
+            try { sessionStorage.removeItem('pecvsAutoReloadFor'); } catch (e) {}
+            location.replace(location.pathname + '?v=' + Date.now());
+        };
+
+        (async () => {
+            const RUNNING = window.APP_HTML_VERSION;
+            const paint = (txt, warn) => {
                 document.querySelectorAll('[data-app-version]').forEach(el => {
-                    el.textContent = v;
+                    el.textContent = txt;
+                    el.style.cursor = 'pointer';
+                    el.title = 'Toca para buscar actualización';
+                    el.onclick = window.forzarActualizacion;
+                    if (warn) { el.style.color = '#f59e0b'; el.style.fontWeight = '700'; }
                 });
-            } catch (e) {}
+            };
+            document.title = 'PECVS$ — Director Analytics ' + RUNNING;
+            paint(RUNNING, false);
+
+            try {
+                const r = await fetch('./sw.js', { cache: 'no-store' });
+                const match = (await r.text()).match(/CACHE_NAME\s*=\s*['"`][^'"`]*?v(\d+\.\d+\.\d+)['"`]/);
+                if (!match) return;
+                const PUBLISHED = 'v' + match[1];
+                if (PUBLISHED === RUNNING) return;
+
+                paint(RUNNING + ' → ' + PUBLISHED, true);
+                console.warn('[version] corriendo', RUNNING, 'pero publicado es', PUBLISHED, '— HTML servido desde cache');
+
+                // Recarga automática, una sola vez por versión y por sesión. Corre
+                // antes de que el director pueda estar escribiendo algo, así que
+                // recargar acá no interrumpe trabajo.
+                const KEY = 'pecvsAutoReloadFor';
+                let yaIntentado = null;
+                try { yaIntentado = sessionStorage.getItem(KEY); } catch (e) {}
+                if (yaIntentado !== PUBLISHED) {
+                    try { sessionStorage.setItem(KEY, PUBLISHED); } catch (e) {}
+                    console.warn('[version] recargando para tomar', PUBLISHED);
+                    location.reload();
+                }
+            } catch (e) { /* sin red: queda la versión horneada, que es la verdad */ }
         })();
     </script>
 
