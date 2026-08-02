@@ -2508,6 +2508,7 @@
             <!-- Sub-nav -->
             <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
                 <button id="tsub-btn-puntos"   onclick="switchTiendaSub('puntos')"    class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:700;">⚙️ Puntos</button>
+                <button id="tsub-btn-mult" onclick="switchTiendaSub('mult')" class="btn btn-sm">⚡ Multiplicadores <span id="mult-count-badge" style="display:none; background:var(--green); color:#000; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px; font-weight:800;">0</span></button>
                 <button id="tsub-btn-catalogo" onclick="switchTiendaSub('catalogo')"  class="btn btn-sm">🏪 Catálogos</button>
                 <button id="tsub-btn-solicitudes" onclick="switchTiendaSub('solicitudes')" class="btn btn-sm">📋 Solicitudes <span id="sol-count-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:3px;">0</span></button>
                 <button id="tsub-btn-premios" onclick="switchTiendaSub('premios')" class="btn btn-sm">📦 Premios por entregar</button>
@@ -2638,6 +2639,29 @@
                         <div id="checador-summary" style="display:none;margin-bottom:16px;"></div>
                         <div id="checador-results"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ── MULTIPLICADORES ACTIVOS ── -->
+            <div id="tsub-mult" style="display:none;">
+                <div id="mult-activos-counters" style="margin-bottom:14px;">
+                    <span title="Con multiplicador activo = ya se les otorgó y el mes que paga es el mes en curso. Otorgados = todos los que tienen el campo, ganen o no." style="display:inline-flex; flex-wrap:wrap; align-items:center; gap:8px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:24px; padding:7px 16px; font-size:12.5px;">
+                        ⚡ <strong style="color:var(--gold-l); font-weight:700;">Multiplicador:</strong>
+                        <span><strong id="counter-mult-activos" style="color:#bbf3d4; font-weight:800;">—</strong> activos ahora</span>
+                        <span style="color:rgba(255,255,255,0.25);">|</span>
+                        <span><strong id="counter-mult-otorgados" style="color:#cfe1ff; font-weight:800;">—</strong> otorgados</span>
+                        <span style="color:rgba(255,255,255,0.25);">|</span>
+                        <span><strong id="counter-mult-sin" style="color:var(--slate); font-weight:800;">—</strong> sin multiplicador</span>
+                    </span>
+                </div>
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-bolt"></i> Quién tiene el multiplicador</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
+                        Se lee del campo <code>multiplier</code> de cada agente, que es la misma
+                        fuente que usa su app para multiplicarle el día. Si aquí no aparece,
+                        el agente tampoco lo está cobrando.
+                    </p>
+                    <div id="mult-activos-body"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando…</div></div>
                 </div>
             </div>
 
@@ -8612,7 +8636,7 @@
 
         // Sub-nav switching
         window.switchTiendaSub = function(sub) {
-            ['puntos','catalogo','solicitudes','premios'].forEach(s => {
+            ['puntos','catalogo','solicitudes','premios','mult'].forEach(s => {
                 const el = document.getElementById('tsub-' + s);
                 if (el) el.style.display = s === sub ? '' : 'none';
                 const btn = document.getElementById('tsub-btn-' + s);
@@ -8621,7 +8645,115 @@
             if (sub === 'catalogo') renderCatalogItems();
             if (sub === 'solicitudes') loadSolicitudes();
             if (sub === 'premios') loadPremiosByTeam();
+    if (sub === 'mult') renderMultActivos();
         };
+
+
+        // ─── MULTIPLICADORES ACTIVOS ───────────────────────────────────
+        // ACTIVO no es lo mismo que OTORGADO. El multiplicador se gana en un
+        // mes y paga en el SIGUIENTE: su campo `month` dice cual. Un agente
+        // puede tener el campo con earned:true y no estar cobrando nada,
+        // porque el mes que paga ya paso. Es exactamente la misma condicion
+        // que evalua _multBonusFor en la app del agente — si aqui sale como
+        // activo, alla le esta multiplicando el dia.
+        function _multEstaActivo(mx) {
+            if (!mx || mx.earned !== true) return false;
+            if (typeof mx.month !== 'string') return false;
+            const hoy = new Date();
+            const mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0');
+            return mx.month === mesActual;
+        }
+
+        window.renderMultActivos = function () {
+            const body = document.getElementById('mult-activos-body');
+            if (!body) return;
+            const agentes = state.agents || [];
+            const conCampo = agentes.filter(a => a.multiplier);
+            const activos  = conCampo.filter(a => _multEstaActivo(a.multiplier));
+
+            const $ = id => document.getElementById(id);
+            if ($('counter-mult-activos'))   $('counter-mult-activos').textContent   = activos.length;
+            if ($('counter-mult-otorgados')) $('counter-mult-otorgados').textContent = conCampo.length;
+            if ($('counter-mult-sin'))       $('counter-mult-sin').textContent       = agentes.length - conCampo.length;
+            const badge = $('mult-count-badge');
+            if (badge) {
+                badge.textContent = activos.length;
+                badge.style.display = activos.length ? '' : 'none';
+            }
+
+            if (!agentes.length) {
+                body.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando agentes…</div>';
+                return;
+            }
+            if (!conCampo.length) {
+                body.innerHTML = '<div class="empty-state"><i class="fa fa-circle-info"></i> Todavía no se ha otorgado ningún multiplicador. Se otorga desde <b>Puntos</b>, después de subir el CSV y correr la vista previa.</div>';
+                return;
+            }
+
+            const money = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-MX');
+            const base  = _numVal('pts-agent', 10);
+            const mesLindo = k => {
+                const p = String(k || '').split('-');
+                const i = parseInt(p[1], 10) - 1;
+                return (MONTHS_ES[i] || '?') + ' ' + p[0];
+            };
+
+            // Activos primero y de mayor bono a menor: quien mas cobra, arriba.
+            const orden = [...conCampo].sort((a, b) => {
+                const aa = _multEstaActivo(a.multiplier), ab = _multEstaActivo(b.multiplier);
+                if (aa !== ab) return aa ? -1 : 1;
+                return (b.multiplier.bonusPct || 0) - (a.multiplier.bonusPct || 0);
+            });
+
+            const fila = a => {
+                const m = a.multiplier;
+                const activo = _multEstaActivo(m);
+                const vale = Math.round(base * (1 + (Number(m.bonusPct) || 0) / 100));
+                let estado;
+                if (activo)          estado = `<span style="color:var(--green);font-weight:800;">ACTIVO</span>`;
+                else if (m.earned)   estado = `<span style="color:var(--slate);">venció</span>`;
+                else                 estado = `<span style="color:var(--slate);">no ganó</span>`;
+                return `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.06);${activo ? '' : 'opacity:0.6;'}">
+                  <td style="padding:7px 8px;"><b>${a.name || a.email}</b><br><span style="color:var(--slate);font-size:10px;">${a.companyCode || '—'}</span></td>
+                  <td style="padding:7px 8px;text-align:right;">${estado}</td>
+                  <td style="padding:7px 8px;text-align:right;">${m.earned ? '<b style="color:var(--green);">+' + (m.bonusPct || 0) + '%</b>' : '—'}</td>
+                  <td style="padding:7px 8px;text-align:right;font-weight:800;">${m.earned ? vale : base}</td>
+                  <td style="padding:7px 8px;text-align:right;color:var(--slate);">${m.daysReported || 0}/${m.daysInMonth || 0}</td>
+                  <td style="padding:7px 8px;text-align:right;color:var(--slate);">${money(m.ingresado)}</td>
+                  <td style="padding:7px 8px;text-align:right;color:var(--slate);white-space:nowrap;">${mesLindo(m.month)}<br><span style="font-size:10px;">por ${mesLindo(_mesKeyDe(m.basedOn))}</span></td>
+                </tr>`;
+            };
+
+            body.innerHTML = `
+              <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead><tr style="text-align:left;color:var(--slate);border-bottom:1px solid rgba(255,255,255,0.12);">
+                  <th style="padding:7px 8px;">Agente</th>
+                  <th style="padding:7px 8px;text-align:right;">Estado</th>
+                  <th style="padding:7px 8px;text-align:right;">Bono</th>
+                  <th style="padding:7px 8px;text-align:right;">Vale el día</th>
+                  <th style="padding:7px 8px;text-align:right;">Días</th>
+                  <th style="padding:7px 8px;text-align:right;">Ingresado</th>
+                  <th style="padding:7px 8px;text-align:right;">Paga en</th>
+                </tr></thead>
+                <tbody>${orden.map(fila).join('')}</tbody>
+              </table>
+              </div>
+              <p style="font-size:11px;color:var(--slate);margin-top:12px;line-height:1.5;">
+                <b>Vale el día</b> son los totopos que gana por cada día reportado del mes que paga.
+                Los que dicen <b>venció</b> ganaron el multiplicador de un mes anterior y ya no lo cobran.
+              </p>`;
+        };
+
+        // "Julio 2026" -> "2026-07". El campo basedOn se guarda con el nombre
+        // del mes; el resto de la tabla usa la clave, y mezclarlos se lee mal.
+        function _mesKeyDe(nombreMes) {
+            const p = String(nombreMes || '').trim().split(' ');
+            const i = MONTHS_ES.indexOf(p[0]);
+            if (i < 0 || !p[1]) return nombreMes || '—';
+            return p[1] + '-' + String(i + 1).padStart(2, '0');
+        }
 
         // ─── PREMIOS POR ENTREGAR ────────────────────────────────────────────────────
         // Vista agregada de canjes de AGENTES, agrupados por su coach y promotor.
