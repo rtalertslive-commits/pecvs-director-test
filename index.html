@@ -9194,11 +9194,32 @@
                 // El desvío se mide contra lo INGRESADO: el número del corporativo
                 // es el ancla, no lo que el agente escribió.
                 const desvio = ing > 0 ? Math.abs(rep - ing) / ing : (rep > 0 ? 1 : 0);
+                // `coincide` se calcula SIEMPRE, tambien para quien no llega al
+                // escalon. Antes el escalon cortaba primero y esa gente salia solo
+                // como "no alcanzo", sin decir si habia reportado honestamente. Son
+                // dos grupos distintos: el que coincide y no llega merece un trato
+                // distinto al que ni coincide ni llega.
+                const coincide = desvio <= cfg.margin;
+                // Ojo con el caso degenerado: ingresado 0 y reportado 0 da desvio 0,
+                // o sea "coincide" — pero eso no es honestidad, es ausencia. Quien no
+                // produjo NI reporto un solo dia no puede contarse junto al que
+                // reporto fiel todo el mes y solo le falto produccion.
+                const sinNada = ing === 0 && rep === 0 && daysReported === 0;
                 const tier = _tierFor(ing, cfg);
-                if (!tier) { rows.push({ ...b, ingresado: ing, desvio, earned: false, reason: 'escalon', tierMin: minTier }); return; }
-                if (desvio > cfg.margin) { rows.push({ ...b, ingresado: ing, desvio, tierPct: tier.pct, earned: false, reason: 'coincidencia' }); return; }
+                if (!tier) {
+                    rows.push({ ...b, ingresado: ing, desvio, coincide, earned: false,
+                                reason: 'escalon', sinNada, tierMin: minTier, faltaEscalon: minTier - ing });
+                    return;
+                }
+                if (!coincide) {
+                    // Cuantos pesos de mas (o de menos) se salio del tope permitido.
+                    rows.push({ ...b, ingresado: ing, desvio, coincide, tierPct: tier.pct,
+                                earned: false, reason: 'coincidencia',
+                                excesoPesos: Math.abs(rep - ing) - (ing * cfg.margin) });
+                    return;
+                }
                 const bonusPct = Math.round(tier.pct * coverage);
-                rows.push({ ...b, ingresado: ing, desvio, tierPct: tier.pct, bonusPct, earned: true,
+                rows.push({ ...b, ingresado: ing, desvio, coincide, tierPct: tier.pct, bonusPct, earned: true,
                             dayValue: Math.round(cfg.base * (1 + bonusPct / 100)) });
             });
             rows.sort((a, b2) => (b2.bonusPct || 0) - (a.bonusPct || 0));
@@ -9243,7 +9264,15 @@
 
             const motivo = r => {
                 if (r.reason === 'sin-csv')      return '<span style="color:var(--slate);">No aparece en el CSV</span>';
-                if (r.reason === 'escalon')      return `<span style="color:var(--orange);">No alcanzó el escalón</span> <span style="color:var(--slate);">(mín ${money(r.tierMin)})</span>`;
+                if (r.reason === 'escalon') {
+                    // Tres poblaciones compartian este motivo y salian identicas.
+                    // Quien coincidio y no llego reporto honesto y solo le falto
+                    // produccion: es a quien el mes de gracia tiene que alcanzar.
+                    if (r.sinNada) return `<span style="color:var(--slate);">Sin producción y sin reportar</span>`;
+                    return r.coincide
+                        ? `<span style="color:var(--orange);">Coincidió, no alcanzó el escalón</span> <span style="color:var(--slate);">(le faltaron ${money(r.faltaEscalon)})</span>`
+                        : `<span style="color:var(--red);">Ni coincidió ni alcanzó</span> <span style="color:var(--slate);">(${pctDesvio(r.desvio, cfg.margin)}% de desvío · faltaron ${money(r.faltaEscalon)})</span>`;
+                }
                 if (r.reason === 'coincidencia') {
                     // El tope contesta la pregunta que sigue: "y entonces cuanto
                     // debio reportar". Sin el, el director no puede explicarselo
@@ -9290,6 +9319,56 @@
                   </tbody>
                 </table>
                 </div>
+                ${(() => {
+                  // ── LOS QUE QUEDARON POR POCO ──
+                  // La tabla de arriba dice quien gana. Esto dice a quien vale
+                  // la pena llamarle: el que fallo por un pelo es el que cambia
+                  // de comportamiento si alguien se lo explica a tiempo.
+                  const minTier = cfg.tiers[cfg.tiers.length - 1].min;
+                  const cercaEsc = rows
+                    .filter(r => r.reason === 'escalon' && !r.sinNada &&
+                                 r.faltaEscalon > 0 && r.faltaEscalon <= minTier * 0.20)
+                    .sort((a, b) => a.faltaEscalon - b.faltaEscalon);
+                  const cercaCoi = rows
+                    .filter(r => r.reason === 'coincidencia' && r.desvio <= cfg.margin * 2)
+                    .sort((a, b) => a.desvio - b.desvio);
+                  if (!cercaEsc.length && !cercaCoi.length) return '';
+
+                  const fila = (izq, der) =>
+                    `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+                       <span>${izq}</span><span style="color:var(--slate);white-space:nowrap;">${der}</span></div>`;
+
+                  return `
+                  <div style="margin-top:18px;border-top:1px solid rgba(255,255,255,0.12);padding-top:14px;">
+                    <p style="font-size:12.5px;font-weight:700;margin-bottom:4px;">
+                      <i class="fa fa-crosshairs" style="color:var(--orange);"></i> Quedaron por poco
+                    </p>
+                    <p style="font-size:11.5px;color:var(--slate);margin-bottom:12px;">
+                      No ganan este mes, pero fallaron por un margen chico. Son a los que
+                      conviene llamarles antes de que cierre el mes en curso.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;font-size:12px;">
+                      ${cercaEsc.length ? `<div>
+                        <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--orange);font-weight:900;margin-bottom:7px;">
+                          A menos de ${money(minTier * 0.20)} del escalón (${cercaEsc.length})
+                        </div>
+                        ${cercaEsc.map(r => fila(
+                          `<b>${r.name}</b> <span style="color:var(--slate);">${r.code}</span>` +
+                          (r.coincide ? ' <span style="color:var(--green);">coincidió</span>'
+                                      : ` <span style="color:var(--red);">${pctDesvio(r.desvio, cfg.margin)}% desvío</span>`),
+                          `faltaron ${money(r.faltaEscalon)} · ${r.daysReported}/${r.daysInMonth}`)).join('')}
+                      </div>` : ''}
+                      ${cercaCoi.length ? `<div>
+                        <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--red);font-weight:900;margin-bottom:7px;">
+                          Alcanzaron escalón, se pasaron del margen (${cercaCoi.length})
+                        </div>
+                        ${cercaCoi.map(r => fila(
+                          `<b>${r.name}</b> <span style="color:var(--slate);">${r.code}</span>`,
+                          `se pasó por ${money(r.excesoPesos)} · ${pctDesvio(r.desvio, cfg.margin)}% · ${r.daysReported}/${r.daysInMonth}`)).join('')}
+                      </div>` : ''}
+                    </div>
+                  </div>`;
+                })()}
                 <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
                   <button class="btn btn-green" onclick="grantMultipliers()"><i class="fa fa-check"></i> Otorgar a los ${rows.length} agentes</button>
                   <button class="btn btn-sm" onclick="document.getElementById('mult-grant-box').style.display='none';">Cancelar</button>
