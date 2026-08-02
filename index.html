@@ -9229,10 +9229,28 @@
                 return (m === 12 ? MONTHS_ES[0] : MONTHS_ES[m]) || '';
             })();
 
+            // El desvio se mostraba con Math.round: 10.1945% salia como "10%",
+            // o sea EXACTAMENTE el margen, y se leia como si hubiera cabido y el
+            // calculo estuviera mal. Se muestran los decimales necesarios para
+            // que el numero impreso sea estrictamente mayor que el margen.
+            const pctDesvio = (d, margen) => {
+                for (let dec = 1; dec <= 3; dec++) {
+                    const s = (d * 100).toFixed(dec);
+                    if (parseFloat(s) > margen * 100) return s;
+                }
+                return (d * 100).toFixed(3);
+            };
+
             const motivo = r => {
                 if (r.reason === 'sin-csv')      return '<span style="color:var(--slate);">No aparece en el CSV</span>';
                 if (r.reason === 'escalon')      return `<span style="color:var(--orange);">No alcanzó el escalón</span> <span style="color:var(--slate);">(mín ${money(r.tierMin)})</span>`;
-                if (r.reason === 'coincidencia') return `<span style="color:var(--red);">No coincidió</span> <span style="color:var(--slate);">(${Math.round(r.desvio*100)}% de desvío)</span>`;
+                if (r.reason === 'coincidencia') {
+                    // El tope contesta la pregunta que sigue: "y entonces cuanto
+                    // debio reportar". Sin el, el director no puede explicarselo
+                    // al agente sin sacar la calculadora.
+                    const tope = Math.floor((r.ingresado || 0) * (1 + cfg.margin));
+                    return `<span style="color:var(--red);">No coincidió</span> <span style="color:var(--slate);">(${pctDesvio(r.desvio, cfg.margin)}% de desvío · tope ${money(tope)})</span>`;
+                }
                 return '';
             };
 
