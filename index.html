@@ -9517,7 +9517,7 @@
             if (!confirm(`Se van a escribir ${rows.length} multiplicadores (${ganan} activos).\n\nEsto reemplaza el multiplicador anterior de cada agente. ¿Continuar?`)) return;
 
             (async () => {
-                let okCount = 0, errCount = 0;
+                let okCount = 0, errCount = 0, archivados = 0;
                 for (const r of rows) {
                     const mult = {
                         month: r.month, basedOn: r.basedOn,
@@ -9536,11 +9536,32 @@
                         grantedBy: (auth.currentUser && auth.currentUser.email) || 'director'
                     };
                     try {
-                        await setDoc(doc(db, 'users', r.email), { multiplier: mult }, { merge: true });
+                        // ARCHIVAR ANTES DE PISAR. Escribir `multiplier` reemplaza el valor
+                        // anterior sin dejar rastro, y ese valor es la unica constancia de lo
+                        // que cobro el agente el mes pasado: con que bono, por cuantos dias y
+                        // contra que numero del corporativo. Si alguien reclama en octubre por
+                        // lo de agosto, sin esto no hay con que responderle.
+                        //
+                        // El id del doc es la clave del mes que pagaba, asi que volver a
+                        // otorgar el mismo mes reescribe ese registro en vez de duplicarlo.
+                        const uref = doc(db, 'users', r.email);
+                        const prevSnap = await getDoc(uref);
+                        const prev = prevSnap.exists() ? prevSnap.data().multiplier : null;
+                        if (prev && typeof prev.month === 'string' && prev.month) {
+                            await setDoc(doc(db, 'users', r.email, 'multiplierHistory', prev.month), {
+                                ...prev,
+                                archivedAt: new Date().toISOString(),
+                                archivedBy: (auth.currentUser && auth.currentUser.email) || 'director',
+                                replacedByMonth: mult.month
+                            });
+                            archivados++;
+                        }
+                        await setDoc(uref, { multiplier: mult }, { merge: true });
                         okCount++;
                     } catch (e) { console.error('[mult] grant', r.email, e); errCount++; }
                     if (msg) msg.textContent = `Guardando… ${okCount + errCount}/${rows.length}`;
                 }
+                if (archivados) console.log('[mult] archivados en multiplierHistory: ' + archivados);
                 if (msg) msg.innerHTML = errCount
                     ? `<span style="color:var(--red);">Listo con ${errCount} error(es). ${okCount} guardados.</span>`
                     : `<span style="color:var(--green);"><i class="fa fa-check"></i> ${okCount} multiplicadores otorgados.</span>`;
