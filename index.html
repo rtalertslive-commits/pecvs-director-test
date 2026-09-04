@@ -3329,7 +3329,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.42.1';
+        window.APP_HTML_VERSION = 'v2.43.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -9560,7 +9560,25 @@
                             });
                             archivados++;
                         }
-                        await setDoc(uref, { multiplier: mult }, { merge: true });
+                        // Se guarda el multiplicador que se reemplaza, para que la app
+                        // pueda pagar los dias del mes ya cerrado con el bono que les
+                        // tocaba. Un dia se paga al dia siguiente y solo cuando el
+                        // agente abre la app: si otorgas el dia 1 y el abre despues, el
+                        // ultimo dia del mes pasado se cobraba sin bono.
+                        //
+                        // Solo cuando el mes CAMBIA: re-otorgar el mismo mes no debe
+                        // pisar el del mes anterior con una copia del actual, y al
+                        // omitir el campo el merge:true lo deja intacto.
+                        const payload = { multiplier: mult };
+                        if (prev && typeof prev.month === 'string' && prev.month &&
+                            prev.month !== mult.month) {
+                            payload.multiplierPrev = {
+                                month: prev.month,
+                                earned: prev.earned === true,
+                                bonusPct: Number(prev.bonusPct) || 0
+                            };
+                        }
+                        await setDoc(uref, payload, { merge: true });
                         okCount++;
                     } catch (e) { console.error('[mult] grant', r.email, e); errCount++; }
                     if (msg) msg.textContent = `Guardando… ${okCount + errCount}/${rows.length}`;
