@@ -2679,7 +2679,8 @@
                     <p class="card-title"><i class="fa fa-trophy"></i> Bono semanal — configuración</p>
                     <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
                         Cada semana, de <b>lunes a viernes</b>, el agente que ingresó al menos la meta
-                        (<code>P_ING TOT − PRIMA EXCD</code>) cobra los totopos de esa semana. Si no llega, esa semana se pierde.
+                        (<code>P_ING TOT − PRIMA EXCD</code>, y la prima en trámite si la marcas al subir el CSV)
+                        cobra los totopos de esa semana. Si no llega, esa semana se pierde.
                         No depende de reportar en la bitácora.
                     </p>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px;">
@@ -3372,7 +3373,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.44.0';
+        window.APP_HTML_VERSION = 'v2.45.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -8731,24 +8732,29 @@
             return out;
         }
 
-        // Mismo criterio que el multiplicador: P_ING TOT − PRIMA EXCD, columnas
-        // ubicadas por nombre. Una clave repetida en el CSV se suma.
-        function _bonoParseCsv(texto) {
+        // Mismo criterio que el multiplicador: P_ING TOT − PRIMA EXCD, y PRIMA
+        // TRAM solo si se marca la casilla. Columnas ubicadas por nombre; una
+        // clave repetida en el CSV se suma.
+        function _bonoParseCsv(texto, conTram) {
             const lineas = String(texto || '').split(/\r?\n/).filter(l => l.trim());
             if (!lineas.length) return null;
             const enc = _parseCsvLine(lineas[0]).map(h => h.toUpperCase().replace(/[^A-Z]/g, ''));
-            const iTot = enc.indexOf('PINGTOT'), iExcd = enc.indexOf('PRIMAEXCD');
+            const iTot = enc.indexOf('PINGTOT'), iExcd = enc.indexOf('PRIMAEXCD'), iTram = enc.indexOf('PRIMATRAM');
             if (iTot < 0) return null;
             const porAso = {};
+            const t = { tot: 0, excd: 0, tram: 0, nTram: 0 };
             lineas.slice(1).forEach(l => {
                 const c = _parseCsvLine(l);
                 const pr = (c[0] || '').trim(), aso = (c[1] || '').trim(), nombre = (c[2] || '').trim();
                 // Fila de totales (PR vacio) y la fila "OTROS" (9999) no son agentes.
                 if (!pr || !aso || aso === '9999' || nombre.toUpperCase() === 'OTROS') return;
-                const ing = (parseFloat(c[iTot]) || 0) - (iExcd >= 0 ? (parseFloat(c[iExcd]) || 0) : 0);
-                porAso[aso] = (porAso[aso] || 0) + ing;
+                const tot = parseFloat(c[iTot]) || 0;
+                const excd = iExcd >= 0 ? (parseFloat(c[iExcd]) || 0) : 0;
+                const tram = iTram >= 0 ? (parseFloat(c[iTram]) || 0) : 0;
+                t.tot += tot; t.excd += excd; t.tram += tram; if (tram > 0) t.nTram++;
+                porAso[aso] = (porAso[aso] || 0) + tot - excd + (conTram ? tram : 0);
             });
-            return { porAso, sinExcd: iExcd < 0 };
+            return { porAso, sinExcd: iExcd < 0, sinTram: iTram < 0, t };
         }
 
         function _bonoEvaluar(porAso, agentes, meta) {
@@ -8857,12 +8863,13 @@
             if (!file || !sem) return;
             const r = new FileReader();
             r.onload = ev => _bonoVistaPrevia(sem, String(ev.target.result || ''), file.name, true,
-                                               _numVal('bono-meta', 2000), Math.floor(_numVal('bono-totopos', 10)));
+                                               _numVal('bono-meta', 2000), Math.floor(_numVal('bono-totopos', 10)), false);
             r.readAsText(file, 'UTF-8');
         };
 
-        // Una semana ya subida se revisa con SU meta y SUS totopos, los que
-        // se usaron al subirla, aunque la configuracion haya cambiado despues.
+        // Una semana ya subida se revisa con SU meta, SUS totopos y SU criterio
+        // de tramite, los que se usaron al subirla, aunque la configuracion
+        // haya cambiado despues.
         window.bonoVer = async function (key) {
             const sem = _bonoSemanas(_bonoAnio).find(s => s.key === key);
             const g = _bonoDocs[key];
@@ -8870,23 +8877,34 @@
             try {
                 const a = await getDoc(doc(db, 'bonoSemanal', state.directorCode + '_' + key, 'archivo', 'csv'));
                 if (!a.exists()) { alert('No encontré el CSV guardado de esta semana.'); return; }
-                _bonoVistaPrevia(sem, a.data().texto, g.archivo, false, g.meta, g.totopos);
+                _bonoVistaPrevia(sem, a.data().texto, g.archivo, false, g.meta, g.totopos, g.conTram === true);
             } catch (e) { alert('Error leyendo el CSV: ' + e.message); }
         };
 
-        function _bonoVistaPrevia(sem, texto, archivo, nuevo, meta, totopos) {
+        function _bonoVistaPrevia(sem, texto, archivo, nuevo, meta, totopos, conTram) {
             const box = document.getElementById('bono-preview');
-            const parsed = _bonoParseCsv(texto);
+            const parsed = _bonoParseCsv(texto, conTram);
             if (!parsed) { alert('El archivo no tiene la columna P_ING TOT. ¿Es el reporte del corporativo?'); return; }
             if (!(meta > 0) || !(totopos > 0)) { alert('Configura la meta y los totopos del bono antes de subir.'); return; }
             const ev = _bonoEvaluar(parsed.porAso, state.agents || [], meta);
             const yaPagados = new Set((_bonoDocs[sem.key] || {}).pagados || []);
             const aPagar = ev.filas.filter(f => f.cumple && !yaPagados.has(f.email));
             const cumplen = ev.filas.filter(f => f.cumple).length;
-            _bonoPrev = { sem, texto, archivo, nuevo, meta, totopos, ev, aPagar };
+            _bonoPrev = { sem, texto, archivo, nuevo, meta, totopos, conTram, ev, aPagar };
 
             const avisos = [];
             if (parsed.sinExcd) avisos.push('⚠ No encontré la columna <code>PRIMA EXCD</code>: se está usando <code>P_ING TOT</code> completo.');
+            if (conTram && parsed.sinTram) avisos.push('⚠ No encontré la columna <code>PRIMA TRAM</code>: no hay trámite que sumar.');
+            const t = parsed.t;
+            const cuenta = `<code>P_ING TOT</code> ${_bonoMoney(Math.round(t.tot))} − <code>PRIMA EXCD</code> ${_bonoMoney(Math.round(t.excd))}` +
+                (conTram ? ` + <code>PRIMA TRAM</code> ${_bonoMoney(Math.round(t.tram))}` : '') +
+                ` = <b>${_bonoMoney(Math.round(t.tot - t.excd + (conTram ? t.tram : 0)))}</b>` +
+                (t.nTram ? `<br>El trámite son ${_bonoMoney(Math.round(t.tram))} repartidos en ${t.nTram} agente(s) — ${conTram ? 'se están sumando' : 'no se están sumando'}.` : '');
+            // Solo se puede mover al subir. En una semana guardada queda como se
+            // pago: moverla ahi haria que "Ver" muestre algo distinto a lo pagado.
+            const casilla = `<label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;cursor:${nuevo ? 'pointer' : 'default'};margin:0 0 10px;">
+                    <input type="checkbox" ${conTram ? 'checked' : ''} ${nuevo ? '' : 'disabled'} onchange="bonoToggleTram(this.checked)" style="width:15px;height:15px;">
+                    <span>Sumar <code>PRIMA TRAM</code> (prima en trámite)</span></label>`;
             if (ev.ajenas) avisos.push(`${ev.ajenas} clave(s) del CSV no son de agentes de tu región y se ignoran.`);
             if (ev.sinClave) avisos.push(`${ev.sinClave} agente(s) sin clave de la empresa: no se pueden cruzar con el CSV.`);
 
@@ -8911,6 +8929,8 @@
             box.innerHTML = `
                 <p class="card-title"><i class="fa fa-file-csv"></i> Semana ${sem.num} · ${_bonoFecha(sem.lun)} – ${_bonoFecha(sem.vie)} ${sem.vie.getFullYear()}</p>
                 <p style="font-size:12px;color:var(--slate);margin:0 0 10px;">Archivo: <b>${escapeHtml(archivo || '')}</b>${nuevo ? '' : ' (guardado)'} · meta ${_bonoMoney(meta)} · ${totopos} totopos por semana cumplida</p>
+                <p style="font-size:12px;color:var(--slate);margin:0 0 6px;line-height:1.6;">${cuenta}</p>
+                ${casilla}
                 ${avisos.length ? `<p style="font-size:12px;color:var(--red);margin:0 0 10px;line-height:1.6;">${avisos.join('<br>')}</p>` : ''}
                 <p style="font-size:13px;margin:0 0 12px;"><b>${cumplen} de ${ev.filas.length}</b> agentes cumplieron.
                    ${aPagar.length ? `Se le pagan <b>${totopos}</b> totopos a <b>${aPagar.length}</b>.` : 'No hay nadie pendiente de pago.'}</p>
@@ -8928,6 +8948,11 @@
             box.style.display = '';
             box.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+
+        window.bonoToggleTram = function (on) {
+            const p = _bonoPrev;
+            if (p && p.nuevo) _bonoVistaPrevia(p.sem, p.texto, p.archivo, true, p.meta, p.totopos, on);
+        };
 
         window.bonoCerrarPrevia = function () {
             _bonoPrev = null;
@@ -8970,7 +8995,7 @@
                         directorCode: state.directorCode, anio: p.sem.anio, semana: p.sem.key, num: p.sem.num,
                         lunes: _bonoIso(p.sem.lun), viernes: _bonoIso(p.sem.vie),
                         archivo: p.archivo || '', subidoPor: user.email, subidoEn: nowISO(),
-                        meta: p.meta, totopos: p.totopos,
+                        meta: p.meta, totopos: p.totopos, conTram: p.conTram === true,
                         agentes: p.ev.filas.length, cumplieron: p.ev.filas.filter(f => f.cumple).length
                     }, { merge: true });
                 }
