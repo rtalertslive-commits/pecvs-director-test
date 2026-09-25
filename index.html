@@ -3373,7 +3373,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.48.0';
+        window.APP_HTML_VERSION = 'v2.49.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -8714,6 +8714,12 @@
         // el CSV o volver a pagar nunca paga dos veces, y nunca se quita nada.
         // La entrada NO lleva `date`: ese campo es el candado de los cierres de
         // dia en la app del agente y no se debe mezclar.
+        //
+        // Config: config/{dc}_bono = { meta, totopos, subidas[] }, un doc por
+        // region y aparte de la config de puntos. `subidas` es lo que le dice a
+        // la app del agente que semanas ya tienen resultados.
+        const _bonoCfgRef = () => doc(db, 'config', state.directorCode + '_bono');
+        let _bonoCfgCargada = false;
         let _bonoAnio = new Date().getFullYear();
         let _bonoDocs = {};          // semana -> resumen guardado
         let _bonoInicio = null;      // primera semana que cuenta como "falta subir"
@@ -8783,7 +8789,7 @@
         window.saveBonoConfig = async function () {
             const meta = _numVal('bono-meta', 2000), totopos = Math.floor(_numVal('bono-totopos', 10));
             if (!(meta > 0) || !(totopos > 0)) { alert('La meta y los totopos tienen que ser mayores a 0.'); return; }
-            await setDoc(doc(db, 'config', _pointsDocId()), { bonoMeta: meta, bonoTotopos: totopos }, { merge: true });
+            await setDoc(_bonoCfgRef(), { meta, totopos }, { merge: true });
             const m = document.getElementById('bono-cfg-msg');
             if (m) { m.style.display = 'inline'; setTimeout(() => m.style.display = 'none', 2500); }
         };
@@ -8798,6 +8804,15 @@
             const dc = state.directorCode;
             if (!dc) { cont.innerHTML = '<div class="empty-state">Sin código de director.</div>'; return; }
             cont.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando…</div>';
+            if (!_bonoCfgCargada) {
+                try {
+                    const c = await getDoc(_bonoCfgRef());
+                    const d = c.exists() ? c.data() : {};
+                    document.getElementById('bono-meta').value = d.meta ?? 2000;
+                    document.getElementById('bono-totopos').value = d.totopos ?? 10;
+                    _bonoCfgCargada = true;
+                } catch (e) { console.warn('[bono] config:', e && e.message); }
+            }
             try {
                 const q = a => getDocs(query(collection(db, 'bonoSemanal'), where('directorCode', '==', dc), where('anio', '==', a)));
                 const [este, anterior] = await Promise.all([q(_bonoAnio), q(_bonoAnio - 1)]);
@@ -9031,7 +9046,7 @@
                     // para que distinga "perdida" de "esperando resultados". Va en la
                     // config de puntos, que leen todos, y no en bonoSemanal, que
                     // trae lo ingresado de todos y es solo de directores.
-                    await setDoc(doc(db, 'config', _pointsDocId()), { bonoSubidas: arrayUnion(p.sem.key) }, { merge: true });
+                    await setDoc(_bonoCfgRef(), { subidas: arrayUnion(p.sem.key) }, { merge: true });
                 }
                 const listos = [], fallos = [];
                 // De a 8 en paralelo: cada pago es una transaccion independiente.
@@ -10264,8 +10279,6 @@
                     set('mult-t3-pct',  d.multTier3Pct ?? 200);
                     set('mult-t4-min',  d.multTier4Min ?? 0);
                     set('mult-t4-pct',  d.multTier4Pct ?? 0);
-                    set('bono-meta',    d.bonoMeta     ?? 2000);
-                    set('bono-totopos', d.bonoTotopos  ?? 10);
                 }
             } catch(e) { console.warn('[puntos] load:', e); }
             _bindMultCfgInputs();
