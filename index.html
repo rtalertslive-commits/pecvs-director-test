@@ -2513,6 +2513,7 @@
             <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
                 <button id="tsub-btn-puntos"   onclick="switchTiendaSub('puntos')"    class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:700;">⚙️ Puntos</button>
                 <button id="tsub-btn-mult" onclick="switchTiendaSub('mult')" class="btn btn-sm">⚡ Multiplicadores <span id="mult-count-badge" style="display:none; background:var(--green); color:#000; border-radius:10px; font-size:10px; padding:1px 6px; margin-left:4px; font-weight:800;">0</span></button>
+                <button id="tsub-btn-bono" onclick="switchTiendaSub('bono')" class="btn btn-sm">🏆 BONO</button>
                 <button id="tsub-btn-catalogo" onclick="switchTiendaSub('catalogo')"  class="btn btn-sm">🏪 Catálogos</button>
                 <button id="tsub-btn-solicitudes" onclick="switchTiendaSub('solicitudes')" class="btn btn-sm">📋 Solicitudes <span id="sol-count-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:3px;">0</span></button>
                 <button id="tsub-btn-premios" onclick="switchTiendaSub('premios')" class="btn btn-sm">📦 Premios por entregar</button>
@@ -2666,6 +2667,48 @@
                         el agente tampoco lo está cobrando.
                     </p>
                     <div id="mult-activos-body"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando…</div></div>
+                </div>
+            </div>
+
+            <!-- ── BONO SEMANAL ──
+                 Totopos por resultados, sin reportar. Cada semana del año (ISO,
+                 lunes a viernes) el agente que ingreso al menos la meta cobra.
+                 Aqui se sube el CSV de cada semana y queda guardado. -->
+            <div id="tsub-bono" style="display:none;">
+                <div class="card">
+                    <p class="card-title"><i class="fa fa-trophy"></i> Bono semanal — configuración</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
+                        Cada semana, de <b>lunes a viernes</b>, el agente que ingresó al menos la meta
+                        (<code>P_ING TOT − PRIMA EXCD</code>) cobra los totopos de esa semana. Si no llega, esa semana se pierde.
+                        No depende de reportar en la bitácora.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px;">
+                        <div>
+                            <label class="field-label">Meta semanal — ingresado $</label>
+                            <input type="number" id="bono-meta" min="1" class="form-input" value="2000">
+                        </div>
+                        <div>
+                            <label class="field-label">Totopos por semana cumplida</label>
+                            <input type="number" id="bono-totopos" min="1" class="form-input" value="10">
+                        </div>
+                    </div>
+                    <button class="btn btn-green" onclick="saveBonoConfig()"><i class="fa fa-floppy-disk"></i> Guardar configuración</button>
+                    <span id="bono-cfg-msg" style="display:none;font-size:12px;color:var(--green);margin-left:10px;"><i class="fa fa-check"></i> Guardado</span>
+                </div>
+
+                <div id="bono-preview" class="card" style="display:none;"></div>
+
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                        <p class="card-title" style="margin:0;"><i class="fa fa-calendar-week"></i> Semanas de <span id="bono-anio-lbl">—</span></p>
+                        <div style="display:flex;gap:6px;">
+                            <button class="btn btn-sm" onclick="bonoCambiarAnio(-1)"><i class="fa fa-chevron-left"></i></button>
+                            <button class="btn btn-sm" onclick="bonoCambiarAnio(1)"><i class="fa fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <p id="bono-contador" style="font-size:12.5px;color:var(--slate);margin:0 0 12px;line-height:1.6;"></p>
+                    <input type="file" id="bono-file" accept=".csv,text/csv" style="display:none;" onchange="bonoArchivoElegido(this)">
+                    <div id="bono-semanas" style="overflow-x:auto;"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando…</div></div>
                 </div>
             </div>
 
@@ -3329,7 +3372,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.43.0';
+        window.APP_HTML_VERSION = 'v2.44.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -8640,7 +8683,7 @@
 
         // Sub-nav switching
         window.switchTiendaSub = function(sub) {
-            ['puntos','catalogo','solicitudes','premios','mult'].forEach(s => {
+            ['puntos','catalogo','solicitudes','premios','mult','bono'].forEach(s => {
                 const el = document.getElementById('tsub-' + s);
                 if (el) el.style.display = s === sub ? '' : 'none';
                 const btn = document.getElementById('tsub-btn-' + s);
@@ -8650,8 +8693,311 @@
             if (sub === 'solicitudes') loadSolicitudes();
             if (sub === 'premios') loadPremiosByTeam();
     if (sub === 'mult') renderMultActivos();
+            if (sub === 'bono') renderBono();
         };
 
+
+        // ─── BONO SEMANAL ─────────────────────────────────────────────────
+        // Totopos por resultados, sin reportar. Cada semana ISO (lunes a viernes)
+        // el agente que ingreso al menos la meta cobra los totopos de la semana.
+        //
+        // Guardado: bonoSemanal/{dc}_{2026-W40} tiene el resumen (lo que lista la
+        // tabla) y bonoSemanal/{id}/archivo/csv el CSV tal cual. Van separados
+        // para que abrir la pestaña no baje 53 CSVs de ~20 KB.
+        //
+        // El candado del pago es el karmaLog del agente: una entrada
+        // { type:'bono_semanal', semana:'2026-W40' } por semana. Volver a subir
+        // el CSV o volver a pagar nunca paga dos veces, y nunca se quita nada.
+        // La entrada NO lleva `date`: ese campo es el candado de los cierres de
+        // dia en la app del agente y no se debe mezclar.
+        let _bonoAnio = new Date().getFullYear();
+        let _bonoDocs = {};          // semana -> resumen guardado
+        let _bonoInicio = null;      // primera semana que cuenta como "falta subir"
+        let _bonoPrev = null;        // vista previa en pantalla
+        let _bonoSemanaElegida = null;
+
+        // Semanas ISO 8601: la semana 1 es la que tiene el primer jueves del año,
+        // asi que puede empezar en diciembre del año anterior, y hay años de 53.
+        function _bonoSemanas(anio) {
+            const ene4 = new Date(anio, 0, 4);
+            const lunes1 = new Date(anio, 0, 4 - ((ene4.getDay() + 6) % 7));
+            const dia = (base, n) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + n);
+            const out = [];
+            for (let w = 1; ; w++) {
+                const lun = dia(lunes1, (w - 1) * 7);
+                if (dia(lun, 3).getFullYear() !== anio) break;   // su jueves ya es del otro año
+                out.push({ key: anio + '-W' + String(w).padStart(2, '0'), num: w, anio, lun, vie: dia(lun, 4) });
+            }
+            return out;
+        }
+
+        // Mismo criterio que el multiplicador: P_ING TOT − PRIMA EXCD, columnas
+        // ubicadas por nombre. Una clave repetida en el CSV se suma.
+        function _bonoParseCsv(texto) {
+            const lineas = String(texto || '').split(/\r?\n/).filter(l => l.trim());
+            if (!lineas.length) return null;
+            const enc = _parseCsvLine(lineas[0]).map(h => h.toUpperCase().replace(/[^A-Z]/g, ''));
+            const iTot = enc.indexOf('PINGTOT'), iExcd = enc.indexOf('PRIMAEXCD');
+            if (iTot < 0) return null;
+            const porAso = {};
+            lineas.slice(1).forEach(l => {
+                const c = _parseCsvLine(l);
+                const pr = (c[0] || '').trim(), aso = (c[1] || '').trim(), nombre = (c[2] || '').trim();
+                // Fila de totales (PR vacio) y la fila "OTROS" (9999) no son agentes.
+                if (!pr || !aso || aso === '9999' || nombre.toUpperCase() === 'OTROS') return;
+                const ing = (parseFloat(c[iTot]) || 0) - (iExcd >= 0 ? (parseFloat(c[iExcd]) || 0) : 0);
+                porAso[aso] = (porAso[aso] || 0) + ing;
+            });
+            return { porAso, sinExcd: iExcd < 0 };
+        }
+
+        function _bonoEvaluar(porAso, agentes, meta) {
+            const conClave = agentes.filter(a => String(a.companyCode || '').trim());
+            const claves = new Set(conClave.map(a => String(a.companyCode).trim()));
+            const filas = conClave.map(a => {
+                const ing = porAso[String(a.companyCode).trim()] || 0;
+                return { email: a.email, name: a.name || a.email, ing, cumple: ing >= meta };
+            }).sort((x, y) => y.ing - x.ing || x.name.localeCompare(y.name, 'es', { sensitivity: 'base' }));
+            return {
+                filas,
+                sinClave: agentes.length - conClave.length,
+                ajenas: Object.keys(porAso).filter(k => !claves.has(k)).length
+            };
+        }
+
+        const _bonoFecha = d => d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+        const _bonoIso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const _bonoMoney = n => '$' + (Number(n) || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 });
+
+        window.saveBonoConfig = async function () {
+            const meta = _numVal('bono-meta', 2000), totopos = Math.floor(_numVal('bono-totopos', 10));
+            if (!(meta > 0) || !(totopos > 0)) { alert('La meta y los totopos tienen que ser mayores a 0.'); return; }
+            await setDoc(doc(db, 'config', _pointsDocId()), { bonoMeta: meta, bonoTotopos: totopos }, { merge: true });
+            const m = document.getElementById('bono-cfg-msg');
+            if (m) { m.style.display = 'inline'; setTimeout(() => m.style.display = 'none', 2500); }
+        };
+
+        window.bonoCambiarAnio = function (d) { _bonoAnio += d; renderBono(); };
+
+        window.renderBono = async function () {
+            const cont = document.getElementById('bono-semanas');
+            const lbl = document.getElementById('bono-anio-lbl');
+            if (lbl) lbl.textContent = _bonoAnio;
+            if (!cont) return;
+            const dc = state.directorCode;
+            if (!dc) { cont.innerHTML = '<div class="empty-state">Sin código de director.</div>'; return; }
+            cont.innerHTML = '<div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando…</div>';
+            try {
+                const q = a => getDocs(query(collection(db, 'bonoSemanal'), where('directorCode', '==', dc), where('anio', '==', a)));
+                const [este, anterior] = await Promise.all([q(_bonoAnio), q(_bonoAnio - 1)]);
+                _bonoDocs = {};
+                este.forEach(d => { _bonoDocs[d.data().semana] = d.data(); });
+                // Las semanas de antes de arrancar el bono no cuentan como
+                // faltantes: el bono empieza en la primera semana que se subio.
+                const subidas = Object.keys(_bonoDocs).sort();
+                _bonoInicio = subidas.length ? subidas[0] : (anterior.empty ? null : _bonoAnio + '-W01');
+            } catch (e) {
+                console.error('[bono] leer', e);
+                cont.innerHTML = '<div class="empty-state">No se pudieron leer las semanas: ' + escapeHtml(e.message) + '</div>';
+                return;
+            }
+            _bonoPintar();
+        };
+
+        function _bonoPintar() {
+            const cont = document.getElementById('bono-semanas');
+            const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+            const semanas = _bonoSemanas(_bonoAnio);
+            let nSub = 0, nFalta = 0, nVienen = 0;
+            const filas = semanas.map(s => {
+                const g = _bonoDocs[s.key];
+                const sabado = new Date(s.lun.getFullYear(), s.lun.getMonth(), s.lun.getDate() + 5);
+                const terminada = hoy >= sabado;
+                let estado, accion = '';
+                if (g) {
+                    nSub++;
+                    estado = `<span style="color:var(--green);font-weight:700;">✅ Subido</span> <span style="color:var(--slate);">· ${g.cumplieron || 0} de ${g.agentes || 0} cumplieron · ${(g.pagados || []).length} pagados</span>`;
+                    accion = `<button class="btn btn-sm" onclick="bonoVer('${s.key}')">Ver</button> <button class="btn btn-sm" onclick="bonoElegirArchivo('${s.key}')">Reemplazar</button>`;
+                } else if (!terminada) {
+                    nVienen++;
+                    estado = hoy >= s.lun ? '<span style="color:var(--blue);">🕒 En curso</span>' : '<span style="color:var(--slate);">—</span>';
+                } else if (_bonoInicio && s.key >= _bonoInicio) {
+                    nFalta++;
+                    estado = '<span style="color:var(--red);font-weight:700;">⏳ Falta subir</span>';
+                    accion = `<button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:700;" onclick="bonoElegirArchivo('${s.key}')"><i class="fa fa-upload"></i> Subir CSV</button>`;
+                } else {
+                    estado = '<span style="color:var(--slate);">Antes del bono</span>';
+                    accion = `<button class="btn btn-sm" onclick="bonoElegirArchivo('${s.key}')"><i class="fa fa-upload"></i> Subir CSV</button>`;
+                }
+                return `<tr style="border-top:1px solid var(--border);">
+                    <td style="padding:8px 6px;font-weight:700;white-space:nowrap;">Semana ${s.num}</td>
+                    <td style="padding:8px 6px;white-space:nowrap;">${_bonoFecha(s.lun)} – ${_bonoFecha(s.vie)}</td>
+                    <td style="padding:8px 6px;">${estado}</td>
+                    <td style="padding:8px 6px;white-space:nowrap;text-align:right;">${accion}</td>
+                </tr>`;
+            }).join('');
+            const c = document.getElementById('bono-contador');
+            if (c) c.innerHTML = `<b>${semanas.length} semanas</b> en ${_bonoAnio} · ` +
+                `<span style="color:var(--green);font-weight:700;">${nSub} subidas</span> · ` +
+                `<span style="color:var(--red);font-weight:700;">${nFalta} faltan por subir</span> · ${nVienen} por venir` +
+                (_bonoInicio ? '' : '<br>Sube el CSV de la primera semana del bono: las semanas anteriores no cuentan como faltantes.');
+            cont.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">${filas}</table>`;
+        }
+
+        window.bonoElegirArchivo = function (key) {
+            _bonoSemanaElegida = key;
+            const inp = document.getElementById('bono-file');
+            inp.value = '';
+            inp.click();
+        };
+
+        window.bonoArchivoElegido = function (input) {
+            const file = input.files && input.files[0];
+            const sem = _bonoSemanas(_bonoAnio).find(s => s.key === _bonoSemanaElegida);
+            if (!file || !sem) return;
+            const r = new FileReader();
+            r.onload = ev => _bonoVistaPrevia(sem, String(ev.target.result || ''), file.name, true,
+                                               _numVal('bono-meta', 2000), Math.floor(_numVal('bono-totopos', 10)));
+            r.readAsText(file, 'UTF-8');
+        };
+
+        // Una semana ya subida se revisa con SU meta y SUS totopos, los que
+        // se usaron al subirla, aunque la configuracion haya cambiado despues.
+        window.bonoVer = async function (key) {
+            const sem = _bonoSemanas(_bonoAnio).find(s => s.key === key);
+            const g = _bonoDocs[key];
+            if (!sem || !g) return;
+            try {
+                const a = await getDoc(doc(db, 'bonoSemanal', state.directorCode + '_' + key, 'archivo', 'csv'));
+                if (!a.exists()) { alert('No encontré el CSV guardado de esta semana.'); return; }
+                _bonoVistaPrevia(sem, a.data().texto, g.archivo, false, g.meta, g.totopos);
+            } catch (e) { alert('Error leyendo el CSV: ' + e.message); }
+        };
+
+        function _bonoVistaPrevia(sem, texto, archivo, nuevo, meta, totopos) {
+            const box = document.getElementById('bono-preview');
+            const parsed = _bonoParseCsv(texto);
+            if (!parsed) { alert('El archivo no tiene la columna P_ING TOT. ¿Es el reporte del corporativo?'); return; }
+            if (!(meta > 0) || !(totopos > 0)) { alert('Configura la meta y los totopos del bono antes de subir.'); return; }
+            const ev = _bonoEvaluar(parsed.porAso, state.agents || [], meta);
+            const yaPagados = new Set((_bonoDocs[sem.key] || {}).pagados || []);
+            const aPagar = ev.filas.filter(f => f.cumple && !yaPagados.has(f.email));
+            const cumplen = ev.filas.filter(f => f.cumple).length;
+            _bonoPrev = { sem, texto, archivo, nuevo, meta, totopos, ev, aPagar };
+
+            const avisos = [];
+            if (parsed.sinExcd) avisos.push('⚠ No encontré la columna <code>PRIMA EXCD</code>: se está usando <code>P_ING TOT</code> completo.');
+            if (ev.ajenas) avisos.push(`${ev.ajenas} clave(s) del CSV no son de agentes de tu región y se ignoran.`);
+            if (ev.sinClave) avisos.push(`${ev.sinClave} agente(s) sin clave de la empresa: no se pueden cruzar con el CSV.`);
+
+            const filas = ev.filas.map(f => {
+                const est = !f.cumple ? '<span style="color:var(--slate);">—</span>'
+                    : yaPagados.has(f.email) ? '<span style="color:var(--slate);">Ya pagado</span>'
+                    : `<span style="color:var(--green);font-weight:700;">+${totopos}</span>`;
+                return `<tr style="border-top:1px solid var(--border);">
+                    <td style="padding:6px;">${escapeHtml(f.name)}</td>
+                    <td style="padding:6px;text-align:right;white-space:nowrap;">${_bonoMoney(f.ing)}</td>
+                    <td style="padding:6px;text-align:center;">${f.cumple ? '✅' : '❌'}</td>
+                    <td style="padding:6px;text-align:right;white-space:nowrap;">${est}</td>
+                </tr>`;
+            }).join('');
+
+            const txtBoton = nuevo
+                ? `<i class="fa fa-floppy-disk"></i> Guardar CSV${aPagar.length ? ' y pagar a ' + aPagar.length : ''}`
+                : `<i class="fa fa-coins"></i> Pagar a ${aPagar.length} pendiente(s)`;
+            const boton = (nuevo || aPagar.length)
+                ? `<button id="bono-confirmar" class="btn btn-green" onclick="bonoConfirmar()">${txtBoton}</button>` : '';
+
+            box.innerHTML = `
+                <p class="card-title"><i class="fa fa-file-csv"></i> Semana ${sem.num} · ${_bonoFecha(sem.lun)} – ${_bonoFecha(sem.vie)} ${sem.vie.getFullYear()}</p>
+                <p style="font-size:12px;color:var(--slate);margin:0 0 10px;">Archivo: <b>${escapeHtml(archivo || '')}</b>${nuevo ? '' : ' (guardado)'} · meta ${_bonoMoney(meta)} · ${totopos} totopos por semana cumplida</p>
+                ${avisos.length ? `<p style="font-size:12px;color:var(--red);margin:0 0 10px;line-height:1.6;">${avisos.join('<br>')}</p>` : ''}
+                <p style="font-size:13px;margin:0 0 12px;"><b>${cumplen} de ${ev.filas.length}</b> agentes cumplieron.
+                   ${aPagar.length ? `Se le pagan <b>${totopos}</b> totopos a <b>${aPagar.length}</b>.` : 'No hay nadie pendiente de pago.'}</p>
+                <div style="max-height:360px;overflow:auto;margin-bottom:12px;">
+                    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+                        <tr style="color:var(--slate);"><th style="text-align:left;padding:6px;">Agente</th><th style="text-align:right;padding:6px;">Ingresado</th><th style="padding:6px;">Meta</th><th style="text-align:right;padding:6px;">Pago</th></tr>
+                        ${filas || '<tr><td colspan="4" style="padding:10px;color:var(--slate);">Sin agentes con clave.</td></tr>'}
+                    </table>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    ${boton}
+                    <button class="btn btn-sm" onclick="bonoCerrarPrevia()">${nuevo ? 'Cancelar' : 'Cerrar'}</button>
+                    <span id="bono-progreso" style="font-size:12px;color:var(--slate);"></span>
+                </div>`;
+            box.style.display = '';
+            box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        window.bonoCerrarPrevia = function () {
+            _bonoPrev = null;
+            const box = document.getElementById('bono-preview');
+            box.style.display = 'none'; box.innerHTML = '';
+        };
+
+        // Devuelve true si pago, false si ya estaba pagado.
+        function _bonoPagarUno(email, sem, meta, totopos, ing) {
+            const ref = doc(db, 'users', email);
+            return runTransaction(db, async tx => {
+                const snap = await tx.get(ref);
+                if (!snap.exists()) throw new Error('El agente no existe.');
+                const d = snap.data();
+                const log = Array.isArray(d.karmaLog) ? d.karmaLog : [];
+                if (log.some(k => k.type === 'bono_semanal' && k.semana === sem.key)) return false;
+                tx.update(ref, {
+                    karma: (typeof d.karma === 'number' ? d.karma : 0) + totopos,
+                    karmaLog: [...log, { type: 'bono_semanal', points: totopos, semana: sem.key,
+                                         ingresado: Math.round(ing * 100) / 100, meta, fecha: nowISO(), by: user.email }]
+                });
+                return true;
+            });
+        }
+
+        window.bonoConfirmar = async function () {
+            const p = _bonoPrev;
+            if (!p) return;
+            const btn = document.getElementById('bono-confirmar');
+            const prog = document.getElementById('bono-progreso');
+            if (btn) btn.disabled = true;
+            const id = state.directorCode + '_' + p.sem.key;
+            const ref = doc(db, 'bonoSemanal', id);
+            try {
+                if (p.nuevo) {
+                    // El CSV se guarda ANTES de pagar: si el pago se corta a la
+                    // mitad, la semana queda subida y "Ver" permite terminarlo.
+                    await setDoc(doc(db, 'bonoSemanal', id, 'archivo', 'csv'), { texto: p.texto, nombre: p.archivo || '' });
+                    await setDoc(ref, {
+                        directorCode: state.directorCode, anio: p.sem.anio, semana: p.sem.key, num: p.sem.num,
+                        lunes: _bonoIso(p.sem.lun), viernes: _bonoIso(p.sem.vie),
+                        archivo: p.archivo || '', subidoPor: user.email, subidoEn: nowISO(),
+                        meta: p.meta, totopos: p.totopos,
+                        agentes: p.ev.filas.length, cumplieron: p.ev.filas.filter(f => f.cumple).length
+                    }, { merge: true });
+                }
+                const listos = [], fallos = [];
+                // De a 8 en paralelo: cada pago es una transaccion independiente.
+                for (let i = 0; i < p.aPagar.length; i += 8) {
+                    const lote = p.aPagar.slice(i, i + 8);
+                    const res = await Promise.allSettled(lote.map(f => _bonoPagarUno(f.email, p.sem, p.meta, p.totopos, f.ing)));
+                    res.forEach((r, j) => {
+                        if (r.status === 'fulfilled') listos.push(lote[j].email);
+                        else { fallos.push(lote[j].name); console.error('[bono] pago', lote[j].email, r.reason); }
+                    });
+                    if (prog) prog.textContent = `Pagando… ${Math.min(i + 8, p.aPagar.length)} de ${p.aPagar.length}`;
+                }
+                // Pagado o ya estaba pagado: en los dos casos va a la lista.
+                if (listos.length) await updateDoc(ref, { pagados: arrayUnion(...listos) });
+                await renderBono();
+                bonoCerrarPrevia();
+                alert(fallos.length
+                    ? `Se pagó a ${listos.length}. Fallaron ${fallos.length}: ${fallos.join(', ')}. Abre "Ver" en esa semana para reintentar.`
+                    : `Listo. ${p.nuevo ? 'CSV guardado. ' : ''}Se pagó a ${listos.length} agente(s).`);
+            } catch (e) {
+                console.error('[bono] confirmar', e);
+                alert('Error: ' + e.message);
+                if (btn) btn.disabled = false;
+            }
+        };
 
         // ─── MULTIPLICADORES ACTIVOS ───────────────────────────────────
         // ACTIVO no es lo mismo que OTORGADO. El multiplicador se gana en un
@@ -9859,6 +10205,8 @@
                     set('mult-t3-pct',  d.multTier3Pct ?? 200);
                     set('mult-t4-min',  d.multTier4Min ?? 0);
                     set('mult-t4-pct',  d.multTier4Pct ?? 0);
+                    set('bono-meta',    d.bonoMeta     ?? 2000);
+                    set('bono-totopos', d.bonoTotopos  ?? 10);
                 }
             } catch(e) { console.warn('[puntos] load:', e); }
             _bindMultCfgInputs();
@@ -10667,6 +11015,7 @@
                     let label = '';
                     let icon = '';
                     if (k.type === 'manual_grant') { label = 'Otorgado por director'; icon = '🎁'; }
+                    else if (k.type === 'bono_semanal') { label = `Bono semanal ${k.semana || ''}`; icon = '🏆'; }
                     else if (k.type === 'manual_burn') { label = 'Quemado por director'; icon = '🔥'; }
                     else if (k.type === 'redemption') { label = `Canje: ${k.item || ''}`; icon = '🛒'; }
                     else if (k.mes) { label = `Reporte mensual: ${k.mes}`; icon = '📋'; }
