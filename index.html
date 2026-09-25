@@ -2672,13 +2672,13 @@
 
             <!-- ── BONO SEMANAL ──
                  Totopos por resultados, sin reportar. Cada semana del año (ISO,
-                 lunes a viernes) el agente que ingreso al menos la meta cobra.
+                 lunes a domingo) el agente que ingreso al menos la meta cobra.
                  Aqui se sube el CSV de cada semana y queda guardado. -->
             <div id="tsub-bono" style="display:none;">
                 <div class="card">
                     <p class="card-title"><i class="fa fa-trophy"></i> Bono semanal — configuración</p>
                     <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
-                        Cada semana, de <b>lunes a viernes</b>, el agente que ingresó al menos la meta
+                        Cada semana, de <b>lunes a domingo</b>, el agente que ingresó al menos la meta
                         (<code>P_ING TOT − PRIMA EXCD</code>, y la prima en trámite si la marcas al subir el CSV)
                         cobra los totopos de esa semana. Si no llega, esa semana se pierde.
                         No depende de reportar en la bitácora.
@@ -3373,7 +3373,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.45.0';
+        window.APP_HTML_VERSION = 'v2.46.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -8699,8 +8699,11 @@
 
 
         // ─── BONO SEMANAL ─────────────────────────────────────────────────
-        // Totopos por resultados, sin reportar. Cada semana ISO (lunes a viernes)
+        // Totopos por resultados, sin reportar. Cada semana ISO (lunes a domingo)
         // el agente que ingreso al menos la meta cobra los totopos de la semana.
+        // El rango incluye sabado y domingo aunque el corte sea el viernes: en
+        // los cierres de mes el corporativo opera el fin de semana y esa
+        // produccion tiene que contar.
         //
         // Guardado: bonoSemanal/{dc}_{2026-W40} tiene el resumen (lo que lista la
         // tabla) y bonoSemanal/{id}/archivo/csv el CSV tal cual. Van separados
@@ -8727,7 +8730,7 @@
             for (let w = 1; ; w++) {
                 const lun = dia(lunes1, (w - 1) * 7);
                 if (dia(lun, 3).getFullYear() !== anio) break;   // su jueves ya es del otro año
-                out.push({ key: anio + '-W' + String(w).padStart(2, '0'), num: w, anio, lun, vie: dia(lun, 4) });
+                out.push({ key: anio + '-W' + String(w).padStart(2, '0'), num: w, anio, lun, dom: dia(lun, 6) });
             }
             return out;
         }
@@ -8817,8 +8820,9 @@
             let nSub = 0, nFalta = 0, nVienen = 0;
             const filas = semanas.map(s => {
                 const g = _bonoDocs[s.key];
-                const sabado = new Date(s.lun.getFullYear(), s.lun.getMonth(), s.lun.getDate() + 5);
-                const terminada = hoy >= sabado;
+                // Se puede subir desde el lunes siguiente: el CSV llega hasta el domingo.
+                const lunesSig = new Date(s.lun.getFullYear(), s.lun.getMonth(), s.lun.getDate() + 7);
+                const terminada = hoy >= lunesSig;
                 let estado, accion = '';
                 if (g) {
                     nSub++;
@@ -8837,7 +8841,7 @@
                 }
                 return `<tr style="border-top:1px solid var(--border);">
                     <td style="padding:8px 6px;font-weight:700;white-space:nowrap;">Semana ${s.num}</td>
-                    <td style="padding:8px 6px;white-space:nowrap;">${_bonoFecha(s.lun)} – ${_bonoFecha(s.vie)}</td>
+                    <td style="padding:8px 6px;white-space:nowrap;">${_bonoFecha(s.lun)} – ${_bonoFecha(s.dom)}</td>
                     <td style="padding:8px 6px;">${estado}</td>
                     <td style="padding:8px 6px;white-space:nowrap;text-align:right;">${accion}</td>
                 </tr>`;
@@ -8927,7 +8931,7 @@
                 ? `<button id="bono-confirmar" class="btn btn-green" onclick="bonoConfirmar()">${txtBoton}</button>` : '';
 
             box.innerHTML = `
-                <p class="card-title"><i class="fa fa-file-csv"></i> Semana ${sem.num} · ${_bonoFecha(sem.lun)} – ${_bonoFecha(sem.vie)} ${sem.vie.getFullYear()}</p>
+                <p class="card-title"><i class="fa fa-file-csv"></i> Semana ${sem.num} · ${_bonoFecha(sem.lun)} – ${_bonoFecha(sem.dom)} ${sem.dom.getFullYear()}</p>
                 <p style="font-size:12px;color:var(--slate);margin:0 0 10px;">Archivo: <b>${escapeHtml(archivo || '')}</b>${nuevo ? '' : ' (guardado)'} · meta ${_bonoMoney(meta)} · ${totopos} totopos por semana cumplida</p>
                 <p style="font-size:12px;color:var(--slate);margin:0 0 6px;line-height:1.6;">${cuenta}</p>
                 ${casilla}
@@ -8993,7 +8997,7 @@
                     await setDoc(doc(db, 'bonoSemanal', id, 'archivo', 'csv'), { texto: p.texto, nombre: p.archivo || '' });
                     await setDoc(ref, {
                         directorCode: state.directorCode, anio: p.sem.anio, semana: p.sem.key, num: p.sem.num,
-                        lunes: _bonoIso(p.sem.lun), viernes: _bonoIso(p.sem.vie),
+                        lunes: _bonoIso(p.sem.lun), domingo: _bonoIso(p.sem.dom),
                         archivo: p.archivo || '', subidoPor: user.email, subidoEn: nowISO(),
                         meta: p.meta, totopos: p.totopos, conTram: p.conTram === true,
                         agentes: p.ev.filas.length, cumplieron: p.ev.filas.filter(f => f.cumple).length
