@@ -3373,7 +3373,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.46.0';
+        window.APP_HTML_VERSION = 'v2.47.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -9002,6 +9002,11 @@
                         meta: p.meta, totopos: p.totopos, conTram: p.conTram === true,
                         agentes: p.ev.filas.length, cumplieron: p.ev.filas.filter(f => f.cumple).length
                     }, { merge: true });
+                    // Aviso para la app del agente: que semanas ya tienen resultados,
+                    // para que distinga "perdida" de "esperando resultados". Va en la
+                    // config de puntos, que leen todos, y no en bonoSemanal, que
+                    // trae lo ingresado de todos y es solo de directores.
+                    await setDoc(doc(db, 'config', _pointsDocId()), { bonoSubidas: arrayUnion(p.sem.key) }, { merge: true });
                 }
                 const listos = [], fallos = [];
                 // De a 8 en paralelo: cada pago es una transaccion independiente.
