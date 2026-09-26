@@ -2692,7 +2692,7 @@
                             <label class="field-label">Meta y bloque — ingresado $</label>
                             <input type="number" id="bono-meta" min="1" class="form-input" value="2000">
                             <label class="field-label" style="margin-top:10px;">Semanas ámbar — totopos por bloque</label>
-                            <input type="number" id="bono-t-ambar" min="1" class="form-input" value="125">
+                            <input type="number" id="bono-t-ambar" min="1" class="form-input" value="100">
                         </div>
                         <div>
                             <label class="field-label">Mes con 2 verdes — 1.ª / 2.ª</label>
@@ -3390,7 +3390,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.50.0';
+        window.APP_HTML_VERSION = 'v2.51.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -8747,7 +8747,7 @@
         // semana: la primera paga mas y van bajando hacia el cierre.
         // Ambar: todas las demas, las que cruzan de mes y las del cierre.
         // Se paga la tarifa por cada bloque completo de la meta ($2,000).
-        const BONO_TARIFAS_DEF = { ambar: 125, dos: [175, 150], tres: [175, 155, 140] };
+        const BONO_TARIFAS_DEF = { ambar: 100, dos: [175, 150], tres: [175, 155, 140] };
         const _bonoHabil = d => d.getDay() !== 0 && d.getDay() !== 6;
         // d es uno de los ultimos 5 dias habiles de su mes
         function _bonoEsCierre(d) {
