@@ -2348,6 +2348,19 @@
 
         <!-- ═══════════════════ TAB: ALERTAS DE EQUIPO ═══════════════════ -->
         <div id="tab-alertas" class="tab-panel">
+            <!-- Totopos sospechosos: las alertas las escribe la Cloud Function
+                 vigilarTotopos; aqui se leen en vivo y se marcan revisadas. -->
+            <div class="card" style="margin-bottom:20px;">
+                <p class="card-title"><i class="fa fa-shield-halved"></i> Totopos sospechosos
+                    <span id="totopos-alertas-cuenta" style="display:none; background:var(--red); color:#fff; border-radius:10px; font-size:11px; padding:1px 8px; margin-left:6px;"></span></p>
+                <p style="font-size:12px; color:var(--slate); margin-bottom:14px; line-height:1.55;">
+                    Cambios que un agente hizo en su propia cuenta y que la app nunca haría: un saldo que no cuadra con su historial,
+                    movimientos que solo puede hacer el director (regalos, bonos), cierres de día imposibles o sin día reportado,
+                    o movimientos borrados. Se detectan segundos después de que ocurren.
+                </p>
+                <div id="totopos-alertas-list"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i> Cargando…</div></div>
+            </div>
+
             <div class="card" style="margin-bottom:20px;">
                 <p class="card-title"><i class="fa fa-triangle-exclamation"></i> Alertas de Comportamiento — Reporte Mensual</p>
                 <p style="font-size:12px; color:var(--slate); margin-bottom:16px;">
@@ -3390,7 +3403,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.51.0';
+        window.APP_HTML_VERSION = 'v2.52.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -3876,6 +3889,7 @@
                 state.embeddedPromoters = Array.isArray(data.promoters) ? data.promoters : [];
                 document.getElementById('team-display').textContent = 'Mi código: ' + (state.directorCode || 'Sin Código') + (state.regionName ? ' · ' + state.regionName : '');
                 startListeningPromotores();
+                _vigilarAlertasTotopos();
             } else {
                 // First time director
                 state.directorName = user.displayName || '';
@@ -7282,13 +7296,72 @@
             });
 
             // Badge total en tab
-            const badge = document.getElementById('alertas-badge');
-            if (badge) {
-                const total = rendidos.length + verdesSinCierre.length;
-                if (total > 0) { badge.textContent = total; badge.style.display = 'inline-block'; }
-                else badge.style.display = 'none';
-            }
+            // El contador suma estas alertas y las de totopos sospechosos.
+            window._alertasComport = rendidos.length + verdesSinCierre.length;
+            _pintarBadgeAlertas();
         }
+
+        // ─── ALERTAS DE TOTOPOS ───────────────────────────────────────────
+        // Las escribe la Cloud Function vigilarTotopos cuando un agente cambia su
+        // propia cuenta de una forma que la app nunca haria. Aqui solo se leen en
+        // vivo y se marcan como revisadas (las reglas no dejan cambiar nada mas).
+        // Sin orderBy en la consulta: con where + orderBy haria falta un indice
+        // compuesto, y son pocas; se ordenan aqui.
+        let _totoposAlertas = [], _totoposUnsub = null;
+        window._alertasComport = 0;
+        function _pintarBadgeAlertas() {
+            const badge = document.getElementById('alertas-badge');
+            const pend = _totoposAlertas.filter(a => !a.revisada).length;
+            const cuenta = document.getElementById('totopos-alertas-cuenta');
+            if (cuenta) { cuenta.textContent = pend + ' sin revisar'; cuenta.style.display = pend ? 'inline-block' : 'none'; }
+            if (!badge) return;
+            const total = (window._alertasComport || 0) + pend;
+            if (total > 0) { badge.textContent = total; badge.style.display = 'inline-block'; }
+            else badge.style.display = 'none';
+        }
+        function _vigilarAlertasTotopos() {
+            if (_totoposUnsub || !state.directorCode) return;
+            _totoposUnsub = onSnapshot(query(collection(db, 'alertasTotopos'), where('directorCode', '==', state.directorCode)), snap => {
+                _totoposAlertas = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+                _pintarAlertasTotopos();
+                _pintarBadgeAlertas();
+            }, e => {
+                console.warn('[alertasTotopos]', e && e.message);
+                const el = document.getElementById('totopos-alertas-list');
+                if (el) el.innerHTML = '<div class="empty-state">No se pudieron leer las alertas: ' + escapeHtml(e && e.message || '') + '</div>';
+            });
+        }
+        function _pintarAlertasTotopos() {
+            const el = document.getElementById('totopos-alertas-list');
+            if (!el) return;
+            if (!_totoposAlertas.length) {
+                el.innerHTML = '<div class="empty-state" style="color:var(--green);"><i class="fa fa-check-circle"></i>Sin movimientos sospechosos.</div>';
+                return;
+            }
+            const cuando = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }); };
+            el.innerHTML = _totoposAlertas.slice(0, 50).map(a => {
+                const critica = a.nivel === 'critico';
+                const color = a.revisada ? 'var(--slate)' : (critica ? 'var(--red)' : 'var(--orange, #d97706)');
+                const nuevos = (a.movimientosNuevos || []).map(m => escapeHtml(JSON.stringify(m))).join('<br>');
+                return `<div style="border:1px solid var(--border);border-left:4px solid ${color};border-radius:8px;padding:10px 12px;margin-bottom:10px;${a.revisada ? 'opacity:.6;' : ''}">
+                    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;">
+                        <strong style="font-size:14px;">${critica ? '🚨' : '⚠️'} ${escapeHtml(a.agenteNombre || a.agenteId)}</strong>
+                        <span style="font-size:12px;color:var(--slate);">${cuando(a.fecha)}</span>
+                    </div>
+                    <ul style="margin:6px 0 6px 18px;padding:0;font-size:13px;line-height:1.5;">${(a.detalles || []).map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>
+                    <div style="font-size:12px;color:var(--slate);">Saldo: <b>${Number(a.saldoAntes || 0).toLocaleString('es-MX')}</b> → <b style="color:${color};">${Number(a.saldoDespues || 0).toLocaleString('es-MX')}</b> · ${escapeHtml(a.agenteId || '')}</div>
+                    ${nuevos ? `<details style="margin-top:6px;font-size:11.5px;"><summary style="cursor:pointer;color:var(--slate);">Movimientos que agregó</summary><div style="font-family:monospace;margin-top:4px;word-break:break-all;">${nuevos}</div></details>` : ''}
+                    <div style="margin-top:8px;">${a.revisada
+                        ? `<span style="font-size:12px;color:var(--slate);"><i class="fa fa-check"></i> Revisada por ${escapeHtml(a.revisadaPor || '')}</span>`
+                        : `<button class="btn btn-sm" onclick="revisarAlertaTotopos('${a.id}')"><i class="fa fa-check"></i> Marcar como revisada</button>`}</div>
+                </div>`;
+            }).join('');
+        }
+        window.revisarAlertaTotopos = async function (id) {
+            try { await updateDoc(doc(db, 'alertasTotopos', id), { revisada: true, revisadaPor: user.email, revisadaEn: nowISO() }); }
+            catch (e) { alert('No se pudo marcar: ' + e.message); }
+        };
 
         function _renderAlertasTable(containerId, rows, mesStr, cfg) {
             const el = document.getElementById(containerId);
