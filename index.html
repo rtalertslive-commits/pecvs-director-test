@@ -2678,19 +2678,36 @@
                 <div class="card">
                     <p class="card-title"><i class="fa fa-trophy"></i> Bono semanal — configuración</p>
                     <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
-                        Cada semana, de <b>lunes a domingo</b>, el agente que ingresó al menos la meta
-                        (<code>P_ING TOT − PRIMA EXCD</code>, y la prima en trámite si la marcas al subir el CSV)
-                        cobra los totopos de esa semana. Si no llega, esa semana se pierde.
+                        Cada semana, de <b>lunes a domingo</b>, el agente cobra la tarifa de esa semana <b>por cada bloque de la meta</b>
+                        que ingresó (<code>P_ING TOT − PRIMA EXCD</code>, y la prima en trámite si la marcas al subir el CSV).
+                        Con $4,000 y meta de $2,000 cobra 2 veces la tarifa. Si no llega a la meta, esa semana no cobra.
                         No depende de reportar en la bitácora.
                     </p>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px;">
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
+                        <b style="color:var(--green);">Semanas verdes</b>: completas dentro del mes y lejos del cierre. Todos los meses tienen 2 o 3, y la primera paga más.
+                        <b style="color:var(--gold);">Semanas ámbar</b>: las que cruzan de mes y las que tocan los últimos 5 días hábiles del mes.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px;">
                         <div>
-                            <label class="field-label">Meta semanal — ingresado $</label>
+                            <label class="field-label">Meta y bloque — ingresado $</label>
                             <input type="number" id="bono-meta" min="1" class="form-input" value="2000">
+                            <label class="field-label" style="margin-top:10px;">Semanas ámbar — totopos por bloque</label>
+                            <input type="number" id="bono-t-ambar" min="1" class="form-input" value="125">
                         </div>
                         <div>
-                            <label class="field-label">Totopos por semana cumplida</label>
-                            <input type="number" id="bono-totopos" min="1" class="form-input" value="10">
+                            <label class="field-label">Mes con 2 verdes — 1.ª / 2.ª</label>
+                            <div style="display:flex;gap:8px;">
+                                <input type="number" id="bono-t2-1" min="1" class="form-input" value="175">
+                                <input type="number" id="bono-t2-2" min="1" class="form-input" value="150">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="field-label">Mes con 3 verdes — 1.ª / 2.ª / 3.ª</label>
+                            <div style="display:flex;gap:8px;">
+                                <input type="number" id="bono-t3-1" min="1" class="form-input" value="175">
+                                <input type="number" id="bono-t3-2" min="1" class="form-input" value="155">
+                                <input type="number" id="bono-t3-3" min="1" class="form-input" value="140">
+                            </div>
                         </div>
                     </div>
                     <button class="btn btn-green" onclick="saveBonoConfig()"><i class="fa fa-floppy-disk"></i> Guardar configuración</button>
@@ -3373,7 +3390,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.49.0';
+        window.APP_HTML_VERSION = 'v2.50.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -8700,24 +8717,76 @@
 
         // ─── BONO SEMANAL ─────────────────────────────────────────────────
         // Totopos por resultados, sin reportar. Cada semana ISO (lunes a domingo)
-        // el agente que ingreso al menos la meta cobra los totopos de la semana.
+        // el agente cobra la tarifa de ESA semana por cada bloque de la meta que
+        // ingreso ($4,000 con meta de $2,000 = 2 veces la tarifa). Las semanas
+        // verdes (dentro del mes, lejos del cierre) pagan mas y van bajando; las
+        // ambar (cruzan de mes o son del cierre) pagan la base. Asi no conviene
+        // ni guardar produccion para el cierre ni dosificarla.
         // El rango incluye sabado y domingo aunque el corte sea el viernes: en
-        // los cierres de mes el corporativo opera el fin de semana y esa
-        // produccion tiene que contar.
+        // los cierres de mes el corporativo opera el fin de semana.
         //
         // Guardado: bonoSemanal/{dc}_{2026-W40} tiene el resumen (lo que lista la
         // tabla) y bonoSemanal/{id}/archivo/csv el CSV tal cual. Van separados
         // para que abrir la pestaña no baje 53 CSVs de ~20 KB.
         //
-        // El candado del pago es el karmaLog del agente: una entrada
-        // { type:'bono_semanal', semana:'2026-W40' } por semana. Volver a subir
-        // el CSV o volver a pagar nunca paga dos veces, y nunca se quita nada.
+        // El candado del pago es el karmaLog del agente: las entradas
+        // { type:'bono_semanal', semana:'2026-W40' } de una semana suman lo ya
+        // pagado, y solo se paga la diferencia contra lo que corresponde. Volver
+        // a subir el CSV nunca paga doble, y nunca se quita nada.
         // La entrada NO lleva `date`: ese campo es el candado de los cierres de
         // dia en la app del agente y no se debe mezclar.
         //
-        // Config: config/{dc}_bono = { meta, totopos, subidas[] }, un doc por
-        // region y aparte de la config de puntos. `subidas` es lo que le dice a
-        // la app del agente que semanas ya tienen resultados.
+        // Config: config/{dc}_bono = { meta, tarifas, subidas[] }, un doc por
+        // region y aparte de la config de puntos. `subidas` le dice a la app del
+        // agente que semanas ya tienen resultados.
+        // ── Cuanto paga cada semana (MISMO codigo en el director y el agente) ──
+        // Verde: la semana (lunes a domingo) queda completa dentro de un mes y
+        // no toca ninguno de los ultimos 5 dias habiles de ningun mes (lunes a
+        // viernes; un festivo cuenta como dia habil). Todo mes tiene 2 o 3
+        // verdes; la tarifa depende de cuantas tiene el mes y del lugar de la
+        // semana: la primera paga mas y van bajando hacia el cierre.
+        // Ambar: todas las demas, las que cruzan de mes y las del cierre.
+        // Se paga la tarifa por cada bloque completo de la meta ($2,000).
+        const BONO_TARIFAS_DEF = { ambar: 125, dos: [175, 150], tres: [175, 155, 140] };
+        const _bonoHabil = d => d.getDay() !== 0 && d.getDay() !== 6;
+        // d es uno de los ultimos 5 dias habiles de su mes
+        function _bonoEsCierre(d) {
+            if (!_bonoHabil(d)) return false;
+            let despues = 0;
+            for (let x = new Date(d.getFullYear(), d.getMonth() + 1, 0); x > d; x = new Date(x.getFullYear(), x.getMonth(), x.getDate() - 1))
+                if (_bonoHabil(x)) despues++;
+            return despues < 5;
+        }
+        // Los lunes (en ms) de las semanas verdes del mes, en orden
+        function _bonoVerdesDelMes(y, m) {
+            const ini = new Date(y, m, 1), fin = new Date(y, m + 1, 0), out = [];
+            for (let lun = new Date(y, m, 1 - (ini.getDay() + 6) % 7); lun <= fin;
+                 lun = new Date(lun.getFullYear(), lun.getMonth(), lun.getDate() + 7)) {
+                const dias = [0, 1, 2, 3, 4, 5, 6].map(i => new Date(lun.getFullYear(), lun.getMonth(), lun.getDate() + i));
+                if (dias.every(d => d.getFullYear() === y && d.getMonth() === m) && !dias.some(_bonoEsCierre)) out.push(lun.getTime());
+            }
+            return out;
+        }
+        // { tipo: 'verde'|'ambar', tarifa, lugar (1..3, 0 si ambar), nVerdes }
+        function _bonoTarifaSemana(lun, tarifas) {
+            const t = tarifas || BONO_TARIFAS_DEF;
+            const l = new Date(lun.getFullYear(), lun.getMonth(), lun.getDate());
+            const verdes = _bonoVerdesDelMes(l.getFullYear(), l.getMonth());
+            const i = verdes.indexOf(l.getTime());
+            if (i < 0) return { tipo: 'ambar', tarifa: Number(t.ambar) || 0, lugar: 0, nVerdes: verdes.length };
+            const escala = (verdes.length >= 3 ? t.tres : t.dos) || [];
+            return { tipo: 'verde', tarifa: Number(escala[Math.min(i, escala.length - 1)]) || 0, lugar: i + 1, nVerdes: verdes.length };
+        }
+        // Normaliza lo que venga de config/{dc}_bono.tarifas
+        function _bonoTarifas(cfg) {
+            const t = (cfg && cfg.tarifas) || {};
+            const num = (v, d) => (Number(v) > 0 ? Number(v) : d);
+            return {
+                ambar: num(t.ambar, BONO_TARIFAS_DEF.ambar),
+                dos:  BONO_TARIFAS_DEF.dos.map((d, i) => num((t.dos || [])[i], d)),
+                tres: BONO_TARIFAS_DEF.tres.map((d, i) => num((t.tres || [])[i], d))
+            };
+        }
         const _bonoCfgRef = () => doc(db, 'config', state.directorCode + '_bono');
         let _bonoCfgCargada = false;
         let _bonoAnio = new Date().getFullYear();
@@ -8725,6 +8794,7 @@
         let _bonoInicio = null;      // primera semana que cuenta como "falta subir"
         let _bonoPrev = null;        // vista previa en pantalla
         let _bonoSemanaElegida = null;
+        const BONO_INPUTS = ['bono-t-ambar', 'bono-t2-1', 'bono-t2-2', 'bono-t3-1', 'bono-t3-2', 'bono-t3-3'];
 
         // Semanas ISO 8601: la semana 1 es la que tiene el primer jueves del año,
         // asi que puede empezar en diciembre del año anterior, y hay años de 53.
@@ -8767,12 +8837,19 @@
             return { porAso, nombres, sinExcd: iExcd < 0, sinTram: iTram < 0, t };
         }
 
-        function _bonoEvaluar(porAso, agentes, meta) {
+        // Cuantos bloques de la meta hay en lo ingresado, y cuanto pagan.
+        function _bonoMonto(ing, meta, tarifa) {
+            const bloques = meta > 0 && ing >= meta ? Math.floor(ing / meta) : 0;
+            return { bloques, total: bloques * tarifa };
+        }
+
+        function _bonoEvaluar(porAso, agentes, meta, tarifa) {
             const conClave = agentes.filter(a => String(a.companyCode || '').trim());
             const claves = new Set(conClave.map(a => String(a.companyCode).trim()));
             const filas = conClave.map(a => {
                 const ing = porAso[String(a.companyCode).trim()] || 0;
-                return { email: a.email, name: a.name || a.email, ing, cumple: ing >= meta };
+                const { bloques, total } = _bonoMonto(ing, meta, tarifa);
+                return { email: a.email, name: a.name || a.email, ing, cumple: bloques > 0, bloques, total };
             }).sort((x, y) => y.ing - x.ing || x.name.localeCompare(y.name, 'es', { sensitivity: 'base' }));
             return {
                 filas,
@@ -8785,13 +8862,28 @@
         const _bonoFecha = d => d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
         const _bonoIso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         const _bonoMoney = n => '$' + (Number(n) || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 });
+        const _bonoChip = (info) => info.tipo === 'verde'
+            ? `<span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:10px;font-weight:800;background:rgba(46,125,79,.15);color:var(--green);" title="Semana verde ${info.lugar} de ${info.nVerdes} del mes">${info.tarifa}</span>`
+            : `<span style="display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:10px;font-weight:800;background:rgba(201,122,40,.16);color:#b0651c;" title="Semana ámbar: cruza de mes o es del cierre">${info.tarifa}</span>`;
+
+        // La config que esta en pantalla (puede no estar guardada todavia)
+        function _bonoCfgPantalla() {
+            const v = id => Number(document.getElementById(id).value);
+            return {
+                meta: v('bono-meta'),
+                tarifas: { ambar: v('bono-t-ambar'), dos: [v('bono-t2-1'), v('bono-t2-2')], tres: [v('bono-t3-1'), v('bono-t3-2'), v('bono-t3-3')] }
+            };
+        }
+        const _bonoCfgValida = c => c.meta > 0 && [c.tarifas.ambar, ...c.tarifas.dos, ...c.tarifas.tres].every(x => x > 0);
 
         window.saveBonoConfig = async function () {
-            const meta = _numVal('bono-meta', 2000), totopos = Math.floor(_numVal('bono-totopos', 10));
-            if (!(meta > 0) || !(totopos > 0)) { alert('La meta y los totopos tienen que ser mayores a 0.'); return; }
-            await setDoc(_bonoCfgRef(), { meta, totopos }, { merge: true });
+            const c = _bonoCfgPantalla();
+            if (!_bonoCfgValida(c)) { alert('La meta y todas las tarifas tienen que ser mayores a 0.'); return; }
+            c.tarifas.dos = c.tarifas.dos.map(Math.floor); c.tarifas.tres = c.tarifas.tres.map(Math.floor); c.tarifas.ambar = Math.floor(c.tarifas.ambar);
+            await setDoc(_bonoCfgRef(), { meta: c.meta, tarifas: c.tarifas }, { merge: true });
             const m = document.getElementById('bono-cfg-msg');
             if (m) { m.style.display = 'inline'; setTimeout(() => m.style.display = 'none', 2500); }
+            _bonoPintar();
         };
 
         window.bonoCambiarAnio = function (d) { _bonoAnio += d; renderBono(); };
@@ -8808,8 +8900,15 @@
                 try {
                     const c = await getDoc(_bonoCfgRef());
                     const d = c.exists() ? c.data() : {};
+                    const t = _bonoTarifas(d);
                     document.getElementById('bono-meta').value = d.meta ?? 2000;
-                    document.getElementById('bono-totopos').value = d.totopos ?? 10;
+                    document.getElementById('bono-t-ambar').value = t.ambar;
+                    document.getElementById('bono-t2-1').value = t.dos[0];
+                    document.getElementById('bono-t2-2').value = t.dos[1];
+                    document.getElementById('bono-t3-1').value = t.tres[0];
+                    document.getElementById('bono-t3-2').value = t.tres[1];
+                    document.getElementById('bono-t3-3').value = t.tres[2];
+                    BONO_INPUTS.concat('bono-meta').forEach(id => document.getElementById(id).addEventListener('input', () => _bonoPintar()));
                     _bonoCfgCargada = true;
                 } catch (e) { console.warn('[bono] config:', e && e.message); }
             }
@@ -8832,18 +8931,23 @@
 
         function _bonoPintar() {
             const cont = document.getElementById('bono-semanas');
+            if (!cont) return;
             const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
             const semanas = _bonoSemanas(_bonoAnio);
+            const tarifas = _bonoCfgPantalla().tarifas;
             let nSub = 0, nFalta = 0, nVienen = 0;
             const filas = semanas.map(s => {
                 const g = _bonoDocs[s.key];
+                // Una semana subida muestra la tarifa con que se pago.
+                const info = g && g.tarifa ? { tipo: g.tipo, tarifa: g.tarifa, lugar: g.lugar, nVerdes: g.nVerdes } : _bonoTarifaSemana(s.lun, tarifas);
                 // Se puede subir desde el lunes siguiente: el CSV llega hasta el domingo.
                 const lunesSig = new Date(s.lun.getFullYear(), s.lun.getMonth(), s.lun.getDate() + 7);
                 const terminada = hoy >= lunesSig;
                 let estado, accion = '';
                 if (g) {
                     nSub++;
-                    estado = `<span style="color:var(--green);font-weight:700;">✅ Subido</span> <span style="color:var(--slate);">· ${g.cumplieron || 0} de ${g.agentes || 0} cumplieron · ${(g.pagados || []).length} pagados</span>`;
+                    const pagado = (g.pagos || []).reduce((a, x) => a + (Number(x.pts) || 0), 0);
+                    estado = `<span style="color:var(--green);font-weight:700;">✅ Subido</span> <span style="color:var(--slate);">· ${g.cumplieron || 0} de ${g.agentes || 0} cumplieron · ${(g.pagos || []).length} pagados · ${pagado.toLocaleString('es-MX')} totopos</span>`;
                     accion = `<button class="btn btn-sm" onclick="bonoVer('${s.key}')">Ver</button> <button class="btn btn-sm" onclick="bonoElegirArchivo('${s.key}')">Reemplazar</button>`;
                 } else if (!terminada) {
                     nVienen++;
@@ -8859,6 +8963,7 @@
                 return `<tr style="border-top:1px solid var(--border);">
                     <td style="padding:8px 6px;font-weight:700;white-space:nowrap;">Semana ${s.num}</td>
                     <td style="padding:8px 6px;white-space:nowrap;">${_bonoFecha(s.lun)} – ${_bonoFecha(s.dom)}</td>
+                    <td style="padding:8px 6px;white-space:nowrap;">${_bonoChip(info)}</td>
                     <td style="padding:8px 6px;">${estado}</td>
                     <td style="padding:8px 6px;white-space:nowrap;text-align:right;">${accion}</td>
                 </tr>`;
@@ -8867,6 +8972,7 @@
             if (c) c.innerHTML = `<b>${semanas.length} semanas</b> en ${_bonoAnio} · ` +
                 `<span style="color:var(--green);font-weight:700;">${nSub} subidas</span> · ` +
                 `<span style="color:var(--red);font-weight:700;">${nFalta} faltan por subir</span> · ${nVienen} por venir` +
+                `<br>La cifra de color es lo que paga cada semana por cada bloque de ${_bonoMoney(_bonoCfgPantalla().meta)}: verde las que pagan más, ámbar las que cruzan de mes o son del cierre.` +
                 (_bonoInicio ? '' : '<br>Sube el CSV de la primera semana del bono: las semanas anteriores no cuentan como faltantes.');
             cont.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">${filas}</table>`;
         }
@@ -8882,13 +8988,15 @@
             const file = input.files && input.files[0];
             const sem = _bonoSemanas(_bonoAnio).find(s => s.key === _bonoSemanaElegida);
             if (!file || !sem) return;
+            const cfg = _bonoCfgPantalla();
+            if (!_bonoCfgValida(cfg)) { alert('Configura la meta y las tarifas del bono antes de subir.'); return; }
             const r = new FileReader();
             r.onload = ev => _bonoVistaPrevia(sem, String(ev.target.result || ''), file.name, true,
-                                               _numVal('bono-meta', 2000), Math.floor(_numVal('bono-totopos', 10)), false);
+                                               cfg.meta, _bonoTarifaSemana(sem.lun, cfg.tarifas), false);
             r.readAsText(file, 'UTF-8');
         };
 
-        // Una semana ya subida se revisa con SU meta, SUS totopos y SU criterio
+        // Una semana ya subida se revisa con SU meta, SU tarifa y SU criterio
         // de tramite, los que se usaron al subirla, aunque la configuracion
         // haya cambiado despues.
         window.bonoVer = async function (key) {
@@ -8898,20 +9006,26 @@
             try {
                 const a = await getDoc(doc(db, 'bonoSemanal', state.directorCode + '_' + key, 'archivo', 'csv'));
                 if (!a.exists()) { alert('No encontré el CSV guardado de esta semana.'); return; }
-                _bonoVistaPrevia(sem, a.data().texto, g.archivo, false, g.meta, g.totopos, g.conTram === true);
+                const info = g.tarifa ? { tipo: g.tipo, tarifa: g.tarifa, lugar: g.lugar, nVerdes: g.nVerdes }
+                                      : _bonoTarifaSemana(sem.lun, _bonoCfgPantalla().tarifas);
+                _bonoVistaPrevia(sem, a.data().texto, g.archivo, false, g.meta, info, g.conTram === true);
             } catch (e) { alert('Error leyendo el CSV: ' + e.message); }
         };
 
-        function _bonoVistaPrevia(sem, texto, archivo, nuevo, meta, totopos, conTram) {
+        function _bonoVistaPrevia(sem, texto, archivo, nuevo, meta, info, conTram) {
             const box = document.getElementById('bono-preview');
             const parsed = _bonoParseCsv(texto, conTram);
             if (!parsed) { alert('El archivo no tiene la columna P_ING TOT. ¿Es el reporte del corporativo?'); return; }
-            if (!(meta > 0) || !(totopos > 0)) { alert('Configura la meta y los totopos del bono antes de subir.'); return; }
-            const ev = _bonoEvaluar(parsed.porAso, state.agents || [], meta);
-            const yaPagados = new Set((_bonoDocs[sem.key] || {}).pagados || []);
-            const aPagar = ev.filas.filter(f => f.cumple && !yaPagados.has(f.email));
+            const tarifa = info.tarifa;
+            const ev = _bonoEvaluar(parsed.porAso, state.agents || [], meta, tarifa);
+            // Lo ya pagado por agente en esta semana (se paga solo la diferencia)
+            const yaPagado = {};
+            ((_bonoDocs[sem.key] || {}).pagos || []).forEach(x => { yaPagado[x.email] = Number(x.pts) || 0; });
+            ev.filas.forEach(f => { f.pagado = yaPagado[f.email] || 0; f.ahora = Math.max(0, f.total - f.pagado); });
+            const aPagar = ev.filas.filter(f => f.ahora > 0);
             const cumplen = ev.filas.filter(f => f.cumple).length;
-            _bonoPrev = { sem, texto, archivo, nuevo, meta, totopos, conTram, ev, aPagar };
+            const totalAhora = aPagar.reduce((a, f) => a + f.ahora, 0);
+            _bonoPrev = { sem, texto, archivo, nuevo, meta, info, conTram, ev, aPagar };
 
             const avisos = [];
             if (parsed.sinExcd) avisos.push('⚠ No encontré la columna <code>PRIMA EXCD</code>: se está usando <code>P_ING TOT</code> completo.');
@@ -8951,36 +9065,38 @@
                 </div>`;
             if (ev.sinClave) avisos.push(`${ev.sinClave} agente(s) sin clave de la empresa: no se pueden cruzar con el CSV.`);
 
-            const filas = ev.filas.map(f => {
-                const est = !f.cumple ? '<span style="color:var(--slate);">—</span>'
-                    : yaPagados.has(f.email) ? '<span style="color:var(--slate);">Ya pagado</span>'
-                    : `<span style="color:var(--green);font-weight:700;">+${totopos}</span>`;
-                return `<tr style="border-top:1px solid var(--border);">
+            const td = 'padding:6px;text-align:right;white-space:nowrap;';
+            const filas = ev.filas.map(f => `<tr style="border-top:1px solid var(--border);">
                     <td style="padding:6px;">${escapeHtml(f.name)}</td>
-                    <td style="padding:6px;text-align:right;white-space:nowrap;">${_bonoMoney(f.ing)}</td>
-                    <td style="padding:6px;text-align:center;">${f.cumple ? '✅' : '❌'}</td>
-                    <td style="padding:6px;text-align:right;white-space:nowrap;">${est}</td>
-                </tr>`;
-            }).join('');
+                    <td style="${td}">${_bonoMoney(f.ing)}</td>
+                    <td style="${td}">${f.bloques ? f.bloques + ' × ' + tarifa : '<span style="color:var(--slate);">—</span>'}</td>
+                    <td style="${td}font-weight:700;">${f.total ? f.total.toLocaleString('es-MX') : ''}</td>
+                    <td style="${td}color:var(--slate);">${f.pagado ? f.pagado.toLocaleString('es-MX') : ''}</td>
+                    <td style="${td}">${f.ahora ? `<span style="color:var(--green);font-weight:800;">+${f.ahora.toLocaleString('es-MX')}</span>` : (f.cumple ? '<span style="color:var(--slate);">Ya pagado</span>' : '')}</td>
+                </tr>`).join('');
 
             const txtBoton = nuevo
-                ? `<i class="fa fa-floppy-disk"></i> Guardar CSV${aPagar.length ? ' y pagar a ' + aPagar.length : ''}`
-                : `<i class="fa fa-coins"></i> Pagar a ${aPagar.length} pendiente(s)`;
+                ? `<i class="fa fa-floppy-disk"></i> Guardar CSV${aPagar.length ? ` y pagar ${totalAhora.toLocaleString('es-MX')} totopos a ${aPagar.length}` : ''}`
+                : `<i class="fa fa-coins"></i> Pagar ${totalAhora.toLocaleString('es-MX')} totopos a ${aPagar.length} pendiente(s)`;
             const boton = (nuevo || aPagar.length)
                 ? `<button id="bono-confirmar" class="btn btn-green" onclick="bonoConfirmar()">${txtBoton}</button>` : '';
+            const queSemana = info.tipo === 'verde'
+                ? `semana <b style="color:var(--green);">verde ${info.lugar} de ${info.nVerdes}</b> del mes`
+                : `semana <b style="color:#b0651c;">ámbar</b> (cruza de mes o es del cierre)`;
 
             box.innerHTML = `
                 <p class="card-title"><i class="fa fa-file-csv"></i> Semana ${sem.num} · ${_bonoFecha(sem.lun)} – ${_bonoFecha(sem.dom)} ${sem.dom.getFullYear()}</p>
-                <p style="font-size:12px;color:var(--slate);margin:0 0 10px;">Archivo: <b>${escapeHtml(archivo || '')}</b>${nuevo ? '' : ' (guardado)'} · meta ${_bonoMoney(meta)} · ${totopos} totopos por semana cumplida</p>
+                <p style="font-size:13px;margin:0 0 6px;">${_bonoChip(info)} &nbsp;Es ${queSemana}: paga <b>${tarifa} totopos por cada ${_bonoMoney(meta)}</b> ingresados.</p>
+                <p style="font-size:12px;color:var(--slate);margin:0 0 10px;">Archivo: <b>${escapeHtml(archivo || '')}</b>${nuevo ? '' : ' (guardado)'}</p>
                 <p style="font-size:12px;color:var(--slate);margin:0 0 6px;line-height:1.6;">${cuenta}</p>
                 ${casilla}
                 ${avisos.length ? `<p style="font-size:12px;color:var(--red);margin:0 0 10px;line-height:1.6;">${avisos.join('<br>')}</p>` : ''}
-                <p style="font-size:13px;margin:0 0 12px;"><b>${cumplen} de ${ev.filas.length}</b> agentes cumplieron.
-                   ${aPagar.length ? `Se le pagan <b>${totopos}</b> totopos a <b>${aPagar.length}</b>.` : 'No hay nadie pendiente de pago.'}</p>
+                <p style="font-size:13px;margin:0 0 12px;"><b>${cumplen} de ${ev.filas.length}</b> agentes llegaron a la meta.
+                   ${aPagar.length ? `Se pagan <b>${totalAhora.toLocaleString('es-MX')}</b> totopos a <b>${aPagar.length}</b>.` : 'No hay nadie pendiente de pago.'}</p>
                 <div style="max-height:360px;overflow:auto;margin-bottom:12px;">
                     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-                        <tr style="color:var(--slate);"><th style="text-align:left;padding:6px;">Agente</th><th style="text-align:right;padding:6px;">Ingresado</th><th style="padding:6px;">Meta</th><th style="text-align:right;padding:6px;">Pago</th></tr>
-                        ${filas || '<tr><td colspan="4" style="padding:10px;color:var(--slate);">Sin agentes con clave.</td></tr>'}
+                        <tr style="color:var(--slate);"><th style="text-align:left;padding:6px;">Agente</th><th style="${td}">Ingresado</th><th style="${td}">Bloques × tarifa</th><th style="${td}">Le toca</th><th style="${td}">Ya pagado</th><th style="${td}">Paga ahora</th></tr>
+                        ${filas || '<tr><td colspan="6" style="padding:10px;color:var(--slate);">Sin agentes con clave.</td></tr>'}
                     </table>
                 </div>
                 ${tablaSinCuenta}
@@ -8995,7 +9111,7 @@
 
         window.bonoToggleTram = function (on) {
             const p = _bonoPrev;
-            if (p && p.nuevo) _bonoVistaPrevia(p.sem, p.texto, p.archivo, true, p.meta, p.totopos, on);
+            if (p && p.nuevo) _bonoVistaPrevia(p.sem, p.texto, p.archivo, true, p.meta, p.info, on);
         };
 
         window.bonoCerrarPrevia = function () {
@@ -9004,21 +9120,24 @@
             box.style.display = 'none'; box.innerHTML = '';
         };
 
-        // Devuelve true si pago, false si ya estaba pagado.
-        function _bonoPagarUno(email, sem, meta, totopos, ing) {
+        // Paga solo lo que falte para llegar a `debe` en esta semana. Devuelve
+        // { total, nuevo }: lo pagado en total en la semana y lo pagado ahora.
+        function _bonoPagarUno(email, sem, debe, detalle) {
             const ref = doc(db, 'users', email);
             return runTransaction(db, async tx => {
                 const snap = await tx.get(ref);
                 if (!snap.exists()) throw new Error('El agente no existe.');
                 const d = snap.data();
                 const log = Array.isArray(d.karmaLog) ? d.karmaLog : [];
-                if (log.some(k => k.type === 'bono_semanal' && k.semana === sem.key)) return false;
+                const yaPagado = log.filter(k => k && k.type === 'bono_semanal' && k.semana === sem.key)
+                                    .reduce((a, k) => a + (Number(k.points) || 0), 0);
+                const falta = debe - yaPagado;
+                if (falta <= 0) return { total: yaPagado, nuevo: 0 };
                 tx.update(ref, {
-                    karma: (typeof d.karma === 'number' ? d.karma : 0) + totopos,
-                    karmaLog: [...log, { type: 'bono_semanal', points: totopos, semana: sem.key,
-                                         ingresado: Math.round(ing * 100) / 100, meta, fecha: nowISO(), by: user.email }]
+                    karma: (typeof d.karma === 'number' ? d.karma : 0) + falta,
+                    karmaLog: [...log, { type: 'bono_semanal', points: falta, semana: sem.key, ...detalle, fecha: nowISO(), by: user.email }]
                 });
-                return true;
+                return { total: debe, nuevo: falta };
             });
         }
 
@@ -9039,33 +9158,37 @@
                         directorCode: state.directorCode, anio: p.sem.anio, semana: p.sem.key, num: p.sem.num,
                         lunes: _bonoIso(p.sem.lun), domingo: _bonoIso(p.sem.dom),
                         archivo: p.archivo || '', subidoPor: user.email, subidoEn: nowISO(),
-                        meta: p.meta, totopos: p.totopos, conTram: p.conTram === true,
+                        meta: p.meta, tarifa: p.info.tarifa, tipo: p.info.tipo, lugar: p.info.lugar, nVerdes: p.info.nVerdes,
+                        conTram: p.conTram === true,
                         agentes: p.ev.filas.length, cumplieron: p.ev.filas.filter(f => f.cumple).length
                     }, { merge: true });
                     // Aviso para la app del agente: que semanas ya tienen resultados,
-                    // para que distinga "perdida" de "esperando resultados". Va en la
-                    // config de puntos, que leen todos, y no en bonoSemanal, que
-                    // trae lo ingresado de todos y es solo de directores.
+                    // para que distinga "perdida" de "esperando resultados".
                     await setDoc(_bonoCfgRef(), { subidas: arrayUnion(p.sem.key) }, { merge: true });
                 }
-                const listos = [], fallos = [];
+                const pagos = {};
+                ((_bonoDocs[p.sem.key] || {}).pagos || []).forEach(x => { pagos[x.email] = Number(x.pts) || 0; });
+                const fallos = [];
+                let nuevos = 0, totopos = 0;
                 // De a 8 en paralelo: cada pago es una transaccion independiente.
                 for (let i = 0; i < p.aPagar.length; i += 8) {
                     const lote = p.aPagar.slice(i, i + 8);
-                    const res = await Promise.allSettled(lote.map(f => _bonoPagarUno(f.email, p.sem, p.meta, p.totopos, f.ing)));
+                    const res = await Promise.allSettled(lote.map(f => _bonoPagarUno(f.email, p.sem, f.total, {
+                        ingresado: Math.round(f.ing * 100) / 100, meta: p.meta, tarifa: p.info.tarifa, bloques: f.bloques })));
                     res.forEach((r, j) => {
-                        if (r.status === 'fulfilled') listos.push(lote[j].email);
-                        else { fallos.push(lote[j].name); console.error('[bono] pago', lote[j].email, r.reason); }
+                        if (r.status === 'fulfilled') {
+                            pagos[lote[j].email] = r.value.total;
+                            if (r.value.nuevo) { nuevos++; totopos += r.value.nuevo; }
+                        } else { fallos.push(lote[j].name); console.error('[bono] pago', lote[j].email, r.reason); }
                     });
                     if (prog) prog.textContent = `Pagando… ${Math.min(i + 8, p.aPagar.length)} de ${p.aPagar.length}`;
                 }
-                // Pagado o ya estaba pagado: en los dos casos va a la lista.
-                if (listos.length) await updateDoc(ref, { pagados: arrayUnion(...listos) });
+                await setDoc(ref, { pagos: Object.keys(pagos).map(email => ({ email, pts: pagos[email] })) }, { merge: true });
                 await renderBono();
                 bonoCerrarPrevia();
                 alert(fallos.length
-                    ? `Se pagó a ${listos.length}. Fallaron ${fallos.length}: ${fallos.join(', ')}. Abre "Ver" en esa semana para reintentar.`
-                    : `Listo. ${p.nuevo ? 'CSV guardado. ' : ''}Se pagó a ${listos.length} agente(s).`);
+                    ? `Se pagaron ${totopos.toLocaleString('es-MX')} totopos a ${nuevos}. Fallaron ${fallos.length}: ${fallos.join(', ')}. Abre "Ver" en esa semana para reintentar.`
+                    : `Listo. ${p.nuevo ? 'CSV guardado. ' : ''}Se pagaron ${totopos.toLocaleString('es-MX')} totopos a ${nuevos} agente(s).`);
             } catch (e) {
                 console.error('[bono] confirmar', e);
                 alert('Error: ' + e.message);
