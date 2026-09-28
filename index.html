@@ -2691,9 +2691,9 @@
                 <div class="card">
                     <p class="card-title"><i class="fa fa-trophy"></i> Bono semanal — configuración</p>
                     <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
-                        Cada semana, de <b>lunes a domingo</b>, el agente cobra la tarifa de esa semana <b>por cada bloque de la meta</b>
-                        que ingresó (<code>P_ING TOT − PRIMA EXCD</code>, y la prima en trámite si la marcas al subir el CSV).
-                        Con $4,000 y meta de $2,000 cobra 2 veces la tarifa. Si no llega a la meta, esa semana no cobra.
+                        Cada semana, de <b>lunes a domingo</b>, el agente que llega a la meta cobra la tarifa de esa semana
+                        <b>por cada $2,000 que ingresó, en proporción</b> (<code>P_ING TOT − PRIMA EXCD</code>, y la prima en trámite si la marcas al subir el CSV).
+                        Con $3,500 en una semana que paga 100, cobra 175. Si no llega a la meta, esa semana no cobra.
                         No depende de reportar en la bitácora.
                     </p>
                     <p style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.55;">
@@ -3403,7 +3403,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.52.0';
+        window.APP_HTML_VERSION = 'v2.53.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -8790,8 +8790,8 @@
 
         // ─── BONO SEMANAL ─────────────────────────────────────────────────
         // Totopos por resultados, sin reportar. Cada semana ISO (lunes a domingo)
-        // el agente cobra la tarifa de ESA semana por cada bloque de la meta que
-        // ingreso ($4,000 con meta de $2,000 = 2 veces la tarifa). Las semanas
+        // el agente que llega a la meta cobra la tarifa de ESA semana por cada
+        // $2,000 que ingreso, en proporcion ($3,500 a tarifa 100 = 175). Las semanas
         // verdes (dentro del mes, lejos del cierre) pagan mas y van bajando; las
         // ambar (cruzan de mes o son del cierre) pagan la base. Asi no conviene
         // ni guardar produccion para el cierre ni dosificarla.
@@ -8819,7 +8819,8 @@
         // verdes; la tarifa depende de cuantas tiene el mes y del lugar de la
         // semana: la primera paga mas y van bajando hacia el cierre.
         // Ambar: todas las demas, las que cruzan de mes y las del cierre.
-        // Se paga la tarifa por cada bloque completo de la meta ($2,000).
+        // Se paga la tarifa por cada $2,000 (la meta), en proporcion: con la meta
+        // cumplida, $3,500 a tarifa 100 son 175. Abajo de la meta no se paga.
         const BONO_TARIFAS_DEF = { ambar: 100, dos: [175, 150], tres: [175, 155, 140] };
         const _bonoHabil = d => d.getDay() !== 0 && d.getDay() !== 6;
         // d es uno de los ultimos 5 dias habiles de su mes
@@ -8910,10 +8911,12 @@
             return { porAso, nombres, sinExcd: iExcd < 0, sinTram: iTram < 0, t };
         }
 
-        // Cuantos bloques de la meta hay en lo ingresado, y cuanto pagan.
+        // Con la meta cumplida se paga en proporcion a todo lo ingresado:
+        // ingresado x tarifa / meta, redondeado hacia abajo. `bloques` es cuantas
+        // veces la meta (1.75 con $3,500), solo para mostrar el calculo.
         function _bonoMonto(ing, meta, tarifa) {
-            const bloques = meta > 0 && ing >= meta ? Math.floor(ing / meta) : 0;
-            return { bloques, total: bloques * tarifa };
+            if (!(meta > 0) || !(ing >= meta)) return { bloques: 0, total: 0 };
+            return { bloques: Math.round(ing / meta * 100) / 100, total: Math.floor(ing * tarifa / meta) };
         }
 
         function _bonoEvaluar(porAso, agentes, meta, tarifa) {
@@ -9168,7 +9171,7 @@
                    ${aPagar.length ? `Se pagan <b>${totalAhora.toLocaleString('es-MX')}</b> totopos a <b>${aPagar.length}</b>.` : 'No hay nadie pendiente de pago.'}</p>
                 <div style="max-height:360px;overflow:auto;margin-bottom:12px;">
                     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-                        <tr style="color:var(--slate);"><th style="text-align:left;padding:6px;">Agente</th><th style="${td}">Ingresado</th><th style="${td}">Bloques × tarifa</th><th style="${td}">Le toca</th><th style="${td}">Ya pagado</th><th style="${td}">Paga ahora</th></tr>
+                        <tr style="color:var(--slate);"><th style="text-align:left;padding:6px;">Agente</th><th style="${td}">Ingresado</th><th style="${td}">Veces la meta × tarifa</th><th style="${td}">Le toca</th><th style="${td}">Ya pagado</th><th style="${td}">Paga ahora</th></tr>
                         ${filas || '<tr><td colspan="6" style="padding:10px;color:var(--slate);">Sin agentes con clave.</td></tr>'}
                     </table>
                 </div>
