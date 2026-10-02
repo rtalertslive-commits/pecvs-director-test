@@ -2438,6 +2438,7 @@
                     <span style="color:rgba(255,255,255,0.25);">|</span>
                     <span><strong id="counter-active-7d" style="color:#bbf3d4; font-weight:800;">—</strong> activos (7d)</span>
                 </span>
+                <div id="bono-embudo" style="display:none; margin-top:8px;"></div>
             </div>
             <div class="card" style="margin-bottom:20px;">
                 <p class="card-title"><i class="fa fa-clock"></i> Solicitudes Pendientes de Aprobación</p>
@@ -3403,7 +3404,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.53.0';
+        window.APP_HTML_VERSION = 'v2.54.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -4049,6 +4050,7 @@
                             teamCode: agentData.teamCode,
                             email: agentId,
                             companyCode: agentData.companyCode || '',
+                            karmaLog: agentData.karmaLog || [],
                             telegram_username: agentData.telegram_username || null,
                             auth_provider: agentData.auth_provider || null,
                         });
@@ -7474,6 +7476,7 @@
 
         function renderGestion() {
             renderGestionCounters();
+            renderBonoEmbudo().catch(e => console.warn('embudo BONO', e));
             renderPendingList();
             renderGestionAll();
             renderOrphans();
@@ -7518,6 +7521,73 @@
             });
             if ($('counter-active-7d')) $('counter-active-7d').textContent = activeAgentIds.size;
         }
+
+        // Embudo BONO!: ganaron -> de esos, canjearon (pendiente o aprobado)
+        // despues de cobrar -> de esos, usaron la bitacora. Dos periodos:
+        //  'todo'   = desde su primer cobro de BONO!; bitacora = algun dia desde ese cobro.
+        //  'semana' = la ultima semana pagada; canje despues del cobro de esa semana,
+        //             bitacora = algun dia de esa semana (lunes a domingo).
+        let _embudoModo = 'todo', _embudoVer = null, _embudoCanjes = null, _embudoCanjesT = 0;
+        const _embudoKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        async function renderBonoEmbudo() {
+            const el = document.getElementById('bono-embudo');
+            if (!el) return;
+            const conBono = (state.agents || []).filter(a => (a.karmaLog || []).some(k => k && k.type === 'bono_semanal'));
+            if (!conBono.length || !state.directorCode) { el.style.display = 'none'; return; }
+            if (!_embudoCanjes || Date.now() - _embudoCanjesT > 60000) {
+                const snap = await getDocs(query(collection(db, 'redemptionRequests'), where('directorCode', '==', state.directorCode)));
+                _embudoCanjes = snap.docs.map(d => d.data()).filter(r => r.status === 'pending' || r.status === 'approved');
+                _embudoCanjesT = Date.now();
+            }
+            // Dias con actividad por agente (misma regla que activos 7d)
+            const dias = {}, hoy = new Date();
+            (state.entries || []).forEach(e => {
+                if (!e || !e.mes || !e.dias) return;
+                const [mesName, yearStr] = String(e.mes).split(' ');
+                const monthIdx = MONTHS_ES.indexOf(mesName), year = parseInt(yearStr), semana = parseInt(e.semana);
+                if (monthIdx < 0 || isNaN(year) || isNaN(semana)) return;
+                const weekDays = getMonthCalendar(year, monthIdx + 1)[semana - 1] || [];
+                e.dias.forEach(d => {
+                    if (!d || !d.dia) return;
+                    if (!((d.P + d.E + d.C + d.V + d.S) > 0 || (parseFloat(d.prima) || 0) > 0 || d.sinActividad === true)) return;
+                    const dayInfo = weekDays.find(w => w.dayName === d.dia);
+                    if (!dayInfo) return;
+                    const date = new Date(year, monthIdx, dayInfo.date);
+                    if (date > hoy) return;
+                    (dias[e.agentId] = dias[e.agentId] || []).push(_embudoKey(date));
+                });
+            });
+            const semanas = conBono.flatMap(a => a.karmaLog).filter(k => k && k.type === 'bono_semanal').map(k => k.semana).sort();
+            const sem = semanas[semanas.length - 1], primera = semanas[0].split('-')[1];
+            const [sAnio, sNum] = sem.split('-W').map(Number);
+            const sInfo = _bonoSemanas(sAnio).find(s => s.num === sNum);
+            const ganaron = [], canjearon = [], bitacora = [];
+            conBono.forEach(a => {
+                const pagos = a.karmaLog.filter(k => k && k.type === 'bono_semanal' && (_embudoModo === 'todo' || k.semana === sem));
+                if (!pagos.length) return;
+                ganaron.push(a);
+                const t0 = pagos.map(k => k.fecha || '').sort()[0];
+                if (!_embudoCanjes.some(r => r.emailSolicitante === a.email && (r.fechaSolicitud || '') >= t0)) return;
+                canjearon.push(a);
+                const desde = _embudoModo === 'todo' ? _embudoKey(new Date(t0)) : _embudoKey(sInfo.lun);
+                const hasta = _embudoModo === 'todo' ? '9999' : _embudoKey(sInfo.dom);
+                if ((dias[a.email] || []).some(k => k >= desde && k <= hasta)) bitacora.push(a);
+            });
+            const grupos = { ganaron, canjearon, bitacora };
+            const num = (g, color, txt) => `<span onclick="verEmbudo('${g}')" style="cursor:pointer;${_embudoVer === g ? 'text-decoration:underline;' : ''}"><strong style="color:${color}; font-weight:800;">${grupos[g].length}</strong> ${txt}</span>`;
+            const sep = '<span style="color:rgba(255,255,255,0.25);">|</span>';
+            const btn = (m, txt) => `<button onclick="setEmbudoModo('${m}')" style="font-size:10px; padding:2px 8px; border-radius:10px; cursor:pointer; border:1px solid rgba(212,175,55,0.35); background:${_embudoModo === m ? 'rgba(212,175,55,0.25)' : 'transparent'}; color:rgba(255,255,255,0.85);">${txt}</button>`;
+            const lista = _embudoVer ? `<div style="margin-top:6px; font-size:11px; color:rgba(255,255,255,0.75); line-height:1.6;">${grupos[_embudoVer].map(a => escapeHtml(a.name)).sort((x, y) => x.localeCompare(y)).join(' · ') || 'Nadie.'}</div>` : '';
+            el.style.display = '';
+            el.innerHTML = `
+                <span title="Ganaron = cobraron BONO! en el periodo. Canjearon = de esos, pidieron algo en la Tienda (pendiente o aprobado) después de cobrar. Bitácora = de los que canjearon, llenaron al menos un día en el periodo. Toca un número para ver los nombres." style="display:inline-flex; flex-wrap:wrap; align-items:center; gap:8px; background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.25); border-radius:14px; padding:5px 12px; font-size:11px; color:rgba(255,255,255,0.85);">
+                    🏆 <strong style="color:var(--gold-l); font-weight:700;">BONO!:</strong>
+                    ${num('ganaron', '#cfe1ff', 'ganaron')} ${sep} ${num('canjearon', '#ffe3a3', 'canjearon')} ${sep} ${num('bitacora', '#bbf3d4', 'también usan la bitácora')}
+                    ${btn('todo', 'Desde ' + primera)} ${btn('semana', 'Última semana (W' + String(sNum).padStart(2, '0') + ')')}
+                </span>${lista}`;
+        }
+        window.setEmbudoModo = m => { _embudoModo = m; renderBonoEmbudo(); };
+        window.verEmbudo = g => { _embudoVer = _embudoVer === g ? null : g; renderBonoEmbudo(); };
 
         // Detecta jerarquía rota: usuarios activos cuyo código de asignación
         // no apunta a un padre activo y existente.
