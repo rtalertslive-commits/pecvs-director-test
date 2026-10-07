@@ -3404,7 +3404,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.54.0';
+        window.APP_HTML_VERSION = 'v2.55.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -10783,9 +10783,13 @@
                             <span style="color:var(--slate);">Stock: ${stockNum < 0 ? '∞' : (Number(stockNum)||0)}</span>
                             &nbsp;·&nbsp;
                             <span style="color:${item.activo ? 'var(--green)' : 'var(--red)'};">${item.activo ? 'Activo' : 'Inactivo'}</span>
+                            ${item.agotado === true ? '&nbsp;·&nbsp;<span style="color:#E5484D;font-weight:800;">AGOTADO</span>' : ''}
                         </div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0;">
+                        <button class="btn btn-sm" onclick="toggleAgotadoItem(${idx})" title="${item.agotado === true ? 'Quitar AGOTADO' : 'Marcar AGOTADO'}" style="${item.agotado === true ? 'background:#E5484D;color:#fff;' : ''}font-size:10px;font-weight:800;">
+                            ${item.agotado === true ? 'Quitar agotado' : 'Agotado'}
+                        </button>
                         <button class="btn btn-sm" onclick="openEditItemModal(${idx})" title="Editar item">
                             <i class="fa fa-pen-to-square"></i>
                         </button>
@@ -10838,6 +10842,18 @@
             await loadCatalog(currentCatRole);
             if (catalogData[currentCatRole][idx]) {
                 catalogData[currentCatRole][idx].activo = !catalogData[currentCatRole][idx].activo;
+                await saveCatalog(currentCatRole);
+                renderCatalogItems();
+            }
+        };
+
+        // AGOTADO es manual: stock 0 no lo activa (el director puede reponer).
+        // El agente lo ve con sello y no puede pedirlo.
+        window.toggleAgotadoItem = async function(idx) {
+            await loadCatalog(currentCatRole);
+            const item = catalogData[currentCatRole][idx];
+            if (item) {
+                item.agotado = item.agotado !== true;
                 await saveCatalog(currentCatRole);
                 renderCatalogItems();
             }
