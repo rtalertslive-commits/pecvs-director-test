@@ -1440,6 +1440,14 @@
             pointer-events: none;
         }
         .cal-cell.future:hover { transform: none; box-shadow: none; }
+        .cal-cell .cal-pago { font-size: 9.5px; line-height: 1; font-weight: 800; color: var(--gold-l); margin-top: 1px; }
+        .cal-pagos { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; font-size: 12px; background: rgba(255,255,255,0.03); color: var(--white); }
+        .cal-pagos-t { font-size: 10px; font-weight: 800; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .cal-pagos-fila { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-variant-numeric: tabular-nums; }
+        .cal-pagos-total { border-top: 1px dashed var(--border); margin-top: 5px; padding-top: 6px; font-weight: 800; }
+        .cal-mas { color: var(--gold-l); font-weight: 800; }
+        .btn-cal-fila { margin-left: 8px; padding: 2px 8px; font-size: 11px; background: rgba(212,175,55,0.12); color: var(--gold); border: 1px solid rgba(212,175,55,0.3); border-radius: 6px; cursor: pointer; }
+        .btn-cal-fila:hover { background: rgba(212,175,55,0.18); border-color: var(--gold); }
         .cal-cell:not(.empty):not(.future):hover { transform: scale(1.06); box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
         .cal-cell.selected { box-shadow: 0 0 0 2px var(--gold); }
         .cal-cell .cal-num { font-size: 12px; line-height: 1.1; }
@@ -3201,6 +3209,7 @@
                 <div class="cal-cell-head">Do</div>
             </div>
             <div class="cal-grid-body" id="cal-grid-body"></div>
+            <div id="cal-pagos"></div>
             <div class="cal-legend">
                 <div class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(16,185,129,0.5)"></span> 💪 Actividad con cierre</div>
                 <div class="cal-legend-item"><span class="cal-legend-dot" style="background:rgba(16,185,129,0.5)"></span> 🌱 Actividad sin cierre</div>
@@ -3459,7 +3468,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.56.0';
+        window.APP_HTML_VERSION = 'v2.57.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -5452,7 +5461,7 @@
                 const totalPrimaFmt = (d.prima + d.redPrima).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 return `<tr>
                     <td class="rank-num">${i + 1}</td>
-                    <td class="agent-name-cell">${ag}</td>
+                    <td class="agent-name-cell">${ag}<button class="btn-cal-fila" title="Ver calendario de reportes" aria-label="Ver calendario de reportes" data-ag="${escapeHtml(ag)}" onclick="openAgentCalendar(this.dataset.ag)"><i class="fa fa-calendar-days"></i></button></td>
                     <td style="border-left:2px solid #475569">${d.P}</td><td>${d.E}</td><td>${d.C}</td><td>${d.V}</td><td>${d.S}</td>
                     <td class="ratio-cell" style="border-left:2px solid #475569">${ratioPct(d.E, d.P)}</td>
                     <td class="ratio-cell">${ratioPct(d.C, d.E)}</td>
@@ -5612,6 +5621,7 @@
             if (nameEl) nameEl.textContent = _calCurrentAgent;
             _renderAgentCalendar();
             document.getElementById('agent-calendar-modal').classList.add('open');
+            _calCargarBono();
         };
 
         window.closeAgentCalendar = function () {
@@ -5657,6 +5667,85 @@
             return cellDate.getTime() > today.getTime();
         }
 
+        // ─── PAGOS EN EL CALENDARIO ─────────────────────────────────────────────────
+        // Lo que ya se le pago al agente: cierres de dia de la bitacora (karmaLog
+        // sin `type`) y semanas de BONO!. Se lee de state.agents, que ya viene en vivo.
+        let _calPagos = {};            // dia del mes -> totopos de la bitacora
+        let _calBonoCfg;               // undefined = sin leer; null = la region no tiene BONO!
+        const _calAgente = () => (state.agents || []).find(a => a.name === _calCurrentAgent || a.email === _calCurrentAgent) || null;
+
+        async function _calCargarBono() {
+            if (_calBonoCfg !== undefined) return;
+            try {
+                const s = await getDoc(_bonoCfgRef());
+                _calBonoCfg = s.exists() ? s.data() : null;
+            } catch (e) { console.warn('[cal] config BONO!:', e && e.message); return; }
+            if (_calCurrentAgent) _renderAgentCalendar();
+        }
+
+        // Estado de cada semana ISO del año. Misma regla que la app del agente.
+        function _calEstadosBono(karmaLog, subidasArr, altaIso, anio) {
+            const d0 = x => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+            const hoy = d0(new Date());
+            const ganadas = {};
+            (karmaLog || []).forEach(k => {
+                if (k && k.type === 'bono_semanal' && k.semana) ganadas[k.semana] = (ganadas[k.semana] || 0) + (Number(k.points) || 0);
+            });
+            const subidas = new Set(Array.isArray(subidasArr) ? subidasArr : []);
+            const inicio = [...subidas].sort()[0] || null;
+            const alta = altaIso ? d0(new Date(altaIso)) : null;
+            return _bonoSemanas(anio).map(s => {
+                const sig = new Date(s.dom.getFullYear(), s.dom.getMonth(), s.dom.getDate() + 1);
+                let est;
+                if (ganadas[s.key]) est = 'ganada';
+                else if (hoy < s.lun) est = 'futura';
+                else if (hoy < sig) est = 'curso';
+                else if (alta && !isNaN(alta) && s.dom < alta) est = 'antes-alta';
+                else if (subidas.has(s.key)) est = 'perdida';
+                else if (inicio && s.key >= inicio) est = 'esperando';
+                else est = 'antes-bono';
+                return { ...s, est, pts: ganadas[s.key] || 0 };
+            });
+        }
+
+        // Clave ISO ('2026-W41') de la semana a la que pertenece un dia.
+        function _calSemanaKey(y, m1, d) {
+            const t = new Date(y, m1 - 1, d + 3 - ((new Date(y, m1 - 1, d).getDay() + 6) % 7));   // el jueves de su semana
+            const ene4 = new Date(t.getFullYear(), 0, 4);
+            const jue1 = new Date(t.getFullYear(), 0, 4 - ((ene4.getDay() + 6) % 7) + 3);
+            return t.getFullYear() + '-W' + String(1 + Math.round((t - jue1) / 6048e5)).padStart(2, '0');
+        }
+
+        // Resumen del mes: bitacora + cada semana de BONO!. Una semana que cruza
+        // de mes cuenta en el mes de su jueves, para que no se sume dos veces.
+        function _calPagosHtml(ag) {
+            if (!ag) return '';   // sin sus datos no hay nada que sumar
+            const nDias = Object.keys(_calPagos).length;
+            const totBit = Object.values(_calPagos).reduce((a, n) => a + n, 0);
+            const log = (ag && ag.karmaLog) || [];
+            const fecha = d => d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+            let totBono = 0, filas = '';
+            if (_calBonoCfg || log.some(k => k && k.type === 'bono_semanal')) {
+                const alta = ((state.agentDetails || {})[ag && ag.email] || {}).approvedAt;
+                _calEstadosBono(log, (_calBonoCfg || {}).subidas, alta, _calCurrentYear)
+                    .filter(s => new Date(s.lun.getFullYear(), s.lun.getMonth(), s.lun.getDate() + 3).getMonth() === _calCurrentMonth - 1)
+                    .forEach(s => {
+                        const est = { ganada: `<span class="cal-mas">+${s.pts.toLocaleString('es-MX')}</span>`, perdida: '❌ Sin bono',
+                                      esperando: '⏳ Falta subir el reporte', curso: '🕒 En curso' }[s.est];
+                        if (!est) return;
+                        totBono += s.pts;
+                        filas += `<div class="cal-pagos-fila"><span>🏆 BONO! ${fecha(s.lun)} – ${fecha(s.dom)}</span><span>${est}</span></div>`;
+                    });
+            }
+            if (!nDias && !filas) return '';
+            return `<div class="cal-pagos">
+                <div class="cal-pagos-t">Lo que ganó en ${MONTHS_ES[_calCurrentMonth - 1]}</div>
+                <div class="cal-pagos-fila"><span>📒 Bitácora (${nDias} ${nDias === 1 ? 'día' : 'días'})</span><span class="cal-mas">+${totBit.toLocaleString('es-MX')}</span></div>
+                ${filas}
+                <div class="cal-pagos-fila cal-pagos-total"><span>Total</span><span>+${(totBit + totBono).toLocaleString('es-MX')}</span></div>
+            </div>`;
+        }
+
         function _renderAgentCalendar() {
             if (!_calCurrentAgent || !_calCurrentYear || !_calCurrentMonth) return;
             const mesStr = MONTHS_ES[_calCurrentMonth - 1] + ' ' + _calCurrentYear;
@@ -5690,6 +5779,17 @@
             // Construir grid: leading empties + days
             const grid = document.getElementById('cal-grid-body');
             if (!grid) return;
+            const ag = _calAgente();
+            const prefijo = _calCurrentYear + '-' + String(_calCurrentMonth).padStart(2, '0') + '-';
+            _calPagos = {};
+            ((ag && ag.karmaLog) || []).forEach(k => {
+                if (k && !k.type && typeof k.date === 'string' && k.date.startsWith(prefijo)) {
+                    const dia = parseInt(k.date.slice(8, 10), 10);
+                    _calPagos[dia] = (_calPagos[dia] || 0) + (Number(k.points) || 0);
+                }
+            });
+            const resumen = document.getElementById('cal-pagos');
+            if (resumen) resumen.innerHTML = _calPagosHtml(ag);
             const cells = [];
             for (let i = 0; i < leadingEmpty; i++) {
                 cells.push('<div class="cal-cell empty"></div>');
@@ -5712,6 +5812,7 @@
                 cells.push(`<div class="cal-cell ${info.status}${selected}" onclick="_calShowDayDetail(${d})">
                     <span class="cal-num">${d}</span>
                     ${icon ? `<span class="cal-icon">${icon}</span>` : ''}
+                    ${_calPagos[d] ? `<span class="cal-pago">+${_calPagos[d]}</span>` : ''}
                 </div>`);
             }
             grid.innerHTML = cells.join('');
@@ -5734,12 +5835,37 @@
             const mesNombre = MONTHS_ES[_calCurrentMonth - 1];
             const fechaStr = `${date} de ${mesNombre} (${info.dayName})`;
 
+            // Lo que se le pago por este dia (bitacora) y por su semana (BONO!).
+            const ag = _calAgente();
+            const log = (ag && ag.karmaLog) || [];
+            const dk = _calCurrentYear + '-' + String(_calCurrentMonth).padStart(2, '0') + '-' + String(date).padStart(2, '0');
+            const cierre = log.find(k => k && !k.type && k.date === dk);
+            const valido = ['ok', 'ok-no-close', 'sin-actividad'].includes(info.status);
+            let pago = '';
+            if (cierre) {
+                const bonoPct = Math.round(((Number(cierre.mult) || 1) - 1) * 100);
+                pago = `<svg class="totopo-icon"><use href="#totopo"/></svg> Le pagaron <strong class="cal-mas">+${Number(cierre.points) || 0}</strong> totopos` +
+                       (bonoPct > 0 ? ` <span style="color:var(--slate);">(${Number(cierre.base) || 10} base + ${bonoPct}% de multiplicador)</span>` : '');
+            } else if (valido) {
+                const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+                pago = new Date(_calCurrentYear, _calCurrentMonth - 1, date).getTime() >= hoy.getTime()
+                    ? '⏳ Se acredita <strong>mañana</strong>, cuando abra la app.'
+                    : '⏳ Pendiente: se acredita cuando abra la app.';
+            } else if (info.status === 'red') {
+                pago = 'Sin totopos: el reporte tenía errores.';
+            }
+            const semKey = _calSemanaKey(_calCurrentYear, _calCurrentMonth, date);
+            const bonoSem = log.filter(k => k && k.type === 'bono_semanal' && k.semana === semKey)
+                .reduce((a, k) => a + (Number(k.points) || 0), 0);
+            if (bonoSem > 0) pago += `${pago ? '<br>' : ''}🏆 BONO! de su semana: <strong class="cal-mas">+${bonoSem.toLocaleString('es-MX')}</strong>`;
+            const pagoHtml = pago ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);">${pago}</div>` : '';
+
             if (info.status === 'none') {
-                detail.innerHTML = `<strong>${fechaStr}</strong><br><span class="cal-detail-empty">⚪ No reportó este día.</span>`;
+                detail.innerHTML = `<strong>${fechaStr}</strong><br><span class="cal-detail-empty">⚪ No reportó este día.</span>${pagoHtml}`;
                 return;
             }
             if (info.status === 'sin-actividad') {
-                detail.innerHTML = `<strong>${fechaStr}</strong><br>🌙 Declaró "Sin intento de venta".`;
+                detail.innerHTML = `<strong>${fechaStr}</strong><br>🌙 Declaró "Sin intento de venta".${pagoHtml}`;
                 return;
             }
             const d = info.dia || {};
@@ -5760,6 +5886,7 @@
                     <span>S:<strong>${Number(d.S)||0}</strong></span>
                     <span style="color:var(--gold)">$<strong>${primaFmt}</strong></span>
                 </div>
+                ${pagoHtml}
             `;
         };
 
