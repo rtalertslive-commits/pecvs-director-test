@@ -1685,6 +1685,14 @@
         .foro-post { border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 14px; margin-bottom: 14px; }
         .foro-post:last-child { border-bottom: none; }
         .foro-texto { font-size: 13px; color: var(--white); line-height: 1.6; white-space: pre-wrap; word-break: break-word; margin: 7px 0; }
+        .foro-pdfs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+        .foro-pdf { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.14);
+                    border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--white); font-size: 12.5px;
+                    text-decoration: none; max-width: 100%; box-sizing: border-box; }
+        .foro-pdf .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+        .foro-pdf small { color: var(--slate); flex-shrink: 0; }
+        .foro-pdf button { background: none; border: none; color: var(--red); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px; }
+        .foro-posts-pdf { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
         .foro-imgs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
         .foro-imgs img { width: 84px; height: 84px; object-fit: cover; border-radius: 7px; border: 1px solid rgba(255,255,255,0.12); cursor: pointer; }
         .foro-oculto { opacity: 0.5; font-style: italic; }
@@ -3468,7 +3476,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.57.0';
+        window.APP_HTML_VERSION = 'v2.58.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -7017,6 +7025,9 @@
         let _dforoResps = [];
         let _dforoUnsub = null;
         let _dforoOcupado = false;
+        let _dforoPdfs = [];            // [{ file, nombre, size }]
+        const DFORO_MAX_PDFS = 3;
+        const DFORO_PDF_MAX_BYTES = 5 * 1024 * 1024;   // igual que el limite de las reglas de Storage
         // El director ve TODO, incluidos los hilos ya ocultos, para poder
         // auditarlos. Este toggle controla si se muestran.
         let _dforoVerOcultos = false;
@@ -7295,6 +7306,7 @@
                 const snap = await getDoc(doc(db, 'forum', id));
                 if (!snap.exists()) { body.innerHTML = '<div class="foro-empty">Ese tema ya no está.</div>'; return; }
                 _dforoHilo = { id: snap.id, ...snap.data() };
+                _dforoPdfs = [];
                 if (_dforoUnsub) { try { _dforoUnsub(); } catch (e) {} }
                 _dforoUnsub = onSnapshot(
                     query(collection(db, 'forum', id, 'respuestas'), orderBy('creadoEn', 'asc')),
@@ -7311,6 +7323,9 @@
         function _dforoPost(d, esHilo) {
             const imgs = (d.imagenes || []).map(im =>
                 '<img src="' + escapeHtml(im.url) + '" alt="adjunto" onclick="window.open(\'' + escapeHtml(im.url) + '\',\'_blank\')">').join('');
+            const pdfs = (Array.isArray(d.archivos) ? d.archivos : []).filter(a => a && /^https:\/\//.test(a.url || '')).map(a =>
+                '<a class="foro-pdf" href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener"><i class="fa fa-file-pdf" style="color:#e5484d;"></i><span class="n">'
+                + escapeHtml(a.nombre || 'documento.pdf') + '</span><small>' + _dforoTam(a.size) + '</small></a>').join('');
             // El moderador puede ocultar cualquier cosa, y tambien restaurar lo que
             // se oculto — util cuando alguien borra en caliente algo que hacia falta.
             const accion = d.oculto
@@ -7327,6 +7342,7 @@
                 + (esHilo ? '<div style="font-size:16px;font-weight:800;color:var(--white);margin-top:7px;">' + escapeHtml(d.titulo || '') + '</div>' : '')
                 + '<div class="foro-texto">' + escapeHtml(d.texto || '') + '</div>'
                 + (imgs ? '<div class="foro-imgs">' + imgs + '</div>' : '')
+                + (pdfs ? '<div class="foro-posts-pdf">' + pdfs + '</div>' : '')
                 + '</div>';
         }
 
@@ -7346,7 +7362,51 @@
                     : '<div style="font-size:12px;color:var(--slate);padding:8px 0;">Sin respuestas todavía.</div>')
                 + '<div style="border-top:1px solid rgba(255,255,255,0.10);padding-top:14px;margin-top:6px;">'
                 + '<textarea id="dforo-resp" class="foro-area" placeholder="Responder como Dirección…" maxlength="4000"></textarea>'
+                + '<div class="foro-pdfs" id="dforo-resp-pdfs"></div>'
+                + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">'
+                + '<label class="foro-link" style="cursor:pointer;"><i class="fa fa-file-pdf"></i> Adjuntar PDF'
+                + '<input type="file" accept="application/pdf,.pdf" multiple style="display:none;" onchange="dforoElegirPdfs(this)"></label>'
+                + '<span style="font-size:11px;color:var(--slate);">hasta ' + DFORO_MAX_PDFS + ' · 5 MB c/u</span></div>'
                 + '<button class="btn btn-green" id="dforo-resp-btn" onclick="dforoResponder()">Responder</button></div>';
+            _dforoPintarPdfs();
+        }
+
+        function _dforoTam(n) {
+            n = Number(n) || 0;
+            return n >= 1024 * 1024 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+        }
+        window.dforoElegirPdfs = function (input) {
+            const files = Array.from(input.files || []);
+            input.value = '';
+            for (const f of files) {
+                if (_dforoPdfs.length >= DFORO_MAX_PDFS) { alert('Máximo ' + DFORO_MAX_PDFS + ' PDFs por respuesta.'); break; }
+                if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) { alert('"' + f.name + '" no es un PDF.'); continue; }
+                if (f.size > DFORO_PDF_MAX_BYTES) { alert('"' + f.name + '" pesa ' + _dforoTam(f.size) + '. El máximo es 5 MB.'); continue; }
+                _dforoPdfs.push({ file: f, nombre: f.name, size: f.size });
+            }
+            _dforoPintarPdfs();
+        };
+        function _dforoPintarPdfs() {
+            const el = document.getElementById('dforo-resp-pdfs');
+            if (!el) return;
+            el.innerHTML = _dforoPdfs.map((p, i) =>
+                '<div class="foro-pdf"><i class="fa fa-file-pdf" style="color:#e5484d;"></i><span class="n">' + escapeHtml(p.nombre)
+                + '</span><small>' + _dforoTam(p.size) + '</small><button onclick="dforoQuitarPdf(' + i + ')" aria-label="Quitar">&times;</button></div>').join('');
+        }
+        window.dforoQuitarPdf = function (i) {
+            _dforoPdfs.splice(i, 1);
+            _dforoPintarPdfs();
+        };
+        async function _dforoSubirPdfs(threadId, dc) {
+            const out = [];
+            for (let i = 0; i < _dforoPdfs.length; i++) {
+                const p = _dforoPdfs[i];
+                const path = 'forum/' + (dc || 'sin-dc') + '/' + threadId + '/' + Date.now() + '_' + i + '.pdf';
+                const r = storageRef(storage, path);
+                await uploadBytes(r, p.file, { contentType: 'application/pdf', cacheControl: 'public, max-age=2592000' });
+                out.push({ url: await getDownloadURL(r), path, nombre: p.nombre.slice(0, 120), size: p.size });
+            }
+            return out;
         }
 
         window.dforoResponder = async function () {
@@ -7356,11 +7416,12 @@
             const btn = document.getElementById('dforo-resp-btn');
             _dforoOcupado = true; btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Enviando…';
             try {
+                const archivos = await _dforoSubirPdfs(_dforoHilo.id, _dforoHilo.directorCode || state.directorCode || '');
                 await setDoc(doc(collection(db, 'forum', _dforoHilo.id, 'respuestas')), {
                     autor: _dforoYo(),
                     autorNombre: state.directorName || 'Dirección',
                     autorRol: 'director',
-                    texto: txt, imagenes: [], oculto: false,
+                    texto: txt, imagenes: [], archivos, oculto: false,
                     // Denormalizados: sin esto las reglas harian un get() del hilo
                     // padre por cada respuesta leida.
                     visibilidad: _dforoHilo.visibilidad,
@@ -7378,6 +7439,8 @@
                     _dforoHilo.numRespuestas = (_dforoHilo.numRespuestas || 0) + 1;
                 } catch (e) { console.warn('[dforo] contador:', e); }
                 document.getElementById('dforo-resp').value = '';
+                _dforoPdfs = [];
+                _dforoPintarPdfs();
             } catch (e) {
                 console.error('[dforo] responder:', e);
                 alert('No se pudo enviar: ' + (e.message || e));
