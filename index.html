@@ -3476,7 +3476,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.58.0';
+        window.APP_HTML_VERSION = 'v2.59.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -9413,10 +9413,14 @@
             // Lo ya pagado por agente en esta semana (se paga solo la diferencia)
             const yaPagado = {};
             ((_bonoDocs[sem.key] || {}).pagos || []).forEach(x => { yaPagado[x.email] = Number(x.pts) || 0; });
-            ev.filas.forEach(f => { f.pagado = yaPagado[f.email] || 0; f.ahora = Math.max(0, f.total - f.pagado); });
+            ev.filas.forEach(f => { f.pagado = yaPagado[f.email] || 0; f.ahora = Math.max(0, f.total - f.pagado); f.promotor = _alertasAgentContext(f.email).promotorName; });
             const aPagar = ev.filas.filter(f => f.ahora > 0);
             const cumplen = ev.filas.filter(f => f.cumple).length;
             const totalAhora = aPagar.reduce((a, f) => a + f.ahora, 0);
+            const porPromotor = {};
+            ev.filas.filter(f => f.cumple).forEach(f => { porPromotor[f.promotor] = (porPromotor[f.promotor] || 0) + 1; });
+            const resumenPromotor = Object.entries(porPromotor).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+                .map(([p, n]) => `${escapeHtml(p)} <b>${n}</b>`).join(' · ');
             _bonoPrev = { sem, texto, archivo, nuevo, meta, info, conTram, ev, aPagar };
 
             const avisos = [];
@@ -9460,6 +9464,7 @@
             const td = 'padding:6px;text-align:right;white-space:nowrap;';
             const filas = ev.filas.map(f => `<tr style="border-top:1px solid var(--border);">
                     <td style="padding:6px;">${escapeHtml(f.name)}</td>
+                    <td style="padding:6px;color:var(--slate);">${escapeHtml(f.promotor)}</td>
                     <td style="${td}">${_bonoMoney(f.ing)}</td>
                     <td style="${td}">${f.bloques ? f.bloques + ' × ' + tarifa : '<span style="color:var(--slate);">—</span>'}</td>
                     <td style="${td}font-weight:700;">${f.total ? f.total.toLocaleString('es-MX') : ''}</td>
@@ -9485,10 +9490,11 @@
                 ${avisos.length ? `<p style="font-size:12px;color:var(--red);margin:0 0 10px;line-height:1.6;">${avisos.join('<br>')}</p>` : ''}
                 <p style="font-size:13px;margin:0 0 12px;"><b>${cumplen} de ${ev.filas.length}</b> agentes llegaron a la meta.
                    ${aPagar.length ? `Se pagan <b>${totalAhora.toLocaleString('es-MX')}</b> totopos a <b>${aPagar.length}</b>.` : 'No hay nadie pendiente de pago.'}</p>
+                ${resumenPromotor ? `<p style="font-size:12px;color:var(--slate);margin:-6px 0 12px;line-height:1.6;">Por promotor: ${resumenPromotor}</p>` : ''}
                 <div style="max-height:360px;overflow:auto;margin-bottom:12px;">
                     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-                        <tr style="color:var(--slate);"><th style="text-align:left;padding:6px;">Agente</th><th style="${td}">Ingresado</th><th style="${td}">Veces la meta × tarifa</th><th style="${td}">Le toca</th><th style="${td}">Ya pagado</th><th style="${td}">Paga ahora</th></tr>
-                        ${filas || '<tr><td colspan="6" style="padding:10px;color:var(--slate);">Sin agentes con clave.</td></tr>'}
+                        <tr style="color:var(--slate);"><th style="text-align:left;padding:6px;">Agente</th><th style="text-align:left;padding:6px;">Promotor</th><th style="${td}">Ingresado</th><th style="${td}">Veces la meta × tarifa</th><th style="${td}">Le toca</th><th style="${td}">Ya pagado</th><th style="${td}">Paga ahora</th></tr>
+                        ${filas || '<tr><td colspan="7" style="padding:10px;color:var(--slate);">Sin agentes con clave.</td></tr>'}
                     </table>
                 </div>
                 ${tablaSinCuenta}
