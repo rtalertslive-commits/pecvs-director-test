@@ -3476,7 +3476,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.59.0';
+        window.APP_HTML_VERSION = 'v2.60.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -11769,12 +11769,13 @@
                         : 'var(--orange)';
                     const statusLabel = r.status === 'approved' ? '✓ Aprobado'
                         : r.status === 'rejected' ? '✗ Rechazado'
-                        : r.status === 'cancelled' ? '⊘ Cancelado por agente'
+                        : r.status === 'cancelled' ? (r.cancelledBy === 'director' ? '⊘ Cancelado por director' : '⊘ Cancelado por agente')
                         : r.status;
                     return `
                     <div style="padding:10px 14px;background:var(--panel2);border-radius:8px;border-left:3px solid ${statusColor};${r.status==='cancelled'?'opacity:0.65;':''}">
                         <div style="font-size:13px;font-weight:600;">${eEmoji} ${eName}${cantidadLabel} &nbsp;<span style="color:${statusColor};font-size:11px;">${statusLabel}</span></div>
                         <div style="font-size:11px;color:var(--slate);">${eSol} &nbsp;·&nbsp; <svg class="totopo-icon"><use href="#totopo"/></svg> ${costoText} totopos &nbsp;·&nbsp; ${new Date(r.fechaResolucion||r.fechaSolicitud).toLocaleDateString('es-MX')}</div>
+                        ${r.status === 'approved' ? `<button class="btn btn-red btn-sm" style="margin-top:6px;" onclick="cancelarPedidoAprobado('${escapeHtml(r._id)}')"><i class="fa fa-ban"></i> Cancelar pedido</button>` : ''}
                     </div>`;
                 }).join('') : '<div class="empty-state"><i class="fa fa-inbox"></i> Sin historial.</div>';
 
@@ -11853,6 +11854,54 @@
 
                 loadSolicitudes();
             } catch(e) {
+                alert('Error: ' + e.message);
+                loadSolicitudes();
+            }
+        };
+
+        // Cancela un pedido YA aprobado: devuelve los totopos, regresa el stock y deja la solicitud en 'cancelled'.
+        window.cancelarPedidoAprobado = async function(requestId) {
+            const snap0 = await getDoc(doc(db, 'redemptionRequests', requestId));
+            if (!snap0.exists() || snap0.data().status !== 'approved') { alert('Este pedido ya no está aprobado.'); loadSolicitudes(); return; }
+            const r0 = snap0.data(), cant0 = Math.max(1, Number(r0.cantidad) || 1);
+            if (!confirm(`¿Cancelar el pedido "${r0.itemNombre}" (×${cant0}) de ${r0.nombreSolicitante || r0.emailSolicitante}?\n\nSe le devuelven ${(Number(r0.costo) || 0) * cant0} totopos y el producto regresa al stock.` +
+                (r0.entregado ? '\n\n⚠ Ya está marcado como ENTREGADO: cancelarlo no recupera el producto físico.' : ''))) return;
+            try {
+                const reqRef = doc(db, 'redemptionRequests', requestId);
+                const colMap = { agente: 'users', coach: 'coaches', promotor: 'promoters' };
+                await runTransaction(db, async (tx) => {
+                    const reqSnap = await tx.get(reqRef);
+                    if (!reqSnap.exists() || reqSnap.data().status !== 'approved') throw new Error('Este pedido ya no está aprobado.');
+                    const req = reqSnap.data();
+                    const cantidad = Math.max(1, Number(req.cantidad) || 1);
+                    const costoTotal = (Number(req.costo) || 0) * cantidad;
+                    const userRef = doc(db, colMap[req.rol] || 'users', req.emailSolicitante);
+                    const userSnap = await tx.get(userRef);
+                    if (!userSnap.exists()) throw new Error('Usuario no existe.');
+                    let catRef = null, catSnap = null;
+                    if (req.stockReservado && req.catalogDoc && req.itemId) {
+                        catRef = doc(db, 'store', req.catalogDoc);
+                        catSnap = await tx.get(catRef);
+                    }
+                    const udata = userSnap.data();
+                    const itemLabel = cantidad > 1 ? `${req.itemNombre} (×${cantidad})` : req.itemNombre;
+                    tx.update(userRef, {
+                        karma: (Number(udata.karma) || 0) + costoTotal,
+                        karmaLog: [...(Array.isArray(udata.karmaLog) ? udata.karmaLog : []),
+                            { type: 'redemption_refund', points: costoTotal, item: itemLabel, fecha: nowISO() }]
+                    });
+                    if (catSnap && catSnap.exists()) {
+                        const items = (catSnap.data().items || []).slice();
+                        const idx = items.findIndex(i => i.id === req.itemId);
+                        if (idx >= 0 && Number(items[idx].stock) >= 0) { // stock -1 = infinito, no se toca
+                            items[idx] = { ...items[idx], stock: Number(items[idx].stock) + cantidad };
+                            tx.update(catRef, { items });
+                        }
+                    }
+                    tx.update(reqRef, { status: 'cancelled', cancelledBy: 'director', fechaResolucion: nowISO() });
+                });
+                loadSolicitudes();
+            } catch (e) {
                 alert('Error: ' + e.message);
                 loadSolicitudes();
             }
@@ -11971,7 +12020,9 @@
             let earned = 0, spent = 0, burned = 0;
             log.forEach(k => {
                 const pts = k.points || 0;
-                if (pts > 0) {
+                if (k.type === 'redemption_refund') {
+                    spent -= pts;
+                } else if (pts > 0) {
                     earned += pts;
                 } else if (k.type === 'manual_burn') {
                     burned += Math.abs(pts);
@@ -12152,6 +12203,7 @@
                     else if (k.type === 'bono_semanal') { label = `Bono semanal ${k.semana || ''}`; icon = '🏆'; }
                     else if (k.type === 'manual_burn') { label = 'Quemado por director'; icon = '🔥'; }
                     else if (k.type === 'redemption') { label = `Canje: ${k.item || ''}`; icon = '🛒'; }
+                    else if (k.type === 'redemption_refund') { label = `Canje cancelado: ${k.item || ''}`; icon = '↩️'; }
                     else if (k.mes) { label = `Reporte mensual: ${k.mes}`; icon = '📋'; }
                     else if (k.date) { label = `Bitácora día: ${k.date}`; icon = '📝'; }
                     else { label = 'Otro movimiento'; icon = '•'; }
