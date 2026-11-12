@@ -2849,6 +2849,13 @@
                         <div><label class="field-label">Cierra el</label><input type="datetime-local" id="sub-fin" class="form-input"></div>
                     </div>
                     <div style="margin-top:12px;"><label class="field-label">Descripción (opcional)</label><input type="text" id="sub-desc" class="form-input" maxlength="200"></div>
+                    <div style="margin-top:12px;"><label class="field-label">Imagen (opcional)</label>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <input type="file" id="sub-imagen" accept="image/*" style="flex:1;min-width:200px;max-width:340px;font-size:12px;">
+                            <img id="sub-imagen-preview" alt="" style="display:none;width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.3);">
+                            <button type="button" id="sub-imagen-quitar" class="btn btn-sm" style="display:none;" onclick="quitarImagenSubasta()"><i class="fa fa-xmark"></i></button>
+                        </div>
+                    </div>
                     <button class="btn btn-green" style="margin-top:14px;" onclick="crearSubasta()"><i class="fa fa-plus"></i> Crear subasta</button>
                 </div>
                 <div class="card" style="margin-top:16px;">
@@ -3498,7 +3505,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.61.0';
+        window.APP_HTML_VERSION = 'v2.62.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -11961,12 +11968,32 @@
                     '<button class="btn btn-green btn-sm" onclick="cerrarSubasta(\'' + escapeHtml(a._id) + '\')"><i class="fa fa-flag-checkered"></i> Cerrar y asignar ganador</button>' +
                     '<button class="btn btn-red btn-sm" onclick="cancelarSubasta(\'' + escapeHtml(a._id) + '\')"><i class="fa fa-ban"></i> Cancelar</button></div>' : '';
                 return '<div style="padding:12px 14px;background:var(--panel2);border-radius:10px;border-left:3px solid ' + color + ';">' +
+                    (a.imageUrl ? '<img src="' + escapeHtml(a.imageUrl) + '" alt="" loading="lazy" onclick="openImagePreview(this.src)" style="float:right;width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.3);cursor:zoom-in;margin-left:8px;">' : '') +
                     '<div style="font-weight:700;">' + escapeHtml(a.emoji || '🔨') + ' ' + escapeHtml(a.nombre || '') + ' <span style="font-size:11px;color:' + color + ';">' + estado + '</span></div>' +
                     (a.descripcion ? '<div style="font-size:12px;color:var(--slate);">' + escapeHtml(a.descripcion) + '</div>' : '') +
                     '<div style="font-size:12px;margin-top:4px;">Líder: ' + lider + ' &nbsp;·&nbsp; ' + (a.history || []).length + ' pujas &nbsp;·&nbsp; cierra ' + new Date(a.endsAtMs).toLocaleString('es-MX') + '</div>' +
                     resultado + (hist ? '<div style="margin-top:6px;">' + hist + '</div>' : '') + botones + '</div>';
             }).join('');
         };
+
+        let _subastaImgBlob = null;
+        window.quitarImagenSubasta = function () {
+            _subastaImgBlob = null;
+            const inp = document.getElementById('sub-imagen'); if (inp) inp.value = '';
+            const pv = document.getElementById('sub-imagen-preview'); if (pv) { pv.style.display = 'none'; pv.src = ''; }
+            const q = document.getElementById('sub-imagen-quitar'); if (q) q.style.display = 'none';
+        };
+        document.addEventListener('change', async (ev) => {
+            if (ev.target?.id !== 'sub-imagen') return;
+            const file = ev.target.files?.[0];
+            if (!file) { _subastaImgBlob = null; return; }
+            if (!file.type.startsWith('image/')) { alert('El archivo debe ser una imagen.'); ev.target.value = ''; return; }
+            try {
+                _subastaImgBlob = await compressImageToJpeg(file);
+                const pv = document.getElementById('sub-imagen-preview'); pv.src = URL.createObjectURL(_subastaImgBlob); pv.style.display = 'block';
+                document.getElementById('sub-imagen-quitar').style.display = 'inline-block';
+            } catch (e) { alert('No se pudo procesar la imagen: ' + (e?.message || e)); _subastaImgBlob = null; }
+        });
 
         window.crearSubasta = async function() {
             const val = id => (document.getElementById(id)?.value || '').trim();
@@ -11978,12 +12005,15 @@
             if (!(increment >= 1)) { alert('El incremento mínimo debe ser de al menos 1.'); return; }
             if (!(endsAtMs > Date.now())) { alert('Elige una fecha y hora de cierre en el futuro.'); return; }
             try {
+                const img = {};
+                if (_subastaImgBlob) { const { url, path } = await uploadItemImage(_subastaImgBlob, 'subasta_' + Date.now()); img.imageUrl = url; img.imagePath = path; }
                 await addDoc(collection(db, 'auctions'), {
                     directorCode: state.directorCode, nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'),
-                    minBid, increment, endsAtMs, status: 'open',
+                    minBid, increment, endsAtMs, status: 'open', ...img,
                     topBid: 0, topBidderId: '', topBidderName: '', history: [], createdAt: nowISO()
                 });
                 ['sub-nombre', 'sub-desc', 'sub-fin'].forEach(i => { document.getElementById(i).value = ''; });
+                quitarImagenSubasta();
                 renderSubastasDir();
             } catch (e) { alert('Error: ' + e.message); }
         };
