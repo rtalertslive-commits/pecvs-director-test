@@ -2224,7 +2224,7 @@
                 La bitácora de agentes tiene muchas columnas y se ve mejor en pantalla grande.<br>Abrí esta sección desde tu PC.
             </div>
             <div class="card">
-                <p class="card-title"><i class="fa fa-book-open"></i> Bitácora de Agentes <span style="font-size:12px;font-weight:400;color:var(--slate);">(solo lectura, para efectos de supervisión)</span></p>
+                <p class="card-title"><i class="fa fa-book-open"></i> Bitácora de Agentes <span style="font-size:12px;font-weight:400;color:var(--slate);">(toca ✏️ para corregir un día como excepción)</span></p>
                 <div class="info-box">
                     <strong>Embudo PECVS$:</strong> P ≥ E ≥ C ≥ V &nbsp;|&nbsp;
                     P=Contactos · E=Entrevistas · C=Cotizaciones · V=Cierres · S=Solicitudes · $=Prima Neta
@@ -3134,6 +3134,36 @@
         </div>
     </div><!-- /mult-manual-modal -->
 
+    <!-- BITÁCORA: EDITAR UN DÍA (excepción) -->
+    <div class="modal-overlay" id="bit-dia-modal">
+        <div class="modal-box" style="max-width:460px;">
+            <button class="modal-close" onclick="cerrarDiaBit()">&times;</button>
+            <h2 id="bit-dia-title" style="margin-top:0;font-size:18px;"><i class="fa fa-pen"></i> Editar día</h2>
+            <p style="font-size:12px;color:var(--slate);margin-bottom:14px;" id="bit-dia-sub"></p>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                <div><label class="field-label">P · Contactos</label><input type="number" id="bit-dia-P" min="0" step="1" oninput="_diaBitPreview()"></div>
+                <div><label class="field-label">E · Entrevistas</label><input type="number" id="bit-dia-E" min="0" step="1" oninput="_diaBitPreview()"></div>
+                <div><label class="field-label">C · Cotizaciones</label><input type="number" id="bit-dia-C" min="0" step="1" oninput="_diaBitPreview()"></div>
+                <div><label class="field-label">V · Cierres</label><input type="number" id="bit-dia-V" min="0" step="1" oninput="_diaBitPreview()"></div>
+                <div><label class="field-label">S · Solicitudes</label><input type="number" id="bit-dia-S" min="0" step="1" oninput="_diaBitPreview()"></div>
+                <div><label class="field-label">$ · Prima neta</label><input type="number" id="bit-dia-prima" min="0" step="any" oninput="_diaBitPreview()"></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:12px;font-size:12.5px;">
+                <input type="checkbox" id="bit-dia-sin" onchange="_diaBitPreview()" style="width:15px;height:15px;cursor:pointer;">
+                <span>🌙 Sin intento de venta (todo en 0)</span>
+            </label>
+            <div id="bit-dia-estado" style="font-size:12px;min-height:34px;margin-top:12px;line-height:1.45;"></div>
+            <div style="font-size:11px;color:var(--slate);margin:6px 0 12px;line-height:1.45;">
+                Si el día queda válido y aún no tiene totopos, la app del agente se los paga al abrirse.
+                Si ya los había cobrado, no se vuelven a pagar ni se quitan.
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn" id="bit-dia-ok" onclick="guardarDiaBit()" style="flex:1;font-weight:700;"><i class="fa fa-check"></i> Guardar</button>
+                <button class="btn btn-sm" onclick="cerrarDiaBit()">Cancelar</button>
+            </div>
+        </div>
+    </div><!-- /bit-dia-modal -->
+
     <!-- TESORERÍA: HISTORIAL MODAL -->
     <div class="modal-overlay" id="tes-history-modal">
         <div class="modal-box" style="max-width:600px;">
@@ -3505,7 +3535,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.62.0';
+        window.APP_HTML_VERSION = 'v2.63.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -4603,6 +4633,80 @@
             autoLoadBit();
         };
 
+        // ─── EDITAR UN DÍA (excepción del director) ───────────────────────────────────
+        // Escribe users/{agente}.entries en una transacción (lee el doc fresco, cambia solo ese
+        // día). La entry queda con editadoDirector para que la app del agente, si está abierta,
+        // la adopte en vez de pisarla con su copia vieja en el siguiente sync.
+        let _diaBit = null;
+        function _bitAgenteSel() { const nombre = document.getElementById('bit-agent').value; return { id: state.agents.find(a => a.name === nombre)?.email, nombre }; }
+        const _bitNum = id => Math.max(0, parseFloat(document.getElementById('bit-dia-' + id).value) || 0);
+
+        window.editarDiaBit = function (dayName, date) {
+            const { id, nombre } = _bitAgenteSel();
+            if (!id) { alert('No se encontró al agente.'); return; }
+            const month = parseInt(document.getElementById('bit-month').value), year = parseInt(document.getElementById('bit-year').value);
+            const mes = MONTHS_ES[month - 1] + ' ' + year, semana = document.getElementById('bit-semana').value;
+            const entry = state.entries.find(e => (e.agentId || e.agent) === nombre && e.mes === mes && e.semana == semana);
+            const d = entry?.dias?.find(x => x.dia === dayName) || {};
+            _diaBit = { id, nombre, mes, semana, dayName };
+            document.getElementById('bit-dia-title').innerHTML = '<i class="fa fa-pen"></i> ' + escapeHtml(dayName) + ' ' + date + ' · ' + escapeHtml(mes);
+            document.getElementById('bit-dia-sub').textContent = nombre;
+            ['P', 'E', 'C', 'V', 'S'].forEach(c => { document.getElementById('bit-dia-' + c).value = d[c] || 0; });
+            document.getElementById('bit-dia-prima').value = parseFloat(d.prima) || 0;
+            document.getElementById('bit-dia-sin').checked = d.sinActividad === true;
+            document.getElementById('bit-dia-ok').disabled = false;
+            _diaBitPreview();
+            document.getElementById('bit-dia-modal').classList.add('open');
+        };
+        window.cerrarDiaBit = function () { document.getElementById('bit-dia-modal').classList.remove('open'); };
+
+        window._diaBitPreview = function () {
+            const sin = document.getElementById('bit-dia-sin').checked;
+            ['P', 'E', 'C', 'V', 'S', 'prima'].forEach(c => { const i = document.getElementById('bit-dia-' + c); i.disabled = sin; });
+            const d = { P: _bitNum('P'), E: _bitNum('E'), C: _bitNum('C'), V: _bitNum('V'), S: _bitNum('S'), prima: _bitNum('prima') };
+            const hay = d.P + d.E + d.C + d.V + d.S + d.prima > 0;
+            const v = validateDay(d);
+            document.getElementById('bit-dia-estado').innerHTML = sin
+                ? '<span style="color:var(--green);">🌙 Sin intento de venta: genera totopos.</span>'
+                : !hay ? '<span style="color:var(--slate);">⚪ Día vacío: no genera totopos.</span>'
+                : v.ok ? '<span style="color:var(--green);">🟢 Día válido: genera totopos.</span>'
+                : '<span style="color:var(--red);">🔴 No genera totopos hasta que cuadre:<br>' + v.errors.map(escapeHtml).join('<br>') + '</span>';
+        };
+
+        window.guardarDiaBit = async function () {
+            if (!_diaBit) return;
+            const { id, nombre, mes, semana, dayName } = _diaBit;
+            const sin = document.getElementById('bit-dia-sin').checked;
+            const nuevo = sin ? { dia: dayName, P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0, sinActividad: true }
+                : { dia: dayName, P: _bitNum('P'), E: _bitNum('E'), C: _bitNum('C'), V: _bitNum('V'), S: _bitNum('S'), prima: _bitNum('prima') };
+            const btn = document.getElementById('bit-dia-ok'); btn.disabled = true;
+            try {
+                const semDias = (bitCurrentWeeks[parseInt(semana) - 1] || []).map(w => w.dayName);
+                await runTransaction(db, async (tx) => {
+                    const ref = doc(db, 'users', id), snap = await tx.get(ref);
+                    if (!snap.exists()) throw new Error('El agente ya no existe.');
+                    const entries = (Array.isArray(snap.data().entries) ? snap.data().entries : []).map(e => ({ ...e }));
+                    let e = entries.find(x => x.mes === mes && x.semana == semana);
+                    if (!e) {
+                        e = { agent: nombre, mes, semana, dias: semDias.map(n => ({ dia: n, P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 })), totales: {}, isIndividual: true };
+                        entries.push(e);
+                    }
+                    e.dias = (e.dias || []).slice();
+                    const i = e.dias.findIndex(x => x.dia === dayName);
+                    if (i >= 0) e.dias[i] = nuevo; else e.dias.push(nuevo);
+                    const t = { P: 0, E: 0, C: 0, V: 0, S: 0, prima: 0 };
+                    e.dias.forEach(x => { ['P', 'E', 'C', 'V', 'S'].forEach(c => { t[c] += Number(x[c]) || 0; }); t.prima += parseFloat(x.prima) || 0; });
+                    e.totales = t;
+                    e.editadoDirector = nowISO();
+                    tx.update(ref, { entries });
+                });
+                cerrarDiaBit();
+            } catch (err) {
+                btn.disabled = false;
+                alert('No se pudo guardar el día:\n' + (err?.message || err));
+            }
+        };
+
         window.autoLoadBit = function () {
             const agent = document.getElementById('bit-agent').value;
             const semana = document.getElementById('bit-semana').value;
@@ -4641,7 +4745,7 @@
                   <td style="text-align:center;">${C}</td><td style="text-align:center;">${V}</td>
                   <td style="text-align:center;">${S}</td>
                   <td style="text-align:center;">$${pr.toFixed(0)}</td>
-                  <td style="text-align:center;font-size:16px;">${funnel}</td>
+                  <td style="text-align:center;font-size:16px;">${funnel} <button type="button" class="btn btn-sm" title="Editar este día" onclick="editarDiaBit('${dayName}', ${date})" style="padding:2px 7px;font-size:12px;">✏️</button></td>
                 </tr>`;
             }).join('');
             document.getElementById('bit-tt-P').textContent = semP;
