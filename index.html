@@ -2839,7 +2839,7 @@
             <!-- ── SUBASTAS ── -->
             <div id="tsub-subastas" style="display:none;">
                 <div class="card">
-                    <p class="card-title"><i class="fa fa-gavel"></i> Nueva subasta</p>
+                    <p class="card-title" id="sub-form-titulo"><i class="fa fa-gavel"></i> Nueva subasta</p>
                     <p style="font-size:12px;color:var(--slate);margin-bottom:14px;">Los agentes pujan con sus totopos. Cada puja queda reservada (no la pueden gastar en otra cosa) hasta que alguien la supere. Al cerrar, se le cobra al ganador. Con varias unidades ganan las ofertas más altas, una por persona, y cada quien paga lo que ofreció.</p>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
                         <div><label class="field-label">Item</label><input type="text" id="sub-nombre" class="form-input" maxlength="80" placeholder="Ej: Bocina JBL"></div>
@@ -2857,7 +2857,8 @@
                             <button type="button" id="sub-imagen-quitar" class="btn btn-sm" style="display:none;" onclick="quitarImagenSubasta()"><i class="fa fa-xmark"></i></button>
                         </div>
                     </div>
-                    <button class="btn btn-green" style="margin-top:14px;" onclick="crearSubasta()"><i class="fa fa-plus"></i> Crear subasta</button>
+                    <button class="btn btn-green" id="sub-crear-btn" style="margin-top:14px;" onclick="crearSubasta()"><i class="fa fa-plus"></i> Crear subasta</button>
+                    <button class="btn" id="sub-cancelar-edicion" style="margin-top:14px;display:none;" onclick="cancelarEdicionSubasta()">Cancelar edición</button>
                 </div>
                 <div class="card" style="margin-top:16px;">
                     <p class="card-title"><i class="fa fa-list"></i> Subastas</p>
@@ -3536,7 +3537,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.64.0';
+        window.APP_HTML_VERSION = 'v2.65.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -12084,6 +12085,7 @@
                     : rk.map((b, i) => '<div style="font-size:11px;color:' + (i < N ? 'var(--green)' : 'var(--slate)') + ';">' + (i < N ? '✅ ' : '❌ ') + (i + 1) + '. ' + escapeHtml(b.name) + ' — <b>' + b.amount + '</b></div>').join(''));
                 const botones = abierta ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
                     '<button class="btn btn-green btn-sm" onclick="cerrarSubasta(\'' + escapeHtml(a._id) + '\')"><i class="fa fa-flag-checkered"></i> Cerrar y asignar ' + (multi ? 'ganadores' : 'ganador') + '</button>' +
+                    '<button class="btn btn-sm" onclick="editarSubasta(\'' + escapeHtml(a._id) + '\')"><i class="fa fa-pen"></i> Editar</button>' +
                     '<button class="btn btn-red btn-sm" onclick="cancelarSubasta(\'' + escapeHtml(a._id) + '\')"><i class="fa fa-ban"></i> Cancelar</button></div>' : '';
                 return '<div style="padding:12px 14px;background:var(--panel2);border-radius:10px;border-left:3px solid ' + color + ';">' +
                     (a.imageUrl ? '<img src="' + escapeHtml(a.imageUrl) + '" alt="" loading="lazy" onclick="openImagePreview(this.src)" style="float:right;width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.3);cursor:zoom-in;margin-left:8px;">' : '') +
@@ -12095,8 +12097,10 @@
         };
 
         let _subastaImgBlob = null;
+        let _editandoSubasta = null, _subastaImgQuitada = false;   // id de la subasta en edicion; si quito la imagen que ya tenia
         window.quitarImagenSubasta = function () {
             _subastaImgBlob = null;
+            _subastaImgQuitada = true;
             const inp = document.getElementById('sub-imagen'); if (inp) inp.value = '';
             const pv = document.getElementById('sub-imagen-preview'); if (pv) { pv.style.display = 'none'; pv.src = ''; }
             const q = document.getElementById('sub-imagen-quitar'); if (q) q.style.display = 'none';
@@ -12113,6 +12117,35 @@
             } catch (e) { alert('No se pudo procesar la imagen: ' + (e?.message || e)); _subastaImgBlob = null; }
         });
 
+        const _fechaLocalSubasta = ms => new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        function _resetFormSubasta() {
+            ['sub-nombre', 'sub-desc', 'sub-fin'].forEach(i => { document.getElementById(i).value = ''; });
+            document.getElementById('sub-uni').value = '1';
+            quitarImagenSubasta();
+            _editandoSubasta = null; _subastaImgQuitada = false;
+            document.getElementById('sub-form-titulo').innerHTML = '<i class="fa fa-gavel"></i> Nueva subasta';
+            document.getElementById('sub-crear-btn').innerHTML = '<i class="fa fa-plus"></i> Crear subasta';
+            document.getElementById('sub-cancelar-edicion').style.display = 'none';
+        }
+        window.cancelarEdicionSubasta = function() { _resetFormSubasta(); };
+        window.editarSubasta = function(id) {
+            const a = _subastasDir.find(x => x._id === id);
+            if (!a || a.status !== 'open') return;
+            _resetFormSubasta();
+            _editandoSubasta = id;
+            const set = (k, v) => { document.getElementById(k).value = v; };
+            set('sub-nombre', a.nombre || ''); set('sub-uni', a.unidades || 1); set('sub-emoji', a.emoji || '🔨');
+            set('sub-min', a.minBid); set('sub-inc', a.increment); set('sub-fin', _fechaLocalSubasta(a.endsAtMs)); set('sub-desc', a.descripcion || '');
+            if (a.imageUrl) {
+                const pv = document.getElementById('sub-imagen-preview'); pv.src = a.imageUrl; pv.style.display = 'block';
+                document.getElementById('sub-imagen-quitar').style.display = 'inline-block';
+            }
+            document.getElementById('sub-form-titulo').innerHTML = '<i class="fa fa-pen"></i> Editando: ' + escapeHtml(a.nombre || '');
+            document.getElementById('sub-crear-btn').innerHTML = '<i class="fa fa-check"></i> Guardar cambios';
+            document.getElementById('sub-cancelar-edicion').style.display = '';
+            document.getElementById('sub-form-titulo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
         window.crearSubasta = async function() {
             const val = id => (document.getElementById(id)?.value || '').trim();
             const nombre = val('sub-nombre'), minBid = Math.floor(Number(val('sub-min'))), increment = Math.floor(Number(val('sub-inc')));
@@ -12124,9 +12157,34 @@
             if (!(minBid >= 1)) { alert('La puja mínima debe ser de al menos 1 totopo.'); return; }
             if (!(increment >= 1)) { alert('El incremento mínimo debe ser de al menos 1.'); return; }
             if (!(endsAtMs > Date.now())) { alert('Elige una fecha y hora de cierre en el futuro.'); return; }
+            const pujas = _editandoSubasta ? (_subastasDir.find(x => x._id === _editandoSubasta)?.history || []).length : 0;
+            if (pujas && !confirm('Esta subasta ya tiene ' + pujas + ' pujas. Los cambios se aplican de inmediato para todos los agentes. ¿Guardar?')) return;
             try {
                 const img = {};
                 if (_subastaImgBlob) { const { url, path } = await uploadItemImage(_subastaImgBlob, 'subasta_' + Date.now()); img.imageUrl = url; img.imagePath = path; }
+                if (_editandoSubasta) {
+                    if (!_subastaImgBlob && _subastaImgQuitada) { img.imageUrl = ''; img.imagePath = ''; }
+                    const id = _editandoSubasta;
+                    await runTransaction(db, async (tx) => {
+                        const ref = doc(db, 'auctions', id), s = await tx.get(ref);
+                        if (!s.exists() || s.data().status !== 'open') throw new Error('Esta subasta ya no está abierta.');
+                        const au = s.data();
+                        const cambios = { nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'), minBid, increment, endsAtMs, unidades, ...img, editadaAt: nowISO() };
+                        // Si pasa de 1 unidad a varias (o al reves), las ofertas se rearman desde el historial: la mejor de cada agente.
+                        if (((au.unidades || 1) > 1) !== (unidades > 1)) {
+                            const mejor = {};
+                            (au.history || []).forEach(h => { if (h && h.id && (!mejor[h.id] || Number(h.amount) > Number(mejor[h.id].amount))) mejor[h.id] = h; });
+                            cambios.bids = {};
+                            Object.values(mejor).forEach(h => { cambios.bids[h.id] = { name: h.name || h.id, amount: Number(h.amount) || 0, at: h.at || '' }; });
+                            const top = _rankingSubasta({ bids: cambios.bids })[0];
+                            Object.assign(cambios, top ? { topBid: top.amount, topBidderId: top.id, topBidderName: top.name } : { topBid: 0, topBidderId: '', topBidderName: '' });
+                        }
+                        tx.update(ref, cambios);
+                    });
+                    _resetFormSubasta();
+                    renderSubastasDir();
+                    return;
+                }
                 await addDoc(collection(db, 'auctions'), {
                     directorCode: state.directorCode, nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'),
                     minBid, increment, endsAtMs, status: 'open', ...img, unidades, ...(unidades > 1 ? { bids: {} } : {}),
