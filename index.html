@@ -3538,7 +3538,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.66.0';
+        window.APP_HTML_VERSION = 'v2.67.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -12059,11 +12059,30 @@
 
         function _repartoBolsa(a, montos) {
             const lista = (montos || _rankingSubasta(a)).filter(b => b.amount > 0);
-            const total = lista.reduce((s, b) => s + b.amount, 0);
-            const precio = Math.max(a.minBid, Math.ceil(total / a.unidades));
-            const reparto = lista.map(b => { const unidades = Math.floor(b.amount / precio); return { ...b, unidades, paga: unidades * precio }; });
-            const asignadas = reparto.reduce((s, r) => s + r.unidades, 0);
-            return { total, precio, reparto, asignadas, sobran: a.unidades - asignadas };
+            const total = lista.reduce((s, b) => s + b.amount, 0), N = a.unidades;
+            const pide = p => lista.reduce((s, b) => s + Math.floor(b.amount / p), 0);   // unidades enteras que alcanzan todos a precio p
+            // Precio = el mas alto al que todavia se reparten las N (nunca menos del minimo). Si ni al minimo se
+            // piden N, se queda en el minimo y sobran.
+            let precio = a.minBid;
+            if (pide(precio) > N) {
+                let lo = precio, hi = Math.max(...lista.map(b => b.amount));
+                while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); if (pide(mid) >= N) lo = mid; else hi = mid - 1; }
+                precio = lo;
+            }
+            const quiere = lista.map(b => Math.floor(b.amount / precio)), D = quiere.reduce((s, q) => s + q, 0);
+            let unidades = quiere.slice();
+            if (D > N) {
+                // A ese precio se piden mas de las que hay: a cada quien su parte proporcional; las que quedan por
+                // redondeo, a quien le falto mas para la siguiente (empate: quien entro primero).
+                unidades = quiere.map(q => Math.floor(q * N / D));
+                let faltan = N - unidades.reduce((s, u) => s + u, 0);
+                lista.map((b, i) => ({ i, resto: quiere[i] * N / D - unidades[i], at: b.at || '' }))
+                    .sort((x, y) => y.resto - x.resto || x.at.localeCompare(y.at))
+                    .forEach(x => { if (faltan > 0 && x.resto > 0) { unidades[x.i]++; faltan--; } });
+            }
+            const reparto = lista.map((b, i) => ({ ...b, unidades: unidades[i], paga: unidades[i] * precio }));
+            const asignadas = unidades.reduce((s, u) => s + u, 0);
+            return { total, precio, reparto, asignadas, sobran: N - asignadas };
         }
         function _liderBolsa(a) {
             const r = _repartoBolsa(a);
