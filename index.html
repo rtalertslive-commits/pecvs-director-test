@@ -2840,13 +2840,14 @@
             <div id="tsub-subastas" style="display:none;">
                 <div class="card">
                     <p class="card-title" id="sub-form-titulo"><i class="fa fa-gavel"></i> Nueva subasta</p>
-                    <p style="font-size:12px;color:var(--slate);margin-bottom:14px;">Los agentes pujan con sus totopos. Cada puja queda reservada (no la pueden gastar en otra cosa) hasta que alguien la supere. Al cerrar, se le cobra al ganador. Con varias unidades ganan las ofertas más altas, una por persona, y cada quien paga lo que ofreció.</p>
+                    <p style="font-size:12px;color:var(--slate);margin-bottom:14px;">Los agentes pujan con sus totopos. Cada puja queda reservada (no la pueden gastar en otra cosa) hasta que alguien la supere. Al cerrar, se le cobra al ganador. Con varias unidades ganan las ofertas más altas, una por persona, y cada quien paga lo que ofreció. En una bolsa proporcional cada quien mete totopos y las unidades se reparten según lo que metió, todos al mismo precio por unidad.</p>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
                         <div><label class="field-label">Item</label><input type="text" id="sub-nombre" class="form-input" maxlength="80" placeholder="Ej: Bocina JBL"></div>
+                        <div><label class="field-label">Tipo</label><select id="sub-tipo" class="form-input" onchange="_tipoSubastaCambio()"><option value="unidad">1 por persona (lo escaso)</option><option value="bolsa">Bolsa proporcional (lo abundante)</option></select></div>
                         <div><label class="field-label">Unidades</label><input type="number" id="sub-uni" class="form-input" min="1" step="1" value="1"></div>
                         <div><label class="field-label">Emoji</label><input type="text" id="sub-emoji" class="form-input" maxlength="4" value="🔨"></div>
-                        <div><label class="field-label">Puja mínima (totopos)</label><input type="number" id="sub-min" class="form-input" min="1" step="1" value="100"></div>
-                        <div><label class="field-label">Incremento mínimo entre pujas</label><input type="number" id="sub-inc" class="form-input" min="1" step="1" value="10"></div>
+                        <div><label class="field-label" id="sub-min-label">Puja mínima (totopos)</label><input type="number" id="sub-min" class="form-input" min="1" step="1" value="100"></div>
+                        <div><label class="field-label" id="sub-inc-label">Incremento mínimo entre pujas</label><input type="number" id="sub-inc" class="form-input" min="1" step="1" value="10"></div>
                         <div><label class="field-label">Cierra el</label><input type="datetime-local" id="sub-fin" class="form-input"></div>
                     </div>
                     <div style="margin-top:12px;"><label class="field-label">Descripción (opcional)</label><input type="text" id="sub-desc" class="form-input" maxlength="200"></div>
@@ -3537,7 +3538,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.65.0';
+        window.APP_HTML_VERSION = 'v2.66.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -12056,6 +12057,32 @@
                 .sort((x, y) => y.amount - x.amount || x.at.localeCompare(y.at));
         }
 
+        function _repartoBolsa(a, montos) {
+            const lista = (montos || _rankingSubasta(a)).filter(b => b.amount > 0);
+            const total = lista.reduce((s, b) => s + b.amount, 0);
+            const precio = Math.max(a.minBid, Math.ceil(total / a.unidades));
+            const reparto = lista.map(b => { const unidades = Math.floor(b.amount / precio); return { ...b, unidades, paga: unidades * precio }; });
+            const asignadas = reparto.reduce((s, r) => s + r.unidades, 0);
+            return { total, precio, reparto, asignadas, sobran: a.unidades - asignadas };
+        }
+        function _liderBolsa(a) {
+            const r = _repartoBolsa(a);
+            return r.reparto.length ? 'Bolsa: <b>' + r.total + '</b> totopos de ' + r.reparto.length + ' agentes · precio hoy <b>' + r.precio + '</b> c/u · se repartirían ' + r.asignadas + ' de ' + a.unidades
+                : 'Sin ofertas (precio mínimo ' + a.minBid + ' c/u)';
+        }
+        function _resultadoBolsaDir(a) {
+            if (a.status !== 'closed') return '';
+            const gs = a.ganadores || [], u = gs.reduce((s, g) => s + (g.unidades || 0), 0), t = gs.reduce((s, g) => s + g.amount, 0);
+            return gs.length
+                ? '<div style="font-size:12px;margin-top:4px;color:var(--green);">Se repartieron ' + u + ' de ' + a.unidades + ' a ' + a.precioFinal + ' c/u entre ' + gs.length + ' agentes (' + t + ' totopos en total). Ya están en Premios por entregar.' + (u < a.unidades ? ' Sobraron ' + (a.unidades - u) + '.' : '') + '</div>'
+                : '<div style="font-size:12px;margin-top:4px;color:var(--slate);">A nadie le alcanzó ni para 1 unidad; no se cobró nada.</div>';
+        }
+        function _tablaBolsaDir(a) {
+            if (a.status === 'closed') return (a.ganadores || []).map(g => '<div style="font-size:11px;color:var(--green);">🏆 ' + escapeHtml(g.name || g.id) + ' — <b>' + g.unidades + '</b> unidades, pagó ' + g.amount + '</div>').join('');
+            const r = _repartoBolsa(a);
+            return r.reparto.map(x => '<div style="font-size:11px;color:' + (x.unidades ? 'var(--green)' : 'var(--slate)') + ';">' + escapeHtml(x.name) + ' — metió <b>' + x.amount + '</b> → ' + x.unidades + ' unidades (' + x.paga + ')</div>').join('');
+        }
+
         window.renderSubastasDir = async function() {
             const box = document.getElementById('subastas-lista');
             if (!box) return;
@@ -12068,20 +12095,20 @@
             if (!_subastasDir.length) { box.innerHTML = '<div class="empty-state"><i class="fa fa-inbox"></i> Sin subastas aún.</div>'; return; }
             box.innerHTML = _subastasDir.map(a => {
                 const abierta = a.status === 'open';
-                const multi = (a.unidades || 1) > 1, N = a.unidades || 1, rk = multi ? _rankingSubasta(a) : [], gs = a.ganadores || [];
+                const multi = (a.unidades || 1) > 1, N = a.unidades || 1, rk = multi ? _rankingSubasta(a) : [], gs = a.ganadores || [], bolsa = a.tipo === 'bolsa';
                 const gano = multi ? gs.length > 0 : !!a.winnerId;
                 const vencida = abierta && Date.now() >= a.endsAtMs;
                 const estado = a.status === 'closed' ? (gano ? '✓ Cerrada' : '⊘ Cerrada sin ganador') : a.status === 'cancelled' ? '⊘ Cancelada' : (vencida ? '⏰ Tiempo cumplido' : '🟢 Abierta');
                 const color = a.status === 'closed' && gano ? 'var(--green)' : abierta ? (vencida ? 'var(--orange)' : 'var(--gold)') : 'var(--slate)';
                 const hist = (a.history || []).slice().reverse().slice(0, 8)
                     .map(h => '<div style="font-size:11px;color:var(--slate);">' + escapeHtml(h.name || h.id) + ' — <b>' + Number(h.amount) + '</b> · ' + new Date(h.at).toLocaleString('es-MX') + '</div>').join('');
-                const lider = multi ? (rk.length ? 'Corte actual: <b>' + rk[Math.min(rk.length, N) - 1].amount + '</b> totopos (' + Math.min(rk.length, N) + ' de ' + N + ' lugares ocupados)' : 'Sin ofertas (mínima ' + a.minBid + ')')
+                const lider = bolsa ? _liderBolsa(a) : multi ? (rk.length ? 'Corte actual: <b>' + rk[Math.min(rk.length, N) - 1].amount + '</b> totopos (' + Math.min(rk.length, N) + ' de ' + N + ' lugares ocupados)' : 'Sin ofertas (mínima ' + a.minBid + ')')
                     : a.topBid > 0 ? escapeHtml(a.topBidderName || a.topBidderId) + ' con <b>' + a.topBid + '</b> totopos' : 'Sin pujas (mínima ' + a.minBid + ')';
-                const resultado = multi ? (a.status !== 'closed' ? '' : gs.length
+                const resultado = bolsa ? _resultadoBolsaDir(a) : multi ? (a.status !== 'closed' ? '' : gs.length
                         ? '<div style="font-size:12px;margin-top:4px;color:var(--green);">Ganaron ' + gs.length + ' agentes, con ofertas de ' + Math.min(...gs.map(g => g.amount)) + ' a ' + Math.max(...gs.map(g => g.amount)) + ' totopos (' + gs.reduce((s, g) => s + g.amount, 0) + ' en total). Ya están en Premios por entregar.' + (gs.length < N ? ' Sobraron ' + (N - gs.length) + ' sin asignar.' : '') + '</div>'
                         : '<div style="font-size:12px;margin-top:4px;color:var(--slate);">Ninguna oferta se pudo cobrar.</div>')
                     : a.status === 'closed' ? (a.winnerId ? '<div style="font-size:12px;margin-top:4px;color:var(--green);">Ganó ' + escapeHtml(a.winnerName || a.winnerId) + ' por ' + a.winningBid + ' totopos. Ya está en Premios por entregar.</div>' : '<div style="font-size:12px;margin-top:4px;color:var(--slate);">Ninguna puja se pudo cobrar.</div>') : '';
-                const tabla = !multi ? '' : (a.status === 'closed' ? gs.map(g => '<div style="font-size:11px;color:var(--green);">🏆 ' + escapeHtml(g.name || g.id) + ' — <b>' + g.amount + '</b></div>').join('')
+                const tabla = bolsa ? _tablaBolsaDir(a) : !multi ? '' : (a.status === 'closed' ? gs.map(g => '<div style="font-size:11px;color:var(--green);">🏆 ' + escapeHtml(g.name || g.id) + ' — <b>' + g.amount + '</b></div>').join('')
                     : rk.map((b, i) => '<div style="font-size:11px;color:' + (i < N ? 'var(--green)' : 'var(--slate)') + ';">' + (i < N ? '✅ ' : '❌ ') + (i + 1) + '. ' + escapeHtml(b.name) + ' — <b>' + b.amount + '</b></div>').join(''));
                 const botones = abierta ? '<div style="display:flex;gap:6px;margin-top:8px;">' +
                     '<button class="btn btn-green btn-sm" onclick="cerrarSubasta(\'' + escapeHtml(a._id) + '\')"><i class="fa fa-flag-checkered"></i> Cerrar y asignar ' + (multi ? 'ganadores' : 'ganador') + '</button>' +
@@ -12089,7 +12116,7 @@
                     '<button class="btn btn-red btn-sm" onclick="cancelarSubasta(\'' + escapeHtml(a._id) + '\')"><i class="fa fa-ban"></i> Cancelar</button></div>' : '';
                 return '<div style="padding:12px 14px;background:var(--panel2);border-radius:10px;border-left:3px solid ' + color + ';">' +
                     (a.imageUrl ? '<img src="' + escapeHtml(a.imageUrl) + '" alt="" loading="lazy" onclick="openImagePreview(this.src)" style="float:right;width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.3);cursor:zoom-in;margin-left:8px;">' : '') +
-                    '<div style="font-weight:700;">' + escapeHtml(a.emoji || '🔨') + ' ' + escapeHtml(a.nombre || '') + (multi ? ' ×' + N : '') + ' <span style="font-size:11px;color:' + color + ';">' + estado + '</span></div>' +
+                    '<div style="font-weight:700;">' + escapeHtml(a.emoji || '🔨') + ' ' + escapeHtml(a.nombre || '') + (bolsa ? ' · bolsa de ' + N : multi ? ' ×' + N : '') + ' <span style="font-size:11px;color:' + color + ';">' + estado + '</span></div>' +
                     (a.descripcion ? '<div style="font-size:12px;color:var(--slate);">' + escapeHtml(a.descripcion) + '</div>' : '') +
                     '<div style="font-size:12px;margin-top:4px;">' + (multi ? '' : 'Líder: ') + lider + ' &nbsp;·&nbsp; ' + (a.history || []).length + ' pujas &nbsp;·&nbsp; cierra ' + new Date(a.endsAtMs).toLocaleString('es-MX') + '</div>' +
                     resultado + (multi ? (tabla ? '<div style="margin-top:6px;">' + tabla + '</div>' : '') : (hist ? '<div style="margin-top:6px;">' + hist + '</div>' : '')) + botones + '</div>';
@@ -12117,10 +12144,16 @@
             } catch (e) { alert('No se pudo procesar la imagen: ' + (e?.message || e)); _subastaImgBlob = null; }
         });
 
+        window._tipoSubastaCambio = function() {
+            const bolsa = document.getElementById('sub-tipo').value === 'bolsa';
+            document.getElementById('sub-min-label').textContent = bolsa ? 'Precio mínimo por unidad (totopos)' : 'Puja mínima (totopos)';
+            document.getElementById('sub-inc-label').textContent = bolsa ? 'Aumento mínimo al subir su total' : 'Incremento mínimo entre pujas';
+        };
         const _fechaLocalSubasta = ms => new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 16);
         function _resetFormSubasta() {
             ['sub-nombre', 'sub-desc', 'sub-fin'].forEach(i => { document.getElementById(i).value = ''; });
             document.getElementById('sub-uni').value = '1';
+            document.getElementById('sub-tipo').value = 'unidad'; _tipoSubastaCambio();
             quitarImagenSubasta();
             _editandoSubasta = null; _subastaImgQuitada = false;
             document.getElementById('sub-form-titulo').innerHTML = '<i class="fa fa-gavel"></i> Nueva subasta';
@@ -12136,6 +12169,7 @@
             const set = (k, v) => { document.getElementById(k).value = v; };
             set('sub-nombre', a.nombre || ''); set('sub-uni', a.unidades || 1); set('sub-emoji', a.emoji || '🔨');
             set('sub-min', a.minBid); set('sub-inc', a.increment); set('sub-fin', _fechaLocalSubasta(a.endsAtMs)); set('sub-desc', a.descripcion || '');
+            document.getElementById('sub-tipo').value = a.tipo === 'bolsa' ? 'bolsa' : 'unidad'; _tipoSubastaCambio();
             if (a.imageUrl) {
                 const pv = document.getElementById('sub-imagen-preview'); pv.src = a.imageUrl; pv.style.display = 'block';
                 document.getElementById('sub-imagen-quitar').style.display = 'inline-block';
@@ -12152,6 +12186,8 @@
             const endsAtMs = new Date(val('sub-fin')).getTime();
             const unidades = Math.floor(Number(val('sub-uni') || 1));
             if (!(unidades >= 1)) { alert('Las unidades deben ser al menos 1.'); return; }
+            const tipo = val('sub-tipo') === 'bolsa' ? 'bolsa' : 'unidad';
+            if (tipo === 'bolsa' && unidades < 2) { alert('Una bolsa proporcional necesita al menos 2 unidades.'); return; }
             if (!state.directorCode) { alert('Configura tu Código de Director primero.'); return; }
             if (!nombre) { alert('Ponle nombre al item.'); return; }
             if (!(minBid >= 1)) { alert('La puja mínima debe ser de al menos 1 totopo.'); return; }
@@ -12169,7 +12205,7 @@
                         const ref = doc(db, 'auctions', id), s = await tx.get(ref);
                         if (!s.exists() || s.data().status !== 'open') throw new Error('Esta subasta ya no está abierta.');
                         const au = s.data();
-                        const cambios = { nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'), minBid, increment, endsAtMs, unidades, ...img, editadaAt: nowISO() };
+                        const cambios = { nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'), minBid, increment, endsAtMs, unidades, tipo, ...img, editadaAt: nowISO() };
                         // Si pasa de 1 unidad a varias (o al reves), las ofertas se rearman desde el historial: la mejor de cada agente.
                         if (((au.unidades || 1) > 1) !== (unidades > 1)) {
                             const mejor = {};
@@ -12187,7 +12223,7 @@
                 }
                 await addDoc(collection(db, 'auctions'), {
                     directorCode: state.directorCode, nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'),
-                    minBid, increment, endsAtMs, status: 'open', ...img, unidades, ...(unidades > 1 ? { bids: {} } : {}),
+                    minBid, increment, endsAtMs, status: 'open', ...img, unidades, tipo, ...(unidades > 1 ? { bids: {} } : {}),
                     topBid: 0, topBidderId: '', topBidderName: '', history: [], createdAt: nowISO()
                 });
                 ['sub-nombre', 'sub-desc', 'sub-fin'].forEach(i => { document.getElementById(i).value = ''; });
@@ -12221,6 +12257,33 @@
                     const aRef = doc(db, 'auctions', id), aSnap = await tx.get(aRef);
                     if (!aSnap.exists() || aSnap.data().status !== 'open') throw new Error('Esta subasta ya no está abierta.');
                     const au = aSnap.data();
+                    if (au.tipo === 'bolsa') {
+                        // Bolsa: si alguien ya no tiene todo lo que metio, cuenta solo su saldo actual; el precio se calcula con eso.
+                        const leidos = [];
+                        for (const c of _rankingSubasta(au)) {
+                            const ref = doc(db, 'users', c.id), snap = await tx.get(ref);
+                            if (snap.exists()) leidos.push({ c, ref, u: snap.data() });
+                        }
+                        const r = _repartoBolsa(au, leidos.map(l => ({ id: l.c.id, name: l.c.name, at: l.c.at, amount: Math.min(l.c.amount, Math.max(0, Math.floor(Number(l.u.karma) || 0))) })));
+                        const gs = r.reparto.filter(x => x.unidades > 0).map(x => {
+                            const { ref, u } = leidos.find(l => l.c.id === x.id);
+                            const nombreG = u.agentName || x.name || x.id, reqRef = doc(collection(db, 'redemptionRequests'));
+                            tx.update(ref, {
+                                karma: Math.max(0, (Number(u.karma) || 0) - x.paga),
+                                karmaLog: [...(Array.isArray(u.karmaLog) ? u.karmaLog : []), { type: 'redemption', points: -x.paga, item: 'Subasta: ' + au.nombre + ' ×' + x.unidades, fecha: nowISO() }]
+                            });
+                            tx.set(reqRef, {
+                                emailSolicitante: x.id, nombreSolicitante: nombreG, rol: 'agente',
+                                coachTeamCode: u.teamCode || '', directorCode: au.directorCode, regionName: u.regionName || '',
+                                itemId: 'subasta_' + id, itemNombre: 'Subasta: ' + au.nombre, costo: r.precio, emoji: au.emoji || '🔨', catalogDoc: '',
+                                cantidad: x.unidades, status: 'approved', stockReservado: false, subastaId: id,
+                                fechaSolicitud: nowISO(), fechaResolucion: nowISO()
+                            });
+                            return { id: x.id, name: nombreG, amount: x.paga, unidades: x.unidades, requestId: reqRef.id };
+                        });
+                        tx.update(aRef, { status: 'closed', closedAt: nowISO(), ganadores: gs, precioFinal: r.precio });
+                        return { bolsa: true, gs, precio: r.precio, N: au.unidades };
+                    }
                     if ((au.unidades || 1) > 1) {
                         // Varias unidades: las N ofertas mas altas, 1 por persona; si alguno ya no tiene saldo, entra el siguiente.
                         const N = au.unidades, ganadores = [];
@@ -12270,7 +12333,8 @@
                     tx.update(aRef, { status: 'closed', closedAt: nowISO(), winnerId: ganador.c.id, winnerName: nombreG, winningBid: monto, requestId: reqRef.id });
                     return { nombreG, monto };
                 });
-                if (res?.multi) alert(res.gs.length ? 'Ganaron ' + res.gs.length + ' agentes (' + res.gs.reduce((s, g) => s + g.amount, 0) + ' totopos en total). Ya se les cobró y quedaron en Premios por entregar.' + (res.gs.length < res.N ? ' Sobraron ' + (res.N - res.gs.length) + ' sin asignar.' : '') : 'Cerrada sin ganadores: ninguna oferta se pudo cobrar.');
+                if (res?.bolsa) { const u = res.gs.reduce((s, g) => s + g.unidades, 0); alert(res.gs.length ? 'Se repartieron ' + u + ' de ' + res.N + ' a ' + res.precio + ' c/u entre ' + res.gs.length + ' agentes (' + res.gs.reduce((s, g) => s + g.amount, 0) + ' totopos en total). Ya están en Premios por entregar.' + (u < res.N ? ' Sobraron ' + (res.N - u) + '.' : '') : 'A nadie le alcanzó ni para 1 unidad; no se cobró nada.'); }
+                else if (res?.multi) alert(res.gs.length ? 'Ganaron ' + res.gs.length + ' agentes (' + res.gs.reduce((s, g) => s + g.amount, 0) + ' totopos en total). Ya se les cobró y quedaron en Premios por entregar.' + (res.gs.length < res.N ? ' Sobraron ' + (res.N - res.gs.length) + ' sin asignar.' : '') : 'Cerrada sin ganadores: ninguna oferta se pudo cobrar.');
                 else alert(res ? 'Ganó ' + res.nombreG + ' por ' + res.monto + ' totopos. Ya se le cobró y quedó en Premios por entregar.' : 'Cerrada sin ganador: ninguna puja se pudo cobrar (los agentes ya no tenían saldo).');
             } catch (e) { alert('Error: ' + e.message); }
             renderSubastasDir();
