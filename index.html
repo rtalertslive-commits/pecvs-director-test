@@ -2843,7 +2843,7 @@
                     <p style="font-size:12px;color:var(--slate);margin-bottom:14px;">Los agentes pujan con sus totopos. Cada puja queda reservada (no la pueden gastar en otra cosa) hasta que alguien la supere. Al cerrar, se le cobra al ganador. Con varias unidades ganan las ofertas más altas, una por persona, y cada quien paga lo que ofreció. En una bolsa proporcional cada quien mete totopos y las unidades se reparten según lo que metió, todos al mismo precio por unidad.</p>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
                         <div><label class="field-label">Item</label><input type="text" id="sub-nombre" class="form-input" maxlength="80" placeholder="Ej: Bocina JBL"></div>
-                        <div><label class="field-label">Tipo</label><select id="sub-tipo" class="form-input" onchange="_tipoSubastaCambio()"><option value="unidad">1 por persona (lo escaso)</option><option value="bolsa">Bolsa proporcional (lo abundante)</option></select></div>
+                        <div><label class="field-label">Tipo</label><select id="sub-tipo" class="form-input" onchange="_tipoSubastaCambio()"><option value="unidad">1 por persona (lo escaso)</option><option value="lote">Lote completo a 1 ganador</option><option value="bolsa">Bolsa proporcional (lo abundante)</option></select></div>
                         <div><label class="field-label">Unidades</label><input type="number" id="sub-uni" class="form-input" min="1" step="1" value="1"></div>
                         <div><label class="field-label">Emoji</label><input type="text" id="sub-emoji" class="form-input" maxlength="4" value="🔨"></div>
                         <div><label class="field-label" id="sub-min-label">Puja mínima (totopos)</label><input type="number" id="sub-min" class="form-input" min="1" step="1" value="100"></div>
@@ -3538,7 +3538,7 @@
         // versión PUBLICADA y no la que se estaba ejecutando: con el HTML viejo en
         // cache, el header decía v2.38.0 mientras corría uno anterior sin la
         // pestaña del Foro. Imposible darse cuenta de que estabas desactualizado.
-        window.APP_HTML_VERSION = 'v2.68.0';
+        window.APP_HTML_VERSION = 'v2.69.0';
 
         // Escape hatch manual: tocar el número de versión fuerza la actualización.
         // Borra SOLO las entradas de navegación del cache, no todo — purgar el
@@ -12138,7 +12138,7 @@
                     '<button class="btn btn-red btn-sm" onclick="cancelarSubasta(\'' + escapeHtml(a._id) + '\')"><i class="fa fa-ban"></i> Cancelar</button></div>' : '';
                 return '<div style="padding:12px 14px;background:var(--panel2);border-radius:10px;border-left:3px solid ' + color + ';">' +
                     (a.imageUrl ? '<img src="' + escapeHtml(a.imageUrl) + '" alt="" loading="lazy" onclick="openImagePreview(this.src)" style="float:right;width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(212,175,55,0.3);cursor:zoom-in;margin-left:8px;">' : '') +
-                    '<div style="font-weight:700;">' + escapeHtml(a.emoji || '🔨') + ' ' + escapeHtml(a.nombre || '') + (bolsa ? ' · bolsa de ' + N : multi ? ' ×' + N : '') + ' <span style="font-size:11px;color:' + color + ';">' + estado + '</span></div>' +
+                    '<div style="font-weight:700;">' + escapeHtml(a.emoji || '🔨') + ' ' + escapeHtml(a.nombre || '') + (bolsa ? ' · bolsa de ' + N : multi ? ' ×' + N : a.tipo === 'lote' ? ' · lote de ' + a.loteDe : '') + ' <span style="font-size:11px;color:' + color + ';">' + estado + '</span></div>' +
                     (a.descripcion ? '<div style="font-size:12px;color:var(--slate);">' + escapeHtml(a.descripcion) + '</div>' : '') +
                     '<div style="font-size:12px;margin-top:4px;">' + (multi ? '' : 'Líder: ') + lider + ' &nbsp;·&nbsp; ' + (a.history || []).length + ' pujas &nbsp;·&nbsp; cierra ' + new Date(a.endsAtMs).toLocaleString('es-MX') + '</div>' +
                     resultado + (multi ? (tabla ? '<div style="margin-top:6px;">' + tabla + '</div>' : '') : (hist ? '<div style="margin-top:6px;">' + hist + '</div>' : '')) + botones + '</div>';
@@ -12168,7 +12168,8 @@
 
         window._tipoSubastaCambio = function() {
             const bolsa = document.getElementById('sub-tipo').value === 'bolsa';
-            document.getElementById('sub-min-label').textContent = bolsa ? 'Precio mínimo por unidad (totopos)' : 'Puja mínima (totopos)';
+            const lote = document.getElementById('sub-tipo').value === 'lote';
+            document.getElementById('sub-min-label').textContent = bolsa ? 'Precio mínimo por unidad (totopos)' : lote ? 'Puja mínima por el lote completo (totopos)' : 'Puja mínima (totopos)';
             document.getElementById('sub-inc-label').textContent = bolsa ? 'Aumento mínimo al subir su total' : 'Incremento mínimo entre pujas';
         };
         const _fechaLocalSubasta = ms => new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -12189,9 +12190,9 @@
             _resetFormSubasta();
             _editandoSubasta = id;
             const set = (k, v) => { document.getElementById(k).value = v; };
-            set('sub-nombre', a.nombre || ''); set('sub-uni', a.unidades || 1); set('sub-emoji', a.emoji || '🔨');
+            set('sub-nombre', a.nombre || ''); set('sub-uni', a.loteDe || a.unidades || 1); set('sub-emoji', a.emoji || '🔨');
             set('sub-min', a.minBid); set('sub-inc', a.increment); set('sub-fin', _fechaLocalSubasta(a.endsAtMs)); set('sub-desc', a.descripcion || '');
-            document.getElementById('sub-tipo').value = a.tipo === 'bolsa' ? 'bolsa' : 'unidad'; _tipoSubastaCambio();
+            document.getElementById('sub-tipo').value = a.tipo === 'bolsa' || a.tipo === 'lote' ? a.tipo : 'unidad'; _tipoSubastaCambio();
             if (a.imageUrl) {
                 const pv = document.getElementById('sub-imagen-preview'); pv.src = a.imageUrl; pv.style.display = 'block';
                 document.getElementById('sub-imagen-quitar').style.display = 'inline-block';
@@ -12208,7 +12209,10 @@
             const endsAtMs = new Date(val('sub-fin')).getTime();
             const unidades = Math.floor(Number(val('sub-uni') || 1));
             if (!(unidades >= 1)) { alert('Las unidades deben ser al menos 1.'); return; }
-            const tipo = val('sub-tipo') === 'bolsa' ? 'bolsa' : 'unidad';
+            const tipo = ['bolsa', 'lote'].includes(val('sub-tipo')) ? val('sub-tipo') : 'unidad';
+            if (tipo === 'lote' && unidades < 2) { alert('Un lote necesita al menos 2 unidades.'); return; }
+            // Lote: por dentro es de 1 pieza (unidades 1) y loteDe guarda cuantas trae.
+            const unidadesDoc = tipo === 'lote' ? 1 : unidades, extraLote = tipo === 'lote' ? { loteDe: unidades } : {};
             if (tipo === 'bolsa' && unidades < 2) { alert('Una bolsa proporcional necesita al menos 2 unidades.'); return; }
             if (!state.directorCode) { alert('Configura tu Código de Director primero.'); return; }
             if (!nombre) { alert('Ponle nombre al item.'); return; }
@@ -12227,9 +12231,9 @@
                         const ref = doc(db, 'auctions', id), s = await tx.get(ref);
                         if (!s.exists() || s.data().status !== 'open') throw new Error('Esta subasta ya no está abierta.');
                         const au = s.data();
-                        const cambios = { nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'), minBid, increment, endsAtMs, unidades, tipo, ...img, editadaAt: nowISO() };
+                        const cambios = { nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'), minBid, increment, endsAtMs, unidades: unidadesDoc, tipo, ...extraLote, ...img, editadaAt: nowISO() };
                         // Si pasa de 1 unidad a varias (o al reves), las ofertas se rearman desde el historial: la mejor de cada agente.
-                        if (((au.unidades || 1) > 1) !== (unidades > 1)) {
+                        if (((au.unidades || 1) > 1) !== (unidadesDoc > 1)) {
                             const mejor = {};
                             (au.history || []).forEach(h => { if (h && h.id && (!mejor[h.id] || Number(h.amount) > Number(mejor[h.id].amount))) mejor[h.id] = h; });
                             cambios.bids = {};
@@ -12245,7 +12249,7 @@
                 }
                 await addDoc(collection(db, 'auctions'), {
                     directorCode: state.directorCode, nombre, emoji: val('sub-emoji') || '🔨', descripcion: val('sub-desc'),
-                    minBid, increment, endsAtMs, status: 'open', ...img, unidades, tipo, ...(unidades > 1 ? { bids: {} } : {}),
+                    minBid, increment, endsAtMs, status: 'open', ...img, unidades: unidadesDoc, tipo, ...extraLote, ...(unidadesDoc > 1 ? { bids: {} } : {}),
                     topBid: 0, topBidderId: '', topBidderName: '', history: [], createdAt: nowISO()
                 });
                 ['sub-nombre', 'sub-desc', 'sub-fin'].forEach(i => { document.getElementById(i).value = ''; });
@@ -12342,13 +12346,13 @@
                     const u = ganador.snap.data(), monto = ganador.c.amount, nombreG = u.agentName || ganador.c.name || ganador.c.id;
                     tx.update(ganador.ref, {
                         karma: Math.max(0, (Number(u.karma) || 0) - monto),
-                        karmaLog: [...(Array.isArray(u.karmaLog) ? u.karmaLog : []), { type: 'redemption', points: -monto, item: 'Subasta: ' + au.nombre, fecha: nowISO() }]
+                        karmaLog: [...(Array.isArray(u.karmaLog) ? u.karmaLog : []), { type: 'redemption', points: -monto, item: 'Subasta: ' + (au.tipo === 'lote' ? 'Lote de ' + au.loteDe + ' × ' : '') + au.nombre, fecha: nowISO() }]
                     });
                     const reqRef = doc(collection(db, 'redemptionRequests'));
                     tx.set(reqRef, {
                         emailSolicitante: ganador.c.id, nombreSolicitante: nombreG, rol: 'agente',
                         coachTeamCode: u.teamCode || '', directorCode: au.directorCode, regionName: u.regionName || '',
-                        itemId: 'subasta_' + id, itemNombre: 'Subasta: ' + au.nombre, costo: monto, emoji: au.emoji || '🔨', catalogDoc: '',
+                        itemId: 'subasta_' + id, itemNombre: 'Subasta: ' + (au.tipo === 'lote' ? 'Lote de ' + au.loteDe + ' × ' : '') + au.nombre, costo: monto, emoji: au.emoji || '🔨', catalogDoc: '',
                         cantidad: 1, status: 'approved', stockReservado: false, subastaId: id,
                         fechaSolicitud: nowISO(), fechaResolucion: nowISO()
                     });
